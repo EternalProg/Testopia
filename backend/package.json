@@ -15,10 +15,12 @@
   },
   "dependencies": {
     "@practice-works/shared": "*",
-    "drizzle-orm": "latest",
+    "bcryptjs": "^3.0.3",
     "dotenv": "latest",
+    "drizzle-orm": "latest",
     "fastify": "latest",
     "fastify-plugin": "latest",
+    "jose": "^6.2.12",
     "mysql2": "latest",
     "zod": "latest"
   },
