@@ -20,6 +20,7 @@ const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (app, options) =>
   app.post('/api/v1/auth/refresh', controller.refresh);
   app.post('/api/v1/auth/logout', controller.logout);
   app.get('/api/v1/auth/me', { onRequest: authenticate }, controller.currentUser);
+  app.get('/api/v1/auth/current-user', { onRequest: authenticate }, controller.currentUser);
 };
 
 export default fp(authRoutes, { name: 'auth-routes' });

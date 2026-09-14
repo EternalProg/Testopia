@@ -76,7 +76,7 @@ describe('authentication routes', () => {
     const unauthorized = await app.inject({ method: 'GET', url: '/api/v1/auth/me' });
     const current = await app.inject({
       method: 'GET',
-      url: '/api/v1/auth/me',
+      url: '/api/v1/auth/current-user',
       headers: { authorization: 'Bearer access-token' },
     });
 
