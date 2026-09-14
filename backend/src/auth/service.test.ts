@@ -65,6 +65,16 @@ describe('AuthService', () => {
     ).rejects.toBeInstanceOf(AuthError);
   });
 
+  it('maps a duplicate-key race during registration to EMAIL_TAKEN', async () => {
+    const duplicate = setup();
+    vi.mocked(duplicate.users.findByEmail).mockResolvedValue(null);
+    vi.mocked(duplicate.users.create).mockRejectedValue({ code: 'ER_DUP_ENTRY' });
+
+    await expect(
+      duplicate.service.register({ email: user.email, username: 'user', password: 'password123' }),
+    ).rejects.toMatchObject({ code: 'EMAIL_TAKEN' });
+  });
+
   it('logs in, refreshes, logs out, and loads the current user', async () => {
     const { service, users, tokens } = setup();
     vi.mocked(users.findByEmail).mockResolvedValue(user);

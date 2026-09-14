@@ -23,6 +23,6 @@ describe('authentication guards', () => {
     ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
     await expect(
       roleGuard('admin')({ authUser: { id: 1, role: 'user' } } as never, {} as never),
-    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });

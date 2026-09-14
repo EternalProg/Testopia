@@ -16,6 +16,7 @@ function repositoryMock() {
     create: vi.fn(),
     findByHash: vi.fn(),
     revoke: vi.fn(),
+    rotate: vi.fn(),
   } as unknown as RefreshTokensRepository;
 }
 
@@ -55,12 +56,16 @@ describe('TokenService', () => {
       replacedByTokenId: null,
       createdAt: new Date(),
     });
+    vi.mocked(repository.rotate).mockResolvedValue(true);
 
     const replacement = await service.rotateRefreshToken(created.token);
 
     expect(replacement.userId).toBe(5);
-    expect(repository.create).toHaveBeenCalledTimes(2);
-    expect(repository.revoke).toHaveBeenCalledWith(created.id, expect.any(String));
+    expect(repository.create).toHaveBeenCalledOnce();
+    expect(repository.rotate).toHaveBeenCalledWith(
+      created.id,
+      expect.objectContaining({ userId: 5 }),
+    );
   });
 
   it.each([
@@ -89,10 +94,35 @@ describe('TokenService', () => {
     vi.mocked(repository.findByHash)
       .mockResolvedValueOnce({ revokedAt: null, id: 'id' } as never)
       .mockResolvedValueOnce(null);
+    vi.mocked(repository.rotate).mockResolvedValue(false);
 
     await service.revokeRefreshToken('known');
     await service.revokeRefreshToken('unknown');
 
     expect(repository.revoke).toHaveBeenCalledWith('id');
+  });
+
+  it('accepts only one winner when two requests rotate the same token', async () => {
+    const repository = repositoryMock();
+    const service = new TokenService(config, repository);
+    const created = await service.createRefreshToken(5);
+    vi.mocked(repository.findByHash).mockResolvedValue({
+      id: created.id,
+      userId: 5,
+      tokenHash: 'hash',
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      replacedByTokenId: null,
+      createdAt: new Date(),
+    });
+    vi.mocked(repository.rotate).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    const results = await Promise.allSettled([
+      service.rotateRefreshToken(created.token),
+      service.rotateRefreshToken(created.token),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
   });
 });

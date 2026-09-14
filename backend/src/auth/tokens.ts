@@ -5,6 +5,7 @@ import { jwtVerify, SignJWT, type JWTPayload } from 'jose';
 import type { UserRole } from '@practice-works/shared';
 
 import type { RefreshTokensRepository } from '../repositories/refresh-tokens.repository.js';
+import type { refreshTokens } from '../db/schema.js';
 
 export interface TokenConfig {
   accessSecret: string;
@@ -63,6 +64,20 @@ export class TokenService {
 
   async createRefreshToken(
     userId: number,
+    repository = this.refreshTokens,
+  ): Promise<{ token: string; id: string; expiresAt: Date }> {
+    const refresh = await this.buildRefreshToken(userId);
+    await repository.create({
+      id: refresh.id,
+      userId,
+      tokenHash: hashRefreshToken(refresh.token),
+      expiresAt: refresh.expiresAt,
+    });
+    return refresh;
+  }
+
+  private async buildRefreshToken(
+    userId: number,
   ): Promise<{ token: string; id: string; expiresAt: Date }> {
     const id = randomUUID();
     const expiresAt = new Date(Date.now() + this.config.refreshTtlMs);
@@ -74,14 +89,6 @@ export class TokenService {
       .setIssuer(this.config.issuer)
       .setExpirationTime(expiresAt)
       .sign(secret(this.config.refreshSecret));
-
-    await this.refreshTokens.create({
-      id,
-      userId,
-      tokenHash: hashRefreshToken(token),
-      expiresAt,
-    });
-
     return { token, id, expiresAt };
   }
 
@@ -110,8 +117,14 @@ export class TokenService {
       throw new Error('Invalid refresh token');
     }
 
-    const replacement = await this.createRefreshToken(stored.userId);
-    await this.refreshTokens.revoke(stored.id, replacement.id);
+    const replacement = await this.buildRefreshToken(stored.userId);
+    const rotated = await this.refreshTokens.rotate(stored.id, {
+      id: replacement.id,
+      userId: stored.userId,
+      tokenHash: hashRefreshToken(replacement.token),
+      expiresAt: replacement.expiresAt,
+    } satisfies typeof refreshTokens.$inferInsert);
+    if (!rotated) throw new Error('Invalid refresh token');
 
     return { userId: stored.userId, token: replacement.token, expiresAt: replacement.expiresAt };
   }

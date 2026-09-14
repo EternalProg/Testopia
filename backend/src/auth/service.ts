@@ -1,9 +1,12 @@
 import type { LoginInput, RegisterInput, User } from '@practice-works/shared';
 
+import type { Database } from '../db/client.js';
+import { withTransaction } from '../db/transaction.js';
+import { RefreshTokensRepository } from '../repositories/refresh-tokens.repository.js';
 import { AuthError } from './errors.js';
 import { hashPassword, verifyPassword } from './password.js';
 import type { TokenService } from './tokens.js';
-import type { UsersRepository } from '../repositories/users.repository.js';
+import { UsersRepository } from '../repositories/users.repository.js';
 
 function publicUser(user: {
   id: number;
@@ -25,6 +28,7 @@ export class AuthService {
   constructor(
     private readonly users: UsersRepository,
     private readonly tokens: TokenService,
+    private readonly db?: Database,
   ) {}
 
   async register(input: RegisterInput) {
@@ -33,12 +37,39 @@ export class AuthService {
       throw new AuthError('An account with this email already exists', 'EMAIL_TAKEN');
     }
 
-    const user = await this.users.create({
-      email,
-      username: input.username.trim(),
-      passwordHash: await hashPassword(input.password),
-    });
-    return this.issueSession(user);
+    const passwordHash = await hashPassword(input.password);
+
+    try {
+      if (!this.db) {
+        const user = await this.users.create({
+          email,
+          username: input.username.trim(),
+          passwordHash,
+        });
+        return this.issueSession(user);
+      }
+
+      const session = await withTransaction(this.db, async (transaction) => {
+        const transactionDb = transaction as unknown as Database;
+        const user = await new UsersRepository(transactionDb).create({
+          email,
+          username: input.username.trim(),
+          passwordHash,
+        });
+        const refresh = await this.tokens.createRefreshToken(
+          user.id,
+          new RefreshTokensRepository(transactionDb),
+        );
+        return { user, refresh };
+      });
+
+      return this.sessionFromRefresh(session.user, session.refresh);
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw new AuthError('An account with this email already exists', 'EMAIL_TAKEN');
+      }
+      throw error;
+    }
   }
 
   async login(input: LoginInput) {
@@ -82,6 +113,13 @@ export class AuthService {
 
   private async issueSession(user: Parameters<typeof publicUser>[0]) {
     const refresh = await this.tokens.createRefreshToken(user.id);
+    return this.sessionFromRefresh(user, refresh);
+  }
+
+  private async sessionFromRefresh(
+    user: Parameters<typeof publicUser>[0],
+    refresh: { token: string; expiresAt: Date },
+  ) {
     return {
       user: publicUser(user),
       accessToken: await this.tokens.createAccessToken(user),
@@ -89,6 +127,12 @@ export class AuthService {
       refreshTokenExpiresAt: refresh.expiresAt,
     };
   }
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_DUP_ENTRY'
+  );
 }
 
 export type AuthSession = Awaited<ReturnType<AuthService['login']>>;

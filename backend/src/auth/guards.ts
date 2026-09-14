@@ -34,7 +34,7 @@ export function authenticationGuard(tokens: TokenService) {
 export function roleGuard(role: UserRole) {
   return async (request: FastifyRequest, _reply: FastifyReply) => {
     if (request.authUser?.role !== role) {
-      throw new AuthError('Insufficient permissions', 'UNAUTHORIZED');
+      throw new AuthError('Insufficient permissions', 'FORBIDDEN');
     }
   };
 }

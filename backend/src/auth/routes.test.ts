@@ -88,4 +88,15 @@ describe('authentication routes', () => {
       createdAt: publicUser.createdAt.toISOString(),
     });
   });
+
+  it('returns 403 when a regular user reaches an admin-only route', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/admin/current-user',
+      headers: { authorization: 'Bearer access-token' },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ error: 'FORBIDDEN' });
+  });
 });

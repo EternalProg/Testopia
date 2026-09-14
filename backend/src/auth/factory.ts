@@ -9,5 +9,5 @@ export function createAuthServices(db: Database) {
   const users = new UsersRepository(db);
   const refreshTokens = new RefreshTokensRepository(db);
   const tokens = new TokenService(getTokenConfig(), refreshTokens);
-  return { service: new AuthService(users, tokens), tokens };
+  return { service: new AuthService(users, tokens, db), tokens };
 }

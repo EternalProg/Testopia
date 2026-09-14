@@ -45,4 +45,32 @@ describe('RefreshTokensRepository', () => {
 
     await expect(repository.findByHash('unknown')).resolves.toBeNull();
   });
+
+  it('allows only one concurrent rotation and inserts the replacement atomically', async () => {
+    const updateResult = [{ affectedRows: 1 }];
+    const update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(updateResult) }),
+    });
+    const values = vi.fn().mockResolvedValue(undefined);
+    const transaction = { update, insert: vi.fn().mockReturnValue({ values }) };
+    const db = {
+      transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<boolean>) =>
+        callback(transaction),
+      ),
+    };
+    const repository = new RefreshTokensRepository(db as unknown as Database);
+    const replacement = { id: 'new-id', userId: 1, tokenHash: 'new-hash', expiresAt: new Date() };
+
+    await expect(repository.rotate('old-id', replacement)).resolves.toBe(true);
+    expect(update).toHaveBeenCalledOnce();
+    expect(values).toHaveBeenCalledWith(replacement);
+
+    update.mockReturnValue({
+      set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([{ affectedRows: 0 }]) }),
+    });
+    await expect(repository.rotate('old-id', { ...replacement, id: 'second-id' })).resolves.toBe(
+      false,
+    );
+    expect(values).toHaveBeenCalledOnce();
+  });
 });
