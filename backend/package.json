@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -13,12 +15,16 @@
   },
   "dependencies": {
     "@practice-works/shared": "*",
+    "drizzle-orm": "latest",
     "dotenv": "latest",
     "fastify": "latest",
+    "fastify-plugin": "latest",
+    "mysql2": "latest",
     "zod": "latest"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "latest",
+    "drizzle-kit": "latest",
     "tsx": "latest",
     "vitest": "latest"
   }

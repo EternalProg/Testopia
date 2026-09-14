@@ -1,0 +1,97 @@
+import { z } from 'zod';
+
+import { attemptStatuses, questionTypes, userRoles } from './domain.js';
+
+export const userRoleSchema = z.enum(userRoles);
+export const questionTypeSchema = z.enum(questionTypes);
+export const attemptStatusSchema = z.enum(attemptStatuses);
+
+export const registerSchema = z.object({
+  email: z.string().trim().email(),
+  username: z.string().trim().min(2).max(100),
+  password: z.string().min(8).max(128),
+});
+
+export const loginSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(1).max(128),
+});
+
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1),
+});
+
+export const createTestSchema = z.object({
+  title: z.string().trim().min(1).max(255),
+  description: z.string().trim().max(10_000).nullable().optional(),
+  isPublished: z.boolean().default(false),
+  shuffleQuestions: z.boolean().default(false),
+  timeLimitMinutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 60)
+    .nullable()
+    .optional(),
+  showAnswersAfterCompletion: z.boolean().default(true),
+});
+
+export const updateTestSchema = createTestSchema.partial();
+
+const answerOptionSchema = z.object({
+  text: z.string().trim().min(1).max(500),
+  isCorrect: z.boolean().default(false),
+});
+
+export const createQuestionSchema = z
+  .object({
+    text: z.string().trim().min(1).max(10_000),
+    type: questionTypeSchema,
+    orderIndex: z.number().int().min(0),
+    options: z.array(answerOptionSchema).max(100).optional(),
+  })
+  .superRefine((question, context) => {
+    const requiresOptions =
+      question.type === 'single_choice' || question.type === 'multiple_choice';
+
+    if (requiresOptions && (!question.options || question.options.length < 2)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['options'],
+        message: 'Choice questions require at least two answer options',
+      });
+    }
+
+    if (!requiresOptions && question.options && question.options.length > 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['options'],
+        message: 'Only choice questions can have answer options',
+      });
+    }
+  });
+
+export const submitAnswerSchema = z.object({
+  questionId: z.number().int().positive(),
+  selectedOptionIds: z.array(z.number().int().positive()).max(100).default([]),
+  textAnswer: z.string().max(10_000).nullable().optional(),
+});
+
+export const submitAttemptSchema = z.object({
+  answers: z.array(submitAnswerSchema),
+});
+
+export const paginationSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type CreateTestInput = z.infer<typeof createTestSchema>;
+export type UpdateTestInput = z.infer<typeof updateTestSchema>;
+export type CreateQuestionInput = z.infer<typeof createQuestionSchema>;
+export type SubmitAttemptInput = z.infer<typeof submitAttemptSchema>;
+export type PaginationInput = z.infer<typeof paginationSchema>;
+
+export { userRoles };
