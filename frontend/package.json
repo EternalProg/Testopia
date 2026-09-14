@@ -15,7 +15,9 @@
     "@practice-works/shared": "*",
     "@vitejs/plugin-react": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "zustand": "latest"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "latest",
@@ -25,6 +27,7 @@
     "@types/react-dom": "latest",
     "@vitest/coverage-v8": "latest",
     "jsdom": "latest",
+    "msw": "latest",
     "vite": "latest",
     "vitest": "latest"
   }
