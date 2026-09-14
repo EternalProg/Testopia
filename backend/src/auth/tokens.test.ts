@@ -5,6 +5,7 @@ import { TokenService } from './tokens.js';
 
 const config = {
   accessSecret: 'access-secret-that-is-long-enough',
+  refreshSecret: 'refresh-secret-that-is-long-enough',
   accessTtl: '15m',
   issuer: 'practiceworks-test',
   refreshTtlMs: 60_000,

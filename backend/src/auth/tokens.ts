@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose';
 
@@ -8,6 +8,7 @@ import type { RefreshTokensRepository } from '../repositories/refresh-tokens.rep
 
 export interface TokenConfig {
   accessSecret: string;
+  refreshSecret: string;
   accessTtl: string;
   issuer: string;
   refreshTtlMs: number;
@@ -63,9 +64,16 @@ export class TokenService {
   async createRefreshToken(
     userId: number,
   ): Promise<{ token: string; id: string; expiresAt: Date }> {
-    const token = randomBytes(32).toString('base64url');
     const id = randomUUID();
     const expiresAt = new Date(Date.now() + this.config.refreshTtlMs);
+    const token = await new SignJWT({ type: 'refresh' })
+      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+      .setSubject(String(userId))
+      .setJti(id)
+      .setIssuedAt()
+      .setIssuer(this.config.issuer)
+      .setExpirationTime(expiresAt)
+      .sign(secret(this.config.refreshSecret));
 
     await this.refreshTokens.create({
       id,
@@ -80,8 +88,25 @@ export class TokenService {
   async rotateRefreshToken(
     token: string,
   ): Promise<{ userId: number; token: string; expiresAt: Date }> {
+    let payload: JWTPayload;
+    try {
+      ({ payload } = await jwtVerify(token, secret(this.config.refreshSecret), {
+        issuer: this.config.issuer,
+        algorithms: ['HS256'],
+      }));
+    } catch {
+      throw new Error('Invalid refresh token');
+    }
     const stored = await this.refreshTokens.findByHash(hashRefreshToken(token));
-    if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) {
+    if (
+      !stored ||
+      stored.revokedAt ||
+      stored.expiresAt <= new Date() ||
+      payload.jti !== stored.id ||
+      typeof payload.sub !== 'string' ||
+      Number(payload.sub) !== stored.userId ||
+      payload.type !== 'refresh'
+    ) {
       throw new Error('Invalid refresh token');
     }
 
