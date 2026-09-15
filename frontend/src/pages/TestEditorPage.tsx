@@ -12,7 +12,7 @@ import { TestLayout } from '../components/TestLayout.js';
 import { testsApi, TestApiError } from '../tests/api.js';
 import type { ApiQuestion, TestDetail } from '../tests/types.js';
 
-type OptionDraft = { text: string; isCorrect: boolean };
+type OptionDraft = { text: string; isCorrect?: boolean };
 type QuestionDraft = {
   id?: number;
   text: string;
@@ -45,10 +45,9 @@ const questionTypeLabels: Record<QuestionType, string> = {
 function toDraft(question: ApiQuestion): QuestionDraft {
   return {
     ...question,
-    options: question.options.map(({ text, isCorrect }) => ({
-      text,
-      isCorrect: Boolean(isCorrect),
-    })),
+    options: question.options.map(({ text, isCorrect }) =>
+      isCorrect === undefined ? { text } : { text, isCorrect },
+    ),
   };
 }
 
@@ -56,10 +55,12 @@ function QuestionForm({
   question,
   onSave,
   onDelete,
+  readOnly = false,
 }: {
   question: QuestionDraft;
   onSave: (question: QuestionDraft) => Promise<void>;
   onDelete: () => Promise<void>;
+  readOnly?: boolean;
 }) {
   const [draft, setDraft] = useState(question);
   const [error, setError] = useState<string | null>(null);
@@ -77,23 +78,33 @@ function QuestionForm({
       ...current,
       options: current.options.map((option, optionIndex) => ({
         ...option,
-        isCorrect:
-          draft.type === 'single_choice' || draft.type === 'true_false'
-            ? optionIndex === index
-            : optionIndex === index
-              ? checked
-              : option.isCorrect,
+        ...(draft.type === 'single_choice' || draft.type === 'true_false'
+          ? { isCorrect: optionIndex === index }
+          : optionIndex === index
+            ? { isCorrect: checked }
+            : {}),
       })),
     }));
   }
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
+    if (readOnly) return;
+    const options: Array<{ text: string; isCorrect: boolean }> = [];
+    if (choice) {
+      for (const option of draft.options) {
+        if (typeof option.isCorrect !== 'boolean') {
+          setError('Question correctness is unavailable until this test is unpublished.');
+          return;
+        }
+        options.push({ text: option.text, isCorrect: option.isCorrect });
+      }
+    }
     const payload: CreateQuestionInput = {
       text: draft.text,
       type: draft.type,
       orderIndex: draft.orderIndex,
-      ...(choice ? { options: draft.options } : {}),
+      ...(choice ? { options } : {}),
     };
     const result = createQuestionSchema.safeParse(payload);
     if (!result.success) {
@@ -112,7 +123,7 @@ function QuestionForm({
     <form className="question-editor" onSubmit={save}>
       <div className="question-heading">
         <h2>{question.id ? `Question ${question.orderIndex + 1}` : 'New question'}</h2>
-        {question.id && (
+        {question.id && !readOnly && (
           <button className="link-button danger" type="button" onClick={() => void onDelete()}>
             Delete
           </button>
@@ -122,6 +133,7 @@ function QuestionForm({
         Question text
         <textarea
           value={draft.text}
+          disabled={readOnly}
           onChange={(event) => setDraft({ ...draft, text: event.target.value })}
           rows={3}
         />
@@ -130,6 +142,7 @@ function QuestionForm({
         Type
         <select
           value={draft.type}
+          disabled={readOnly}
           onChange={(event) => setType(event.target.value as QuestionType)}
         >
           {questionTypes.map((type) => (
@@ -147,6 +160,7 @@ function QuestionForm({
               <input
                 aria-label={`Option ${index + 1}`}
                 value={option.text}
+                disabled={readOnly}
                 onChange={(event) =>
                   setDraft({
                     ...draft,
@@ -161,6 +175,7 @@ function QuestionForm({
                   type={draft.type === 'multiple_choice' ? 'checkbox' : 'radio'}
                   name={`correct-${question.id ?? 'new'}`}
                   checked={option.isCorrect}
+                  disabled={readOnly}
                   onChange={(event) => setCorrect(index, event.target.checked)}
                 />{' '}
                 Correct
@@ -169,6 +184,7 @@ function QuestionForm({
                 <button
                   className="link-button danger"
                   type="button"
+                  disabled={readOnly}
                   onClick={() =>
                     setDraft({
                       ...draft,
@@ -185,6 +201,7 @@ function QuestionForm({
             <button
               className="button button-secondary"
               type="button"
+              disabled={readOnly}
               onClick={() =>
                 setDraft({ ...draft, options: [...draft.options, { text: '', isCorrect: false }] })
               }
@@ -199,9 +216,12 @@ function QuestionForm({
           {error}
         </p>
       )}
-      <button className="button" type="submit">
-        Save question
-      </button>
+      {readOnly && <p className="empty-state">Unpublish this test to edit questions.</p>}
+      {!readOnly && (
+        <button className="button" type="submit">
+          Save question
+        </button>
+      )}
     </form>
   );
 }
@@ -282,11 +302,25 @@ export function TestEditorPage() {
 
   async function saveQuestion(question: QuestionDraft) {
     if (!detail) return;
+    if (detail.test.isPublished) {
+      setError('Unpublish this test before editing questions.');
+      return;
+    }
+    const options: Array<{ text: string; isCorrect: boolean }> = [];
+    if (question.type !== 'open_ended') {
+      for (const option of question.options) {
+        if (typeof option.isCorrect !== 'boolean') {
+          setError('Question correctness is unavailable until this test is unpublished.');
+          return;
+        }
+        options.push({ text: option.text, isCorrect: option.isCorrect });
+      }
+    }
     const payload = {
       text: question.text,
       type: question.type,
       orderIndex: question.orderIndex,
-      ...(question.type === 'open_ended' ? {} : { options: question.options }),
+      ...(question.type === 'open_ended' ? {} : { options }),
     };
     const saved = question.id
       ? await testsApi.updateQuestion(detail.test.id, question.id, payload)
@@ -303,6 +337,10 @@ export function TestEditorPage() {
 
   async function removeQuestion(question: QuestionDraft) {
     if (!detail || !question.id) return;
+    if (detail.test.isPublished) {
+      setError('Unpublish this test before editing questions.');
+      return;
+    }
     try {
       await testsApi.deleteQuestion(detail.test.id, question.id);
       setQuestions((current) => current.filter((item) => item.id !== question.id));
@@ -383,6 +421,7 @@ export function TestEditorPage() {
                 <button
                   className="button button-secondary"
                   type="button"
+                  disabled={detail.test.isPublished}
                   onClick={() =>
                     setQuestions([
                       ...questions,
@@ -404,6 +443,7 @@ export function TestEditorPage() {
                   question={question}
                   onSave={saveQuestion}
                   onDelete={() => removeQuestion(question)}
+                  readOnly={detail.test.isPublished}
                 />
               ))}
               {!questions.length && (

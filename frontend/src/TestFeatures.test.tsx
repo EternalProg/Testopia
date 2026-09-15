@@ -169,6 +169,43 @@ describe('test frontend', () => {
     );
   });
 
+  it('makes published questions read-only without blocking metadata edits', async () => {
+    const user = userEvent.setup();
+    let metadataPayload: unknown;
+    const publishedQuestion = {
+      ...question,
+      options: question.options.map(({ id, questionId, text }) => ({ id, questionId, text })),
+    };
+    const publishedTest = { ...test, isPublished: true };
+    server.use(
+      http.get('/api/v1/tests/1', () =>
+        HttpResponse.json({ test: publishedTest, questions: [publishedQuestion] }),
+      ),
+      http.patch('/api/v1/tests/1', async ({ request }) => {
+        metadataPayload = await request.json();
+        return HttpResponse.json({ test: publishedTest, questions: [publishedQuestion] });
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={['/tests/1/edit']}>
+        <Routes>
+          <Route path="/tests/:id/edit" element={<TestEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Question 1' });
+    expect(screen.getByDisplayValue('4')).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Save question' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add question' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Unpublish test' })).toBeInTheDocument();
+
+    const titleInput = screen.getByDisplayValue('Algebra basics');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'Published algebra');
+    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await waitFor(() => expect(metadataPayload).toMatchObject({ title: 'Published algebra' }));
+  });
+
   it('shows load and deletion failures without leaving the editor', async () => {
     const user = userEvent.setup();
     server.use(
