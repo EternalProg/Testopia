@@ -46,4 +46,11 @@ describe('database plugin integration', () => {
     expect(database).toBe(app.db);
     expect(existsSync(join(options.migrationsFolder, '0001_mighty_zarek.sql'))).toBe(true);
   });
+
+  it('includes migration assets in the compiled backend runtime', () => {
+    const runtimeMigrationsFolder = join(process.cwd(), 'dist/db/migrations');
+
+    expect(existsSync(join(runtimeMigrationsFolder, '0001_mighty_zarek.sql'))).toBe(true);
+    expect(existsSync(join(runtimeMigrationsFolder, 'meta/_journal.json'))).toBe(true);
+  });
 });
