@@ -41,12 +41,13 @@ export class TestsRepository {
   }
 
   async findQuestions(testId: number) {
-    const questionRows = await this.db
-      .select()
+    const rows = await this.db
+      .select({ question: questions, option: answerOptions })
       .from(questions)
+      .leftJoin(answerOptions, eq(answerOptions.questionId, questions.id))
       .where(eq(questions.testId, testId))
-      .orderBy(asc(questions.orderIndex));
-    return this.withOptions(questionRows);
+      .orderBy(asc(questions.orderIndex), asc(answerOptions.id));
+    return this.groupQuestionRows(rows);
   }
 
   async findQuestion(testId: number, questionId: number) {
@@ -130,5 +131,21 @@ export class TestsRepository {
       result.push({ ...question, options });
     }
     return result;
+  }
+
+  private groupQuestionRows(rows: Array<{ question: QuestionRow; option: OptionRow | null }>) {
+    const grouped = new Map<number, QuestionRow & { options: OptionRow[] }>();
+    for (const row of rows) {
+      const question = grouped.get(row.question.id);
+      if (question) {
+        if (row.option) question.options.push(row.option);
+        continue;
+      }
+      grouped.set(row.question.id, {
+        ...row.question,
+        options: row.option ? [row.option] : [],
+      });
+    }
+    return [...grouped.values()];
   }
 }
