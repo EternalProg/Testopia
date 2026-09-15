@@ -131,4 +131,50 @@ describe('authentication MySQL integration', () => {
     expect(storedTokens.filter((token) => token.revokedAt)).toHaveLength(1);
     expect(storedTokens.filter((token) => !token.revokedAt)).toHaveLength(1);
   });
+
+  it('creates, publishes, and reads a test without exposing answer correctness', async () => {
+    const register = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: `tests-${randomUUID()}@example.com`,
+        username: `tests-${randomUUID().slice(0, 8)}`,
+        password: 'password123',
+      },
+    });
+    const session = register.json();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tests',
+      headers: { authorization: `Bearer ${session.accessToken}` },
+      payload: { title: 'Integration test' },
+    });
+    const testId = created.json().test.id;
+    const question = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tests/${testId}/questions`,
+      headers: { authorization: `Bearer ${session.accessToken}` },
+      payload: {
+        text: 'Two plus two?',
+        type: 'single_choice',
+        orderIndex: 0,
+        options: [
+          { text: '4', isCorrect: true },
+          { text: '5', isCorrect: false },
+        ],
+      },
+    });
+    const publish = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tests/${testId}/publish`,
+      headers: { authorization: `Bearer ${session.accessToken}` },
+    });
+    const publicRead = await app.inject({ method: 'GET', url: `/api/v1/tests/${testId}` });
+
+    expect(created.statusCode).toBe(201);
+    expect(question.statusCode).toBe(201);
+    expect(publish.statusCode).toBe(200);
+    expect(publicRead.statusCode).toBe(200);
+    expect(publicRead.json().questions[0].options[0]).not.toHaveProperty('isCorrect');
+  });
 });

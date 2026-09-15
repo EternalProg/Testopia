@@ -52,7 +52,9 @@ export const createQuestionSchema = z
   })
   .superRefine((question, context) => {
     const requiresOptions =
-      question.type === 'single_choice' || question.type === 'multiple_choice';
+      question.type === 'single_choice' ||
+      question.type === 'multiple_choice' ||
+      question.type === 'true_false';
 
     if (requiresOptions && (!question.options || question.options.length < 2)) {
       context.addIssue({
@@ -70,6 +72,13 @@ export const createQuestionSchema = z
       });
     }
   });
+
+export const updateQuestionSchema = z.object({
+  text: z.string().trim().min(1).max(10_000).optional(),
+  type: questionTypeSchema.optional(),
+  orderIndex: z.number().int().min(0).optional(),
+  options: z.array(answerOptionSchema).max(100).optional(),
+});
 
 export const submitAnswerSchema = z.object({
   questionId: z.number().int().positive(),
@@ -91,6 +100,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateTestInput = z.infer<typeof createTestSchema>;
 export type UpdateTestInput = z.infer<typeof updateTestSchema>;
 export type CreateQuestionInput = z.infer<typeof createQuestionSchema>;
+export type UpdateQuestionInput = z.infer<typeof updateQuestionSchema>;
 export type SubmitAttemptInput = z.infer<typeof submitAttemptSchema>;
 export type PaginationInput = z.infer<typeof paginationSchema>;
 

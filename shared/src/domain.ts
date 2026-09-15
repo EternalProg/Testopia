@@ -36,6 +36,9 @@ export interface Question {
   options: AnswerOption[];
 }
 
+export type PublicAnswerOption = Omit<AnswerOption, 'isCorrect'>;
+export type PublicQuestion = Omit<Question, 'options'> & { options: PublicAnswerOption[] };
+
 export interface Test {
   id: number;
   title: string;
