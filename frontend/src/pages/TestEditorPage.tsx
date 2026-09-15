@@ -303,8 +303,13 @@ export function TestEditorPage() {
 
   async function removeQuestion(question: QuestionDraft) {
     if (!detail || !question.id) return;
-    await testsApi.deleteQuestion(detail.test.id, question.id);
-    setQuestions((current) => current.filter((item) => item.id !== question.id));
+    try {
+      await testsApi.deleteQuestion(detail.test.id, question.id);
+      setQuestions((current) => current.filter((item) => item.id !== question.id));
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Question could not be deleted.');
+    }
   }
 
   async function togglePublished() {
@@ -321,8 +326,12 @@ export function TestEditorPage() {
 
   async function removeTest() {
     if (!detail || !window.confirm('Delete this test?')) return;
-    await testsApi.delete(detail.test.id);
-    navigate('/dashboard', { replace: true });
+    try {
+      await testsApi.delete(detail.test.id);
+      navigate('/dashboard', { replace: true });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Test could not be deleted.');
+    }
   }
 
   return (
