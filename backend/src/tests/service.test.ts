@@ -75,6 +75,17 @@ describe('TestsService', () => {
     expect(repo.update).toHaveBeenCalled();
   });
 
+  it('unpublishes when PATCH explicitly sets isPublished to false', async () => {
+    const repo = repository({
+      update: vi.fn().mockResolvedValue({ ...baseTest, isPublished: false }),
+    });
+    const service = new TestsService(repo as never);
+
+    await service.update({ id: 10, role: 'user' }, 1, { isPublished: false });
+
+    expect(repo.update).toHaveBeenCalledWith(1, { isPublished: false });
+  });
+
   it('validates question types and passes replacement options atomically to the repository', async () => {
     const repo = repository({
       createQuestion: vi.fn().mockResolvedValue(choiceQuestion),

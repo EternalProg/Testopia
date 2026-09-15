@@ -60,13 +60,16 @@ export class TestsService {
 
   async update(actor: Actor, id: number, input: UpdateTestInput) {
     await this.requireManageable(id, actor);
-    if (input.isPublished) {
+    if (input.isPublished === true) {
       const { isPublished: _ignored, ...fields } = input;
       await this.repository.update(id, this.testUpdate(fields));
       return this.publish(actor, id);
     }
-    const { isPublished: _ignored, ...fields } = input;
-    const updated = await this.repository.update(id, this.testUpdate(fields));
+    const { isPublished, ...fields } = input;
+    const updated = await this.repository.update(id, {
+      ...this.testUpdate(fields),
+      ...(isPublished === false ? { isPublished: false } : {}),
+    });
     if (!updated) throw new Error('Updated test could not be loaded');
     return this.get(updated.id, actor);
   }
