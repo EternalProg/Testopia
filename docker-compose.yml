@@ -30,6 +30,7 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       BACKEND_PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       DATABASE_URL: mysql://practiceworks:practiceworks@mysql:3306/practiceworks
       REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
@@ -46,6 +47,8 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     ports:
       - '5173:80'
     depends_on:
