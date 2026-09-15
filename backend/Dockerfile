@@ -16,6 +16,7 @@ FROM node:22-alpine
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/backend/dist ./backend/dist
+COPY --from=build /app/backend/src/db/migrations ./backend/dist/db/migrations
 COPY --from=build /app/backend/package.json ./backend/package.json
 COPY --from=build /app/shared/dist ./shared/dist
 COPY --from=build /app/shared/package.json ./shared/package.json
