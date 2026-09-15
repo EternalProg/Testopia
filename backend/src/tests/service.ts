@@ -1,6 +1,7 @@
 import type {
   CreateQuestionInput,
   CreateTestInput,
+  Question,
   PublicQuestion,
   Test,
   UpdateQuestionInput,
@@ -25,7 +26,10 @@ export class TestsService {
     return this.repository.list({ publishedOnly: true });
   }
 
-  async get(id: number, actor?: Actor): Promise<{ test: Test; questions: PublicQuestion[] }> {
+  async get(
+    id: number,
+    actor?: Actor,
+  ): Promise<{ test: Test; questions: Array<Question | PublicQuestion> }> {
     const test = await this.requireTest(id);
     if (!test.isPublished && !this.canManage(test, actor)) {
       throw new TestError('Test not found', 'NOT_FOUND');
@@ -224,11 +228,11 @@ export class TestsService {
   private publicQuestion(
     question: Awaited<ReturnType<TestsRepository['findQuestions']>>[number],
     includeCorrect: boolean,
-  ): PublicQuestion {
+  ): Question | PublicQuestion {
     return {
       ...question,
       options: includeCorrect
-        ? question.options.map(({ isCorrect: _isCorrect, ...option }) => option)
+        ? question.options
         : question.options.map(({ isCorrect: _isCorrect, ...option }) => option),
     };
   }

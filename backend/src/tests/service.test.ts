@@ -44,7 +44,7 @@ function repository(overrides: Record<string, unknown> = {}) {
 }
 
 describe('TestsService', () => {
-  it('hides drafts from other users and redacts answer correctness publicly', async () => {
+  it('hides drafts from other users, exposes draft answers to managers, and redacts public answers', async () => {
     const draftService = new TestsService(repository() as never);
     await expect(draftService.get(1, { id: 11, role: 'user' })).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -56,6 +56,13 @@ describe('TestsService', () => {
     );
     const result = await service.get(1);
     expect(result.questions[0]?.options[0]).not.toHaveProperty('isCorrect');
+
+    const draftOwner = new TestsService(repository() as never);
+    const ownerResult = await draftOwner.get(1, { id: 10, role: 'user' });
+    expect(ownerResult.questions[0]?.options[0]).toHaveProperty('isCorrect', true);
+
+    const adminResult = await draftOwner.get(1, { id: 99, role: 'admin' });
+    expect(adminResult.questions[0]?.options[0]).toHaveProperty('isCorrect', true);
   });
 
   it('allows only owners and admins to mutate tests', async () => {
