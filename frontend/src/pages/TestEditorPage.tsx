@@ -241,10 +241,10 @@ export function TestEditorPage() {
     const result = createTestSchema.safeParse({
       title,
       description: description || null,
-      isPublished: false,
-      shuffleQuestions: false,
-      timeLimitMinutes: null,
-      showAnswersAfterCompletion: true,
+      isPublished: detail?.test.isPublished ?? false,
+      shuffleQuestions: detail?.test.shuffleQuestions ?? false,
+      timeLimitMinutes: detail?.test.timeLimitMinutes ?? null,
+      showAnswersAfterCompletion: detail?.test.showAnswersAfterCompletion ?? true,
     });
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? 'Please check the test details.');
