@@ -21,12 +21,28 @@ export async function migrateDatabase(db: Database): Promise<void> {
 
 const databasePlugin: FastifyPluginAsync = async (app) => {
   const { db, pool } = createDatabase(getDatabaseUrl());
+  let poolClosed = false;
+  const closePool = async () => {
+    if (!poolClosed) {
+      poolClosed = true;
+      await pool.end();
+    }
+  };
 
   app.decorate('db', db);
   app.decorate('dbPool', pool);
-  app.addHook('onClose', async () => pool.end());
+  app.addHook('onClose', closePool);
 
-  await migrateDatabase(db);
+  try {
+    await migrateDatabase(db);
+  } catch (error) {
+    try {
+      await closePool();
+    } catch (closeError) {
+      app.log.error(closeError, 'Failed to close the database pool after migration failure');
+    }
+    throw error;
+  }
 };
 
 export default fp(databasePlugin, { name: 'database' });
