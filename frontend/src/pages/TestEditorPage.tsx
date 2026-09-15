@@ -344,7 +344,18 @@ export function TestEditorPage() {
     }
     try {
       await testsApi.deleteQuestion(detail.test.id, question.id);
-      setQuestions((current) => current.filter((item) => item.id !== question.id));
+      const remaining = questions
+        .filter((item) => item.id !== question.id)
+        .map((item, index) => ({ ...item, orderIndex: index }));
+      setQuestions(remaining);
+      for (const item of remaining) {
+        if (
+          item.id &&
+          item.orderIndex !== questions.find((current) => current.id === item.id)?.orderIndex
+        ) {
+          await testsApi.updateQuestion(detail.test.id, item.id, { orderIndex: item.orderIndex });
+        }
+      }
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Question could not be deleted.');

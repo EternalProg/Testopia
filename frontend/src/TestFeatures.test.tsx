@@ -152,6 +152,50 @@ describe('test frontend', () => {
     expect(radios[3]).toBeChecked();
   });
 
+  it('renumbers questions before assigning a new order index after deletion', async () => {
+    const user = userEvent.setup();
+    let renumberPayload: unknown;
+    let newQuestionPayload: unknown;
+    const questions = [0, 1, 2].map((orderIndex) => ({
+      ...question,
+      id: orderIndex + 2,
+      orderIndex,
+      text: `Question ${orderIndex + 1}`,
+    }));
+    server.use(
+      http.get('/api/v1/tests/1', () => HttpResponse.json({ test, questions })),
+      http.delete('/api/v1/tests/1/questions/3', () => new HttpResponse(null, { status: 204 })),
+      http.patch('/api/v1/tests/1/questions/4', async ({ request }) => {
+        renumberPayload = await request.json();
+        return HttpResponse.json({ ...questions[2], orderIndex: 1 });
+      }),
+      http.post('/api/v1/tests/1/questions', async ({ request }) => {
+        newQuestionPayload = await request.json();
+        return HttpResponse.json({ ...questions[2], id: 5, orderIndex: 2 });
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={['/tests/1/edit']}>
+        <Routes>
+          <Route path="/tests/:id/edit" element={<TestEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Question 3' });
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[1]!);
+    await waitFor(() => expect(renumberPayload).toMatchObject({ orderIndex: 1 }));
+
+    await user.click(screen.getByRole('button', { name: 'Add question' }));
+    const questionInputs = screen.getAllByLabelText('Question text');
+    await user.type(questionInputs[questionInputs.length - 1]!, 'New question');
+    const optionInputs = screen.getAllByRole('textbox', { name: /Option/ });
+    await user.type(optionInputs[optionInputs.length - 2]!, 'A');
+    await user.type(optionInputs[optionInputs.length - 1]!, 'B');
+    const saveButtons = screen.getAllByRole('button', { name: 'Save question' });
+    await user.click(saveButtons[saveButtons.length - 1]!);
+    await waitFor(() => expect(newQuestionPayload).toMatchObject({ orderIndex: 2 }));
+  });
+
   it('preserves existing test metadata when saving details', async () => {
     const user = userEvent.setup();
     let payload: unknown;
