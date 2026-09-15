@@ -25,6 +25,13 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
     setErrors((current) => ({ ...current, [field]: '' }));
   }
 
+  function describedBy(field: keyof FormValues): string | undefined {
+    const ids = [];
+    if (errors[field]) ids.push(`${field}-error`);
+    if (serverError) ids.push('form-error');
+    return ids.length > 0 ? ids.join(' ') : undefined;
+  }
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const result =
@@ -57,8 +64,13 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
             value={values.username}
             onChange={(event) => update('username', event.target.value)}
             aria-invalid={Boolean(errors.username)}
+            aria-describedby={describedBy('username')}
           />
-          {errors.username && <span role="alert">{errors.username}</span>}
+          {errors.username && (
+            <span id="username-error" role="alert">
+              {errors.username}
+            </span>
+          )}
         </label>
       )}
       <label>
@@ -69,8 +81,13 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
           value={values.email}
           onChange={(event) => update('email', event.target.value)}
           aria-invalid={Boolean(errors.email)}
+          aria-describedby={describedBy('email')}
         />
-        {errors.email && <span role="alert">{errors.email}</span>}
+        {errors.email && (
+          <span id="email-error" role="alert">
+            {errors.email}
+          </span>
+        )}
       </label>
       <label>
         Password
@@ -80,10 +97,19 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
           value={values.password}
           onChange={(event) => update('password', event.target.value)}
           aria-invalid={Boolean(errors.password)}
+          aria-describedby={describedBy('password')}
         />
-        {errors.password && <span role="alert">{errors.password}</span>}
+        {errors.password && (
+          <span id="password-error" role="alert">
+            {errors.password}
+          </span>
+        )}
       </label>
-      {serverError && <p role="alert">{serverError}</p>}
+      {serverError && (
+        <p id="form-error" role="alert">
+          {serverError}
+        </p>
+      )}
       <button type="submit" disabled={status === 'loading'}>
         {status === 'loading' ? 'Please wait...' : mode === 'login' ? 'Log in' : 'Create account'}
       </button>

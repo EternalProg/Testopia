@@ -18,13 +18,25 @@ function AuthBootstrap() {
 
 function ProtectedRoute() {
   const status = useAuthStore((state) => state.status);
-  if (status === 'idle' || status === 'loading') return <p>Loading your session...</p>;
+  if (status === 'idle' || status === 'loading') {
+    return (
+      <p role="status" aria-live="polite" aria-label="Loading your session...">
+        Loading your session...
+      </p>
+    );
+  }
   return status === 'authenticated' ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
 function PublicRoute() {
   const status = useAuthStore((state) => state.status);
-  if (status === 'idle' || status === 'loading') return <p>Loading your session...</p>;
+  if (status === 'idle' || status === 'loading') {
+    return (
+      <p role="status" aria-live="polite" aria-label="Loading your session...">
+        Loading your session...
+      </p>
+    );
+  }
   return status === 'authenticated' ? <Navigate to="/dashboard" replace /> : <Outlet />;
 }
 

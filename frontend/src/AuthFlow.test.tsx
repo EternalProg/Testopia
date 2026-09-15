@@ -56,6 +56,11 @@ describe('authentication flows', () => {
     expect(
       screen.getByText('Too small: expected string to have >=1 characters'),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Email/)).toHaveAttribute('aria-describedby', 'email-error');
+    expect(screen.getByLabelText(/^Password/)).toHaveAttribute(
+      'aria-describedby',
+      'password-error',
+    );
   });
 
   it('shows server errors', async () => {
@@ -75,6 +80,22 @@ describe('authentication flows', () => {
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
     expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Email/)).toHaveAttribute('aria-describedby', 'form-error');
+    expect(screen.getByLabelText(/^Password/)).toHaveAttribute('aria-describedby', 'form-error');
+  });
+
+  it('announces session bootstrap loading', async () => {
+    server.use(
+      http.post('/api/v1/auth/refresh', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        return HttpResponse.json(session);
+      }),
+    );
+    sessionStorage.setItem('practice-works.refresh-token', session.refreshToken);
+    renderAt('/dashboard');
+
+    expect(screen.getByRole('status', { name: 'Loading your session...' })).toBeInTheDocument();
+    expect(await screen.findByText('Welcome, test-user.')).toBeInTheDocument();
   });
 
   it('redirects unauthenticated users away from protected navigation', async () => {
