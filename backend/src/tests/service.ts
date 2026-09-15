@@ -153,11 +153,12 @@ export class TestsService {
   }
 
   async deleteQuestion(actor: Actor, testId: number, questionId: number) {
-    await this.requireManageable(testId, actor);
+    const test = await this.requireManageable(testId, actor);
     if (!(await this.repository.findQuestion(testId, questionId))) {
       throw new TestError('Question not found', 'NOT_FOUND');
     }
     await this.repository.deleteQuestion(testId, questionId);
+    if (test.isPublished) await this.repository.update(testId, { isPublished: false });
   }
 
   private async requireTest(id: number) {

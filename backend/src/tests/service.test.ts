@@ -75,6 +75,18 @@ describe('TestsService', () => {
     expect(repo.update).toHaveBeenCalled();
   });
 
+  it('demotes a published test when its final question is deleted', async () => {
+    const repo = repository({
+      findById: vi.fn().mockResolvedValue({ ...baseTest, isPublished: true }),
+    });
+    const service = new TestsService(repo as never);
+
+    await service.deleteQuestion({ id: 10, role: 'user' }, 1, 2);
+
+    expect(repo.deleteQuestion).toHaveBeenCalledWith(1, 2);
+    expect(repo.update).toHaveBeenCalledWith(1, { isPublished: false });
+  });
+
   it('unpublishes when PATCH explicitly sets isPublished to false', async () => {
     const repo = repository({
       update: vi.fn().mockResolvedValue({ ...baseTest, isPublished: false }),
