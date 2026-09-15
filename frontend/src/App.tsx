@@ -5,6 +5,9 @@ import { useAuthStore } from './auth/store.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
+import { TestDetailPage } from './pages/TestDetailPage.js';
+import { TestEditorPage } from './pages/TestEditorPage.js';
+import { TestListPage } from './pages/TestListPage.js';
 
 function AuthBootstrap() {
   const initialize = useAuthStore((state) => state.initialize);
@@ -50,10 +53,15 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
           </Route>
+          <Route path="/tests" element={<TestListPage />} />
+          <Route path="/tests/:id" element={<TestDetailPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/tests/new" element={<TestEditorPage />} />
+            <Route path="/tests/:id/edit" element={<TestEditorPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>
     </BrowserRouter>

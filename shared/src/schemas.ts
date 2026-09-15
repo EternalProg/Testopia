@@ -56,11 +56,20 @@ export const createQuestionSchema = z
       question.type === 'multiple_choice' ||
       question.type === 'true_false';
 
-    if (requiresOptions && (!question.options || question.options.length < 2)) {
+    if (
+      requiresOptions &&
+      (!question.options ||
+        (question.type === 'true_false'
+          ? question.options.length !== 2
+          : question.options.length < 2))
+    ) {
       context.addIssue({
         code: 'custom',
         path: ['options'],
-        message: 'Choice questions require at least two answer options',
+        message:
+          question.type === 'true_false'
+            ? 'True/False questions require exactly two answer options'
+            : 'Choice questions require at least two answer options',
       });
     }
 
