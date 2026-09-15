@@ -1,5 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
+import { fileURLToPath } from 'node:url';
+import { migrate } from 'drizzle-orm/mysql2/migrator';
 
 import { createDatabase, type Database, type DatabasePool } from '../db/client.js';
 import { getDatabaseUrl } from '../db/config.js';
@@ -11,12 +13,36 @@ declare module 'fastify' {
   }
 }
 
+export async function migrateDatabase(db: Database): Promise<void> {
+  await migrate(db, {
+    migrationsFolder: fileURLToPath(new URL('../db/migrations', import.meta.url)),
+  });
+}
+
 const databasePlugin: FastifyPluginAsync = async (app) => {
   const { db, pool } = createDatabase(getDatabaseUrl());
+  let poolClosed = false;
+  const closePool = async () => {
+    if (!poolClosed) {
+      poolClosed = true;
+      await pool.end();
+    }
+  };
 
   app.decorate('db', db);
   app.decorate('dbPool', pool);
-  app.addHook('onClose', async () => pool.end());
+  app.addHook('onClose', closePool);
+
+  try {
+    await migrateDatabase(db);
+  } catch (error) {
+    try {
+      await closePool();
+    } catch (closeError) {
+      app.log.error(closeError, 'Failed to close the database pool after migration failure');
+    }
+    throw error;
+  }
 };
 
 export default fp(databasePlugin, { name: 'database' });
