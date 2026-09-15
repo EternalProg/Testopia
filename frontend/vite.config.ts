@@ -3,6 +3,14 @@ import { defineConfig as defineVitestConfig } from 'vitest/config';
 
 export default defineVitestConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
   test: {
     coverage: {
       thresholds: {

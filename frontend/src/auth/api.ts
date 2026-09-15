@@ -3,7 +3,7 @@ import type { LoginInput, RegisterInput, User } from '@practice-works/shared';
 import type { ApiErrorPayload, Session } from './types.js';
 import { tokenStorage } from './token-storage.js';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
 let accessToken: string | null = null;
 
 export class ApiError extends Error {
