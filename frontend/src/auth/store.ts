@@ -22,24 +22,37 @@ function errorMessage(error: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+let initializePromise: Promise<void> | null = null;
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'idle',
   user: null,
   error: null,
   initialize: async () => {
+    if (initializePromise) return initializePromise;
     if (!tokenStorage.getRefreshToken()) {
       set({ status: 'unauthenticated', user: null });
       return;
     }
-    set({ status: 'loading', error: null });
+    if (get().status === 'authenticated') return;
+
+    initializePromise = (async () => {
+      set({ status: 'loading', error: null });
+      try {
+        await authApi.refresh();
+        const user = await authApi.me();
+        set({ status: 'authenticated', user, error: null });
+      } catch {
+        authApi.clearAccessToken();
+        tokenStorage.clear();
+        set({ status: 'unauthenticated', user: null });
+      }
+    })();
+
     try {
-      await authApi.refresh();
-      const user = await authApi.me();
-      set({ status: 'authenticated', user, error: null });
-    } catch {
-      authApi.clearAccessToken();
-      tokenStorage.clear();
-      set({ status: 'unauthenticated', user: null });
+      await initializePromise;
+    } finally {
+      initializePromise = null;
     }
   },
   register: async (input) => {

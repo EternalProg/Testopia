@@ -2,8 +2,11 @@ import { http, HttpResponse } from 'msw';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { StrictMode } from 'react';
 
 import { App } from './App.js';
+import { authApi } from './auth/api.js';
+import { useAuthStore } from './auth/store.js';
 import { server } from './test/server.js';
 import { session } from './test/mocks.js';
 
@@ -14,6 +17,8 @@ function renderAt(path: string) {
 
 beforeEach(() => {
   sessionStorage.clear();
+  authApi.clearAccessToken();
+  useAuthStore.setState({ status: 'idle', user: null, error: null });
 });
 afterEach(cleanup);
 
@@ -88,6 +93,27 @@ describe('authentication flows', () => {
     await waitFor(() =>
       expect(sessionStorage.getItem('practice-works.refresh-token')).toBe(session.refreshToken),
     );
+  });
+
+  it('performs only one refresh during StrictMode session bootstrap', async () => {
+    let refreshRequests = 0;
+    server.use(
+      http.post('/api/v1/auth/refresh', async () => {
+        refreshRequests += 1;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return HttpResponse.json(session);
+      }),
+    );
+    sessionStorage.setItem('practice-works.refresh-token', session.refreshToken);
+    window.history.pushState({}, '', '/dashboard');
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+
+    expect(await screen.findByText('Welcome, test-user.')).toBeInTheDocument();
+    expect(refreshRequests).toBe(1);
   });
 
   it('logs out and clears the refresh session', async () => {
