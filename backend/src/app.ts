@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import cors from '@fastify/cors';
 import { ZodError } from 'zod';
 
 import { healthResponseSchema } from '@practice-works/shared';
@@ -9,15 +10,18 @@ import { createAuthServices } from './auth/factory.js';
 import authRoutes from './auth/routes.js';
 import type { AuthService } from './auth/service.js';
 import type { TokenService } from './auth/tokens.js';
+import { getCorsOptions } from './cors.js';
 import databasePlugin from './plugins/database.js';
 
 interface AppOptions {
   auth?: { service: AuthService; tokens: TokenService };
+  corsOrigin?: string;
   database?: boolean;
 }
 
 export function buildApp(options: AppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: true });
+  app.register(cors, getCorsOptions(options.corsOrigin));
 
   app.get('/health', async () => healthResponseSchema.parse({ status: 'ok' }));
 
