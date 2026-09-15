@@ -37,9 +37,7 @@ export class TestsService {
     const questionRows = await this.repository.findQuestions(id);
     return {
       test: this.publicTest(test),
-      questions: questionRows.map((row) =>
-        this.publicQuestion(row, !test.isPublished || this.canManage(test, actor)),
-      ),
+      questions: questionRows.map((row) => this.publicQuestion(row, !test.isPublished)),
     };
   }
 

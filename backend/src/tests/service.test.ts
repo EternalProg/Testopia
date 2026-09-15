@@ -86,6 +86,21 @@ describe('TestsService', () => {
     expect(repo.update).toHaveBeenCalledWith(1, { isPublished: false });
   });
 
+  it('keeps published answers redacted across owners and anonymous readers', async () => {
+    const repo = repository({
+      findById: vi.fn().mockResolvedValue({ ...baseTest, isPublished: true }),
+    });
+    const service = new TestsService(repo as never);
+
+    const owner = await service.get(1, { id: 10, role: 'user' });
+    const otherUser = await service.get(1, { id: 11, role: 'user' });
+    const anonymous = await service.get(1);
+
+    expect(owner.questions[0]?.options[0]).not.toHaveProperty('isCorrect');
+    expect(otherUser.questions[0]?.options[0]).not.toHaveProperty('isCorrect');
+    expect(anonymous.questions[0]?.options[0]).not.toHaveProperty('isCorrect');
+  });
+
   it('validates question types and passes replacement options atomically to the repository', async () => {
     const repo = repository({
       createQuestion: vi.fn().mockResolvedValue(choiceQuestion),
