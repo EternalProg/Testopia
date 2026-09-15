@@ -75,6 +75,18 @@ describe('TestsService', () => {
     expect(repo.update).toHaveBeenCalled();
   });
 
+  it('allows only admins to list all tests, including drafts', async () => {
+    const repo = repository({ list: vi.fn().mockResolvedValue([]) });
+    const service = new TestsService(repo as never);
+
+    await expect(service.list({ id: 10, role: 'user' }, 'all')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    await service.list({ id: 99, role: 'admin' }, 'all');
+
+    expect(repo.list).toHaveBeenCalledWith({ publishedOnly: false });
+  });
+
   it('demotes a published test when its final question is deleted', async () => {
     const repo = repository({
       findById: vi.fn().mockResolvedValue({ ...baseTest, isPublished: true }),

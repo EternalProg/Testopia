@@ -23,6 +23,12 @@ export class TestsService {
       if (!actor) throw new TestError('Authentication required', 'FORBIDDEN');
       return this.repository.list({ authorId: actor.id, publishedOnly: false });
     }
+    if (scope === 'all') {
+      if (!actor || actor.role !== 'admin') {
+        throw new TestError('Insufficient permissions', 'FORBIDDEN');
+      }
+      return this.repository.list({ publishedOnly: false });
+    }
     return this.repository.list({ publishedOnly: true });
   }
 
