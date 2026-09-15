@@ -4,7 +4,9 @@ export type ApiTest = Omit<Test, 'createdAt' | 'updatedAt'> & {
   createdAt: string;
   updatedAt: string;
 };
-export type ApiQuestion = Omit<Question, 'options'> & { options: AnswerOption[] };
+export type ApiQuestion = Omit<Question, 'options'> & {
+  options: Array<Omit<AnswerOption, 'isCorrect'> & { isCorrect?: boolean }>;
+};
 export interface TestDetail {
   test: ApiTest;
   questions: ApiQuestion[];
