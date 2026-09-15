@@ -131,6 +131,27 @@ describe('test frontend', () => {
     );
   });
 
+  it('keeps radio choices isolated across new questions', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post('/api/v1/tests', () => HttpResponse.json({ test, questions: [] }, { status: 201 })),
+    );
+    render(<TestEditorPage />, {
+      wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
+    });
+    await user.type(screen.getByLabelText('Title'), 'Radio groups');
+    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await screen.findByRole('heading', { name: 'Questions' });
+    await user.click(screen.getByRole('button', { name: 'Add question' }));
+    await user.click(screen.getByRole('button', { name: 'Add question' }));
+
+    const radios = screen.getAllByRole('radio');
+    expect(radios[0]).toBeChecked();
+    await user.click(radios[3]!);
+    expect(radios[0]).toBeChecked();
+    expect(radios[3]).toBeChecked();
+  });
+
   it('preserves existing test metadata when saving details', async () => {
     const user = userEvent.setup();
     let payload: unknown;

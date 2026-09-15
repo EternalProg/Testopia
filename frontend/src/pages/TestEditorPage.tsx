@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   createQuestionSchema,
@@ -64,6 +64,7 @@ function QuestionForm({
 }) {
   const [draft, setDraft] = useState(question);
   const [error, setError] = useState<string | null>(null);
+  const optionGroupId = useId();
   const choice =
     draft.type === 'single_choice' ||
     draft.type === 'multiple_choice' ||
@@ -173,7 +174,7 @@ function QuestionForm({
               <label className="checkbox-label">
                 <input
                   type={draft.type === 'multiple_choice' ? 'checkbox' : 'radio'}
-                  name={`correct-${question.id ?? 'new'}`}
+                  name={`correct-${question.id ?? optionGroupId}`}
                   checked={option.isCorrect}
                   disabled={readOnly}
                   onChange={(event) => setCorrect(index, event.target.checked)}
