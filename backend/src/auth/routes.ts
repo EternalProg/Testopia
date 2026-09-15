@@ -5,10 +5,12 @@ import { createAuthController } from './controllers.js';
 import { authenticationGuard, roleGuard } from './guards.js';
 import type { AuthService } from './service.js';
 import type { TokenService } from './tokens.js';
+import type { Database } from '../db/client.js';
 
 export interface AuthRouteOptions {
   service: AuthService;
   tokens: TokenService;
+  database?: Database;
 }
 
 const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (app, options) => {

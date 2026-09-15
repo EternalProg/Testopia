@@ -31,6 +31,23 @@ export function authenticationGuard(tokens: TokenService) {
   };
 }
 
+export function optionalAuthenticationGuard(tokens: TokenService) {
+  return async (request: FastifyRequest, _reply: FastifyReply) => {
+    const authorization = request.headers.authorization;
+    if (!authorization) return;
+    if (!authorization.startsWith('Bearer ')) return;
+    try {
+      const payload = await tokens.verifyAccessToken(authorization.slice('Bearer '.length));
+      const id = Number(payload.sub);
+      if (Number.isSafeInteger(id) && id > 0 && ['user', 'admin'].includes(payload.role)) {
+        request.authUser = { id, role: payload.role };
+      }
+    } catch {
+      return;
+    }
+  };
+}
+
 export function roleGuard(role: UserRole) {
   return async (request: FastifyRequest, _reply: FastifyReply) => {
     if (request.authUser?.role !== role) {
