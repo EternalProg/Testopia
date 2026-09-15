@@ -10,6 +10,8 @@ export function TestLayout({ children }: { children: React.ReactNode }) {
   async function signOut() {
     try {
       await logout();
+    } catch {
+      // The auth store clears local state even when the server is unavailable.
     } finally {
       navigate('/login', { replace: true });
     }

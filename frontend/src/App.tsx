@@ -60,7 +60,8 @@ export function App() {
             <Route path="/tests/new" element={<TestEditorPage />} />
             <Route path="/tests/:id/edit" element={<TestEditorPage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/tests" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </main>
     </BrowserRouter>
