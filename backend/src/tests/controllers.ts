@@ -7,6 +7,7 @@ import {
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { AuthError } from '../auth/errors.js';
+import { TestError } from './errors.js';
 import type { TestsService } from './service.js';
 
 type IdParams = { id: string };
@@ -14,7 +15,9 @@ type QuestionParams = { id: string; questionId: string };
 
 function id(value: string) {
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error('Invalid id');
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new TestError('Invalid id', 'VALIDATION_ERROR');
+  }
   return parsed;
 }
 
