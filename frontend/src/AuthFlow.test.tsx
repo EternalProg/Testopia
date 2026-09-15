@@ -129,4 +129,27 @@ describe('authentication flows', () => {
     ).toBeInTheDocument();
     expect(sessionStorage.getItem('practice-works.refresh-token')).toBeNull();
   });
+
+  it('clears local auth and redirects when logout fails on the server', async () => {
+    server.use(
+      http.post('/api/v1/auth/logout', () =>
+        HttpResponse.json(
+          { error: 'INTERNAL_ERROR', message: 'Logout unavailable' },
+          { status: 500 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderAt('/login');
+    await user.type(screen.getByLabelText('Email'), 'user@example.com');
+    await user.type(screen.getByLabelText('Password'), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await user.click(await screen.findByRole('button', { name: 'Log out' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Log in to Practice Works' }),
+    ).toBeInTheDocument();
+    expect(sessionStorage.getItem('practice-works.refresh-token')).toBeNull();
+    expect(screen.queryByText('Welcome, test-user.')).not.toBeInTheDocument();
+  });
 });

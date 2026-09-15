@@ -76,7 +76,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   logout: async () => {
-    await authApi.logout();
-    set({ status: 'unauthenticated', user: null, error: null });
+    try {
+      await authApi.logout();
+    } finally {
+      set({ status: 'unauthenticated', user: null, error: null });
+    }
   },
 }));

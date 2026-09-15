@@ -8,8 +8,13 @@ export function DashboardPage() {
   const navigate = useNavigate();
 
   async function handleLogout() {
-    await logout();
-    navigate('/login', { replace: true });
+    try {
+      await logout();
+    } catch {
+      // Local auth state is cleared by the store even when the server is unavailable.
+    } finally {
+      navigate('/login', { replace: true });
+    }
   }
 
   return (
