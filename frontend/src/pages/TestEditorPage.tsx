@@ -216,9 +216,14 @@ export function TestEditorPage() {
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(editing);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     void testsApi
       .get(Number(id))
       .then((loaded) => {
@@ -233,7 +238,8 @@ export function TestEditorPage() {
             ? 'You are not allowed to edit this test.'
             : 'Test could not be loaded.',
         ),
-      );
+      )
+      .finally(() => setLoading(false));
   }, [id]);
 
   async function saveMetadata(event: React.FormEvent) {
@@ -321,90 +327,99 @@ export function TestEditorPage() {
 
   return (
     <TestLayout>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow">Authoring</p>
-          <h1>{editing ? 'Edit test' : 'Create test'}</h1>
-        </div>
-        {detail && (
-          <button className="link-button danger" type="button" onClick={() => void removeTest()}>
-            Delete test
-          </button>
-        )}
-      </div>
-      {error && (
-        <p className="error-message" role="alert">
-          {error}
-        </p>
-      )}
-      <form className="metadata-form" onSubmit={saveMetadata}>
-        <label>
-          Title
-          <input value={title} onChange={(event) => setTitle(event.target.value)} />
-        </label>
-        <label>
-          Description
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            rows={4}
-          />
-        </label>
-        <button className="button" type="submit" disabled={saving}>
-          {saving ? 'Saving...' : 'Save test details'}
-        </button>
-      </form>
-      {detail && (
-        <section className="questions-section">
-          <div className="section-heading">
-            <h2>Questions</h2>
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() =>
-                setQuestions([
-                  ...questions,
-                  {
-                    text: '',
-                    type: 'single_choice',
-                    orderIndex: questions.length,
-                    options: blankOptions('single_choice'),
-                  },
-                ])
-              }
-            >
-              Add question
-            </button>
+      {loading && <p role="status">Loading test...</p>}
+      {!loading && (
+        <>
+          <div className="page-heading">
+            <div>
+              <p className="eyebrow">Authoring</p>
+              <h1>{editing ? 'Edit test' : 'Create test'}</h1>
+            </div>
+            {detail && (
+              <button
+                className="link-button danger"
+                type="button"
+                onClick={() => void removeTest()}
+              >
+                Delete test
+              </button>
+            )}
           </div>
-          {questions.map((question) => (
-            <QuestionForm
-              key={question.id ?? `new-${question.orderIndex}`}
-              question={question}
-              onSave={saveQuestion}
-              onDelete={() => removeQuestion(question)}
-            />
-          ))}
-          {!questions.length && (
-            <p className="empty-state">Add at least one question before publishing.</p>
+          {error && (
+            <p className="error-message" role="alert">
+              {error}
+            </p>
           )}
-          {detail.test.isPublished ? (
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() => void togglePublished()}
-            >
-              Unpublish test
+          <form className="metadata-form" onSubmit={saveMetadata}>
+            <label>
+              Title
+              <input value={title} onChange={(event) => setTitle(event.target.value)} />
+            </label>
+            <label>
+              Description
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                rows={4}
+              />
+            </label>
+            <button className="button" type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Save test details'}
             </button>
-          ) : (
-            <button className="button" type="button" onClick={() => void togglePublished()}>
-              Publish test
-            </button>
+          </form>
+          {detail && (
+            <section className="questions-section">
+              <div className="section-heading">
+                <h2>Questions</h2>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() =>
+                    setQuestions([
+                      ...questions,
+                      {
+                        text: '',
+                        type: 'single_choice',
+                        orderIndex: questions.length,
+                        options: blankOptions('single_choice'),
+                      },
+                    ])
+                  }
+                >
+                  Add question
+                </button>
+              </div>
+              {questions.map((question) => (
+                <QuestionForm
+                  key={question.id ?? `new-${question.orderIndex}`}
+                  question={question}
+                  onSave={saveQuestion}
+                  onDelete={() => removeQuestion(question)}
+                />
+              ))}
+              {!questions.length && (
+                <p className="empty-state">Add at least one question before publishing.</p>
+              )}
+              {detail.test.isPublished ? (
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => void togglePublished()}
+                >
+                  Unpublish test
+                </button>
+              ) : (
+                <button className="button" type="button" onClick={() => void togglePublished()}>
+                  Publish test
+                </button>
+              )}
+            </section>
           )}
-        </section>
+          <Link className="text-link" to="/dashboard">
+            Back to my tests
+          </Link>
+        </>
       )}
-      <Link className="text-link" to="/dashboard">
-        Back to my tests
-      </Link>
     </TestLayout>
   );
 }
