@@ -6,7 +6,13 @@ import { TestList } from '../components/TestList.js';
 import { testsApi } from '../tests/api.js';
 import type { TestListItem } from '../tests/types.js';
 
-export function TestListPage({ mine = false }: { mine?: boolean }) {
+export function TestListPage({
+  mine = false,
+  withLayout = true,
+}: {
+  mine?: boolean;
+  withLayout?: boolean;
+}) {
   const [tests, setTests] = useState<TestListItem[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
 
@@ -28,8 +34,8 @@ export function TestListPage({ mine = false }: { mine?: boolean }) {
     };
   }, [mine]);
 
-  return (
-    <TestLayout>
+  const content = (
+    <>
       <div className="page-heading">
         <div>
           <p className="eyebrow">{mine ? 'Authoring' : 'Discover'}</p>
@@ -48,6 +54,8 @@ export function TestListPage({ mine = false }: { mine?: boolean }) {
         </p>
       )}
       {state === 'ready' && <TestList tests={tests} mine={mine} />}
-    </TestLayout>
+    </>
   );
+
+  return withLayout ? <TestLayout>{content}</TestLayout> : content;
 }
