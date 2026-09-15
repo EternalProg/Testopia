@@ -35,6 +35,13 @@ const blankOptions = (type: QuestionType): OptionDraft[] => {
       ];
 };
 
+const questionTypeLabels: Record<QuestionType, string> = {
+  single_choice: 'Single choice',
+  multiple_choice: 'Multiple choice',
+  open_ended: 'Open ended',
+  true_false: 'True/False',
+};
+
 function toDraft(question: ApiQuestion): QuestionDraft {
   return {
     ...question,
@@ -127,7 +134,7 @@ function QuestionForm({
         >
           {questionTypes.map((type) => (
             <option key={type} value={type}>
-              {type.replace('_', ' ')}
+              {questionTypeLabels[type]}
             </option>
           ))}
         </select>
