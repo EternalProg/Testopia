@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { Alert } from '../components/Alert.js';
+import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 import { useAuthStore } from '../auth/store.js';
 import { testsApi } from '../tests/api.js';
@@ -27,12 +29,8 @@ export function TestDetailPage() {
 
   return (
     <TestLayout>
-      {error && (
-        <p className="error-message" role="alert">
-          {error}
-        </p>
-      )}
-      {!detail && !error && <p role="status">Loading test...</p>}
+      {error && <Alert variant="error">{error}</Alert>}
+      {!detail && !error && <LoadingState text="Loading test..." />}
       {detail && (
         <article className="detail-page">
           <p className="eyebrow">Published test</p>

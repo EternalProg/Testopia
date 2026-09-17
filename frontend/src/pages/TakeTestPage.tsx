@@ -3,6 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 
 import { AttemptApiError, attemptsApi } from '../attempts/api.js';
 import type { ApiAttemptQuestion, AttemptDetail, SubmitAttemptResult } from '../attempts/types.js';
+import { ConfirmDialog } from '../components/ConfirmDialog.js';
+import { EmptyState } from '../components/EmptyState.js';
+import { LoadingState } from '../components/LoadingState.js';
+import { Alert } from '../components/Alert.js';
 import { TestLayout } from '../components/TestLayout.js';
 
 interface DraftAnswer {
@@ -190,10 +194,19 @@ export function TakeTestPage() {
     }
   }, [remainingSeconds, state, result, submit]);
 
+  useEffect(() => {
+    // Move focus to the result heading once answers are recorded so screen
+    // readers announce the outcome (the dialog unmounts and its trigger may
+    // be detached, so the return-focus fallback is not enough here).
+    if (result) document.getElementById('submit-result-heading')?.focus();
+  }, [result]);
+
+  const cancelConfirm = useCallback(() => setConfirming(false), []);
+
   if (state === 'loading') {
     return (
       <TestLayout>
-        <p role="status">Starting your attempt...</p>
+        <LoadingState text="Starting your attempt..." />
       </TestLayout>
     );
   }
@@ -201,9 +214,7 @@ export function TakeTestPage() {
   if (state === 'error' || !detail) {
     return (
       <TestLayout>
-        <p className="error-message" role="alert">
-          {loadError ?? 'Your attempt could not be started.'}
-        </p>
+        <Alert variant="error">{loadError ?? 'Your attempt could not be started.'}</Alert>
         <Link to="/tests" className="text-link">
           Back to browse
         </Link>
@@ -220,7 +231,9 @@ export function TakeTestPage() {
         <TestLayout>
           <article aria-label="Attempt result">
             <p className="eyebrow">{expired ? 'Time expired' : 'Test submitted'}</p>
-            <h1>{expired ? 'Your time ran out' : 'Your answers were submitted'}</h1>
+            <h1 id="submit-result-heading" tabIndex={-1}>
+              {expired ? 'Your time ran out' : 'Your answers were submitted'}
+            </h1>
             <p role="status">
               The author has hidden the answers for this test. Your answers were recorded.
             </p>
@@ -241,7 +254,9 @@ export function TakeTestPage() {
       <TestLayout>
         <article aria-label="Attempt result">
           <p className="eyebrow">{expired ? 'Time expired' : 'Test submitted'}</p>
-          <h1>{expired ? 'Your time ran out' : 'Your answers were submitted'}</h1>
+          <h1 id="submit-result-heading" tabIndex={-1}>
+            {expired ? 'Your time ran out' : 'Your answers were submitted'}
+          </h1>
           {result.attempt.score === null ? (
             <p role="status">This test needs manual grading. Your answers were recorded.</p>
           ) : (
@@ -265,7 +280,7 @@ export function TakeTestPage() {
   if (!detail.questions.length) {
     return (
       <TestLayout>
-        <p role="status">This test has no questions yet.</p>
+        <EmptyState text="This test has no questions yet." role="status" />
         <Link to="/tests" className="text-link">
           Back to browse
         </Link>
@@ -279,14 +294,28 @@ export function TakeTestPage() {
   ).length;
 
   return (
-    <TestLayout>
+    <TestLayout
+      modal={
+        confirming ? (
+          <ConfirmDialog
+            title="Confirm submission"
+            description="Submit your answers? You cannot change them afterwards."
+            confirmLabel={submitting ? 'Submitting...' : 'Confirm submit'}
+            cancelLabel="Keep working"
+            onConfirm={() => void submit()}
+            onCancel={cancelConfirm}
+            busy={submitting}
+          />
+        ) : undefined
+      }
+    >
       <div className="page-heading">
         <div>
           <p className="eyebrow">Attempt #{detail.attempt.id}</p>
           <h1>{detail.test.title}</h1>
         </div>
         {remainingSeconds !== null && (
-          <p role="timer" aria-label="Time remaining" aria-live="polite">
+          <p role="timer" aria-label="Time remaining">
             Time left: {formatRemaining(remainingSeconds)}
           </p>
         )}
@@ -340,23 +369,7 @@ export function TakeTestPage() {
         </button>
       </div>
 
-      {confirming && (
-        <div role="alertdialog" aria-modal="true" aria-label="Confirm submission">
-          <p>Submit your answers? You cannot change them afterwards.</p>
-          <button type="button" disabled={submitting} onClick={() => void submit()}>
-            {submitting ? 'Submitting...' : 'Confirm submit'}
-          </button>
-          <button type="button" onClick={() => setConfirming(false)}>
-            Keep working
-          </button>
-        </div>
-      )}
-
-      {submitError && (
-        <p className="error-message" role="alert">
-          {submitError}
-        </p>
-      )}
+      {submitError && <Alert variant="error">{submitError}</Alert>}
     </TestLayout>
   );
 }

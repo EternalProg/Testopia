@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 
 import { AttemptApiError, attemptsApi } from '../attempts/api.js';
 import type { ApiAttemptHistoryItem } from '../attempts/types.js';
+import { Alert } from '../components/Alert.js';
+import { EmptyState } from '../components/EmptyState.js';
+import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 
 export function AttemptHistoryPage() {
@@ -39,7 +42,7 @@ export function AttemptHistoryPage() {
   if (state === 'loading') {
     return (
       <TestLayout>
-        <p role="status">Loading attempts...</p>
+        <LoadingState text="Loading attempts..." />
       </TestLayout>
     );
   }
@@ -47,9 +50,7 @@ export function AttemptHistoryPage() {
   if (state === 'error') {
     return (
       <TestLayout>
-        <p className="error-message" role="alert">
-          {loadError ?? 'Attempts could not be loaded.'}
-        </p>
+        <Alert variant="error">{loadError ?? 'Attempts could not be loaded.'}</Alert>
         <Link to="/tests" className="text-link">
           Back to browse
         </Link>
@@ -62,7 +63,7 @@ export function AttemptHistoryPage() {
       <p className="eyebrow">Attempt history</p>
       <h1>Test #{id} attempts</h1>
       {items.length === 0 ? (
-        <p role="status">No attempts yet.</p>
+        <EmptyState text="No attempts yet." role="status" />
       ) : (
         <ul className="attempt-list">
           {items.map((item) => (

@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 
 import { AttemptApiError, attemptsApi } from '../attempts/api.js';
 import type { ApiAttemptResult } from '../attempts/types.js';
+import { Alert } from '../components/Alert.js';
+import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 
 function errorMessage(status: number | undefined): string {
@@ -43,7 +45,7 @@ export function AttemptResultPage() {
   if (state === 'loading') {
     return (
       <TestLayout>
-        <p role="status">Loading result...</p>
+        <LoadingState text="Loading result..." />
       </TestLayout>
     );
   }
@@ -51,9 +53,7 @@ export function AttemptResultPage() {
   if (state === 'error' || !result) {
     return (
       <TestLayout>
-        <p className="error-message" role="alert">
-          {loadError ?? 'This result could not be loaded.'}
-        </p>
+        <Alert variant="error">{loadError ?? 'This result could not be loaded.'}</Alert>
         <Link to="/tests" className="text-link">
           Back to browse
         </Link>

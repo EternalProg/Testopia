@@ -1,13 +1,12 @@
 import { Link } from 'react-router-dom';
 
 import type { TestListItem } from '../tests/types.js';
+import { EmptyState } from './EmptyState.js';
 
 export function TestList({ tests, mine = false }: { tests: TestListItem[]; mine?: boolean }) {
   if (!tests.length) {
     return (
-      <p className="empty-state">
-        {mine ? 'You have not created any tests yet.' : 'No published tests yet.'}
-      </p>
+      <EmptyState text={mine ? 'You have not created any tests yet.' : 'No published tests yet.'} />
     );
   }
   return (

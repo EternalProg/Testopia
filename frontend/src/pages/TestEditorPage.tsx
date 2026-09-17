@@ -8,6 +8,9 @@ import {
   type QuestionType,
 } from '@practice-works/shared';
 
+import { Alert } from '../components/Alert.js';
+import { EmptyState } from '../components/EmptyState.js';
+import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 import { testsApi, TestApiError } from '../tests/api.js';
 import type { ApiQuestion, TestDetail } from '../tests/types.js';
@@ -212,12 +215,8 @@ function QuestionForm({
           )}
         </fieldset>
       )}
-      {error && (
-        <p className="error-message" role="alert">
-          {error}
-        </p>
-      )}
-      {readOnly && <p className="empty-state">Unpublish this test to edit questions.</p>}
+      {error && <Alert variant="error">{error}</Alert>}
+      {readOnly && <EmptyState text="Unpublish this test to edit questions." />}
       {!readOnly && (
         <button className="button" type="submit">
           Save question
@@ -386,7 +385,7 @@ export function TestEditorPage() {
 
   return (
     <TestLayout>
-      {loading && <p role="status">Loading test...</p>}
+      {loading && <LoadingState text="Loading test..." />}
       {!loading && (
         <>
           <div className="page-heading">
@@ -404,11 +403,7 @@ export function TestEditorPage() {
               </button>
             )}
           </div>
-          {error && (
-            <p className="error-message" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <Alert variant="error">{error}</Alert>}
           <form className="metadata-form" onSubmit={saveMetadata}>
             <label>
               Title
@@ -459,7 +454,7 @@ export function TestEditorPage() {
                 />
               ))}
               {!questions.length && (
-                <p className="empty-state">Add at least one question before publishing.</p>
+                <EmptyState text="Add at least one question before publishing." />
               )}
               {detail.test.isPublished ? (
                 <button

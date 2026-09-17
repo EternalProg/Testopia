@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { Alert } from '../components/Alert.js';
+import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 import { TestList } from '../components/TestList.js';
 import { testsApi } from '../tests/api.js';
@@ -47,12 +49,8 @@ export function TestListPage({
           </Link>
         )}
       </div>
-      {state === 'loading' && <p role="status">Loading tests...</p>}
-      {state === 'error' && (
-        <p className="error-message" role="alert">
-          Tests could not be loaded. Try again.
-        </p>
-      )}
+      {state === 'loading' && <LoadingState text="Loading tests..." />}
+      {state === 'error' && <Alert variant="error">Tests could not be loaded. Try again.</Alert>}
       {state === 'ready' && <TestList tests={tests} mine={mine} />}
     </>
   );

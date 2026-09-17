@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { Alert } from '../components/Alert.js';
+import { EmptyState } from '../components/EmptyState.js';
+import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 import { StatisticsApiError, statisticsApi } from '../statistics/api.js';
 import { formatDuration } from '../statistics/format.js';
@@ -37,9 +40,7 @@ export function StatisticsPage() {
   if (error) {
     return (
       <TestLayout>
-        <p className="error-message" role="alert">
-          {error}
-        </p>
+        <Alert variant="error">{error}</Alert>
         <Link to={`/tests/${id}`} className="text-link">
           Back to test
         </Link>
@@ -50,7 +51,7 @@ export function StatisticsPage() {
   if (!stats) {
     return (
       <TestLayout>
-        <p role="status">Loading statistics...</p>
+        <LoadingState text="Loading statistics..." />
       </TestLayout>
     );
   }
@@ -58,8 +59,7 @@ export function StatisticsPage() {
   if (stats.attemptsCount === 0) {
     return (
       <TestLayout>
-        <h1>No attempts yet</h1>
-        <p>No attempts yet for this test.</p>
+        <EmptyState title="No attempts yet" text="No attempts yet for this test." />
         <Link to={`/tests/${id}`} className="text-link">
           Back to test
         </Link>
@@ -74,7 +74,7 @@ export function StatisticsPage() {
       <p className="eyebrow">Test statistics</p>
       <h1>Test statistics</h1>
       <section aria-label="Summary">
-        <dl className="stats-summary">
+        <dl className="stats-cards">
           <div className="stat-card">
             <dt>Attempts</dt>
             <dd>{stats.attemptsCount}</dd>
@@ -97,20 +97,22 @@ export function StatisticsPage() {
       </section>
       <section aria-label="Score distribution">
         <h2>Score distribution</h2>
-        <ul className="score-bars">
+        <ul className="bars">
           {stats.scoreDistribution.map((bucket) => {
             const width = maxBucketCount === 0 ? 0 : (bucket.count / maxBucketCount) * 100;
             return (
-              <li key={`${bucket.min}-${bucket.max}`} className="score-bar-row">
+              <li key={`${bucket.min}-${bucket.max}`} className="bar-row">
                 <span>
                   {bucket.min}–{bucket.max}
                 </span>
-                <div
-                  className="score-bar"
-                  role="img"
-                  aria-label={`Scores ${bucket.min} to ${bucket.max}: ${bucket.count} attempts`}
-                  style={{ width: `${width}%` }}
-                />
+                <div className="bar-track">
+                  <div
+                    className="bar-fill"
+                    role="img"
+                    aria-label={`Scores ${bucket.min} to ${bucket.max}: ${bucket.count} attempts`}
+                    style={{ width: `${width}%` }}
+                  />
+                </div>
                 <span>{bucket.count}</span>
               </li>
             );
@@ -119,30 +121,33 @@ export function StatisticsPage() {
       </section>
       <section aria-label="Per-question results">
         <h2>Questions</h2>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Question</th>
-              <th scope="col">Attempts</th>
-              <th scope="col">Correct</th>
-              <th scope="col">Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.questionStats.map((question) => (
-              <tr key={question.questionId}>
-                <td>{question.text}</td>
-                <td>{question.attempts}</td>
-                <td>{question.correctAnswers}</td>
-                <td>
-                  {question.correctnessRate === null
-                    ? '—'
-                    : `${(question.correctnessRate * 100).toFixed(1)}%`}
-                </td>
+        <div className="table-scroll">
+          <table className="data-table">
+            <caption>Per-question results</caption>
+            <thead>
+              <tr>
+                <th scope="col">Question</th>
+                <th scope="col">Attempts</th>
+                <th scope="col">Correct</th>
+                <th scope="col">Rate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {stats.questionStats.map((question) => (
+                <tr key={question.questionId}>
+                  <td>{question.text}</td>
+                  <td>{question.attempts}</td>
+                  <td>{question.correctAnswers}</td>
+                  <td>
+                    {question.correctnessRate === null
+                      ? '—'
+                      : `${(question.correctnessRate * 100).toFixed(1)}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
       <Link to={`/tests/${id}`} className="text-link">
         Back to test
