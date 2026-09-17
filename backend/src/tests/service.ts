@@ -9,6 +9,7 @@ import type {
 } from '@practice-works/shared';
 
 import type { tests } from '../db/schema.js';
+import { AuthError } from '../auth/errors.js';
 import type { TestsRepository } from '../repositories/tests.repository.js';
 import { TestError } from './errors.js';
 
@@ -20,11 +21,12 @@ export class TestsService {
 
   async list(actor: Actor | undefined, scope?: string) {
     if (scope === 'mine') {
-      if (!actor) throw new TestError('Authentication required', 'FORBIDDEN');
+      if (!actor) throw new AuthError('Authentication required', 'UNAUTHORIZED');
       return this.repository.list({ authorId: actor.id, publishedOnly: false });
     }
     if (scope === 'all') {
-      if (!actor || actor.role !== 'admin') {
+      if (!actor) throw new AuthError('Authentication required', 'UNAUTHORIZED');
+      if (actor.role !== 'admin') {
         throw new TestError('Insufficient permissions', 'FORBIDDEN');
       }
       return this.repository.list({ publishedOnly: false });

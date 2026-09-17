@@ -13,5 +13,7 @@ export function getCorsOptions(value = process.env.CORS_ORIGIN): FastifyCorsOpti
   return {
     origin: origins.length > 0 ? origins : false,
     credentials: false,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
   };
 }

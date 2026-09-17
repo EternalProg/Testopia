@@ -13,51 +13,138 @@ export interface TestsRouteOptions {
   tokens: TokenService;
 }
 
+const bearerSecurity = { security: [{ bearerAuth: [] }] };
+// Browsable anonymously but accepts a token (used for scope=mine/all and
+// draft visibility): documented as optional auth.
+const optionalBearerSecurity = { security: [{ bearerAuth: [] }, {}] };
+
 const testsRoutes: FastifyPluginAsync<TestsRouteOptions> = async (app, options) => {
   const controller = createTestsController(new TestsService(new TestsRepository(options.db)));
   const authenticate = authenticationGuard(options.tokens);
   const optionalAuthenticate = optionalAuthenticationGuard(options.tokens);
 
-  app.get('/api/v1/tests', { onRequest: optionalAuthenticate }, controller.list);
-  app.post('/api/v1/tests', { onRequest: authenticate }, controller.create);
+  // Route `schema` entries below are docs-only metadata (description/tags/
+  // security). No body/querystring/response validation schemas are added so
+  // Fastify behavior is unchanged; Zod parsing stays in the controllers.
+
+  app.get(
+    '/api/v1/tests',
+    {
+      onRequest: optionalAuthenticate,
+      schema: {
+        description: 'List published tests (scope=mine/all adds authenticated views).',
+        tags: ['tests'],
+        ...optionalBearerSecurity,
+      },
+    },
+    controller.list,
+  );
+  app.post(
+    '/api/v1/tests',
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Create a new draft test.',
+        tags: ['tests'],
+        ...bearerSecurity,
+      },
+    },
+    controller.create,
+  );
   app.get<{ Params: { id: string } }>(
     '/api/v1/tests/:id',
-    { onRequest: optionalAuthenticate },
+    {
+      onRequest: optionalAuthenticate,
+      schema: {
+        description: 'Get a test by id (drafts are 404-masked from non-managers).',
+        tags: ['tests'],
+        ...optionalBearerSecurity,
+      },
+    },
     controller.get,
   );
   app.patch<{ Params: { id: string } }>(
     '/api/v1/tests/:id',
-    { onRequest: authenticate },
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Update a test (author-or-admin).',
+        tags: ['tests'],
+        ...bearerSecurity,
+      },
+    },
     controller.update,
   );
   app.delete<{ Params: { id: string } }>(
     '/api/v1/tests/:id',
-    { onRequest: authenticate },
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Delete a test (author-or-admin).',
+        tags: ['tests'],
+        ...bearerSecurity,
+      },
+    },
     controller.remove,
   );
   app.post<{ Params: { id: string } }>(
     '/api/v1/tests/:id/publish',
-    { onRequest: authenticate },
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Publish a test (author-or-admin).',
+        tags: ['tests'],
+        ...bearerSecurity,
+      },
+    },
     controller.publish,
   );
   app.post<{ Params: { id: string } }>(
     '/api/v1/tests/:id/unpublish',
-    { onRequest: authenticate },
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Unpublish a test (author-or-admin).',
+        tags: ['tests'],
+        ...bearerSecurity,
+      },
+    },
     controller.unpublish,
   );
   app.post<{ Params: { id: string } }>(
     '/api/v1/tests/:id/questions',
-    { onRequest: authenticate },
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Add a question to a test (author-or-admin).',
+        tags: ['tests'],
+        ...bearerSecurity,
+      },
+    },
     controller.createQuestion,
   );
   app.patch<{ Params: { id: string; questionId: string } }>(
     '/api/v1/tests/:id/questions/:questionId',
-    { onRequest: authenticate },
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Update a question (author-or-admin).',
+        tags: ['tests'],
+        ...bearerSecurity,
+      },
+    },
     controller.updateQuestion,
   );
   app.delete<{ Params: { id: string; questionId: string } }>(
     '/api/v1/tests/:id/questions/:questionId',
-    { onRequest: authenticate },
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Delete a question (author-or-admin).',
+        tags: ['tests'],
+        ...bearerSecurity,
+      },
+    },
     controller.removeQuestion,
   );
 };

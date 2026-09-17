@@ -18,6 +18,10 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
     "@practice-works/shared": "*",
     "bcryptjs": "^3.0.3",
     "dotenv": "latest",
@@ -26,6 +30,7 @@
     "fastify-plugin": "latest",
     "jose": "^6.2.12",
     "mysql2": "latest",
+    "openapi-types": "^12.1.3",
     "zod": "latest"
   },
   "devDependencies": {

@@ -35,8 +35,21 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
+      # Trust X-Forwarded-For for client IPs (rate limiting, logs). The
+      # bundled nginx proxies every /api/* request and overwrites
+      # X-Forwarded-For with the real client IP, so trusting it is safe
+      # through that ingress. If you publish the backend port beyond the
+      # proxy (or remove nginx), set TRUST_PROXY=0: with trust-all, headers
+      # from direct clients would be honored verbatim.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
     ports:
       - '3000:3000'
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/ready']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       mysql:
         condition: service_healthy
