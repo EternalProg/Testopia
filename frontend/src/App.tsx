@@ -7,6 +7,7 @@ import { AttemptResultPage } from './pages/AttemptResultPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
+import { StatisticsPage } from './pages/StatisticsPage.js';
 import { TakeTestPage } from './pages/TakeTestPage.js';
 import { TestDetailPage } from './pages/TestDetailPage.js';
 import { TestEditorPage } from './pages/TestEditorPage.js';
@@ -64,6 +65,7 @@ export function App() {
             <Route path="/tests/:id/edit" element={<TestEditorPage />} />
             <Route path="/tests/:id/take" element={<TakeTestPage />} />
             <Route path="/tests/:id/attempts" element={<AttemptHistoryPage />} />
+            <Route path="/tests/:id/statistics" element={<StatisticsPage />} />
             <Route path="/attempts/:id/result" element={<AttemptResultPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/login" replace />} />

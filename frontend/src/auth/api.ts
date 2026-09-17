@@ -3,6 +3,7 @@ import type { LoginInput, RegisterInput, User } from '@practice-works/shared';
 import type { ApiErrorPayload, Session } from './types.js';
 import { tokenStorage } from './token-storage.js';
 import { attemptsApi } from '../attempts/api.js';
+import { statisticsApi } from '../statistics/api.js';
 import { testsApi } from '../tests/api.js';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
@@ -51,6 +52,7 @@ function storeSession(session: Session): Session {
   accessToken = session.accessToken;
   testsApi.setAccessToken(session.accessToken);
   attemptsApi.setAccessToken(session.accessToken);
+  statisticsApi.setAccessToken(session.accessToken);
   tokenStorage.setRefreshToken(session.refreshToken);
   return session;
 }
@@ -101,6 +103,7 @@ export const authApi = {
       accessToken = null;
       testsApi.setAccessToken(null);
       attemptsApi.setAccessToken(null);
+      statisticsApi.setAccessToken(null);
       tokenStorage.clear();
     }
   },
@@ -111,5 +114,6 @@ export const authApi = {
     accessToken = null;
     testsApi.setAccessToken(null);
     attemptsApi.setAccessToken(null);
+    statisticsApi.setAccessToken(null);
   },
 };
