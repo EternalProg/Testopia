@@ -15,6 +15,13 @@
       "when": 1789412959397,
       "tag": "0001_mighty_zarek",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1789658659909,
+      "tag": "0002_lively_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

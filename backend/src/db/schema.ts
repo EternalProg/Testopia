@@ -3,6 +3,7 @@ import {
   decimal,
   index,
   int,
+  json,
   mysqlEnum,
   mysqlTable,
   text,
@@ -117,6 +118,10 @@ export const testAttempts = mysqlTable(
     completedAt: timestamp('completed_at'),
     score: decimal('score', { precision: 5, scale: 2, mode: 'number' }),
     timeSpentSeconds: int('time_spent_seconds'),
+    // Persisted display order of question ids for this attempt. Shuffled when
+    // tests.shuffle_questions is true, otherwise natural orderIndex order.
+    // Older rows may be null; readers fall back to orderIndex order.
+    questionOrder: json('question_order').$type<number[]>(),
   },
   (table) => [
     index('test_attempts_user_id_idx').on(table.userId),
@@ -125,6 +130,11 @@ export const testAttempts = mysqlTable(
   ],
 );
 
+// NOTE: answer_records.selected_option_id stores a single option id while the
+// shared submitAnswerSchema.selectedOptionIds is an array. Multiple-choice
+// answers are persisted as one row per selected option id (each row carries the
+// same per-question isCorrect verdict, so consumers must dedupe by question).
+// Open-ended answers use a single row with text_answer and isCorrect null.
 export const answerRecords = mysqlTable(
   'answer_records',
   {

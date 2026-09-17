@@ -1,0 +1,1 @@
+ALTER TABLE `test_attempts` ADD `question_order` json;
