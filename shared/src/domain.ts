@@ -61,6 +61,48 @@ export interface TestAttempt {
   completedAt: Date | null;
   score: number | null;
   timeSpentSeconds: number | null;
+  questionOrder: number[] | null;
+}
+
+export interface AttemptAnswer {
+  questionId: number;
+  selectedOptionIds: number[];
+  textAnswer: string | null;
+  isCorrect: boolean | null;
+}
+
+export interface AttemptTestInfo {
+  id: number;
+  title: string;
+  timeLimitMinutes: number | null;
+}
+
+export interface AttemptDetail {
+  attempt: TestAttempt;
+  test: AttemptTestInfo;
+  questions: PublicQuestion[];
+}
+
+export interface SubmitAttemptResult {
+  attempt: TestAttempt;
+  answers: AttemptAnswer[];
+  answersRevealed: boolean;
+}
+
+export type ResultAnswerOption = PublicAnswerOption & { isCorrect?: boolean };
+export type ResultQuestion = Omit<Question, 'options'> & { options: ResultAnswerOption[] };
+
+export interface AttemptResult {
+  attempt: TestAttempt;
+  test: AttemptTestInfo;
+  questions: ResultQuestion[];
+  answers: AttemptAnswer[];
+  answersRevealed: boolean;
+}
+
+export interface AttemptHistoryItem extends TestAttempt {
+  username: string;
+  answersRevealed: boolean;
 }
 
 export interface QuestionStats {

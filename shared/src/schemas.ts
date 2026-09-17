@@ -95,9 +95,24 @@ export const submitAnswerSchema = z.object({
   textAnswer: z.string().max(10_000).nullable().optional(),
 });
 
-export const submitAttemptSchema = z.object({
-  answers: z.array(submitAnswerSchema),
-});
+export const submitAttemptSchema = z
+  .object({
+    answers: z.array(submitAnswerSchema).max(500),
+  })
+  .superRefine((attempt, context) => {
+    const seen = new Set<number>();
+    for (const answer of attempt.answers) {
+      if (seen.has(answer.questionId)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['answers'],
+          message: 'Each question may be answered only once',
+        });
+        return;
+      }
+      seen.add(answer.questionId);
+    }
+  });
 
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -110,6 +125,7 @@ export type CreateTestInput = z.infer<typeof createTestSchema>;
 export type UpdateTestInput = z.infer<typeof updateTestSchema>;
 export type CreateQuestionInput = z.infer<typeof createQuestionSchema>;
 export type UpdateQuestionInput = z.infer<typeof updateQuestionSchema>;
+export type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>;
 export type SubmitAttemptInput = z.infer<typeof submitAttemptSchema>;
 export type PaginationInput = z.infer<typeof paginationSchema>;
 
