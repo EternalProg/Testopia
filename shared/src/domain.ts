@@ -105,11 +105,18 @@ export interface AttemptHistoryItem extends TestAttempt {
   answersRevealed: boolean;
 }
 
+export interface ScoreBucket {
+  min: number;
+  max: number;
+  count: number;
+}
+
 export interface QuestionStats {
   questionId: number;
+  text: string;
   attempts: number;
   correctAnswers: number;
-  correctnessRate: number;
+  correctnessRate: number | null;
 }
 
 export interface TestStats {
@@ -118,5 +125,6 @@ export interface TestStats {
   completedAttemptsCount: number;
   averageScore: number | null;
   averageTimeSeconds: number | null;
+  scoreDistribution: ScoreBucket[];
   questionStats: QuestionStats[];
 }
