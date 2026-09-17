@@ -14,6 +14,8 @@ import { getCorsOptions } from './cors.js';
 import databasePlugin from './plugins/database.js';
 import attemptsRoutes from './attempts/routes.js';
 import { AttemptError } from './attempts/errors.js';
+import statisticsRoutes from './statistics/routes.js';
+import { StatisticsError } from './statistics/errors.js';
 import testsRoutes from './tests/routes.js';
 import { TestError } from './tests/errors.js';
 import type { Database } from './db/client.js';
@@ -35,6 +37,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     if (options.auth.database) {
       app.register(testsRoutes, { db: options.auth.database, tokens: options.auth.tokens });
       app.register(attemptsRoutes, { db: options.auth.database, tokens: options.auth.tokens });
+      app.register(statisticsRoutes, { db: options.auth.database, tokens: options.auth.tokens });
     }
   } else if (options.database) {
     app.register(databasePlugin);
@@ -44,6 +47,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         const auth = createAuthServices(nested.db);
         nested.register(testsRoutes, { db: nested.db, tokens: auth.tokens });
         nested.register(attemptsRoutes, { db: nested.db, tokens: auth.tokens });
+        nested.register(statisticsRoutes, { db: nested.db, tokens: auth.tokens });
       });
     });
   }
@@ -63,6 +67,17 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
       return reply.code(statusCode).send({ error: error.code, message: error.message });
     }
     if (error instanceof TestError) {
+      const statusCode =
+        error.code === 'NOT_FOUND'
+          ? 404
+          : error.code === 'FORBIDDEN'
+            ? 403
+            : error.code === 'CONFLICT'
+              ? 409
+              : 400;
+      return reply.code(statusCode).send({ error: error.code, message: error.message });
+    }
+    if (error instanceof StatisticsError) {
       const statusCode =
         error.code === 'NOT_FOUND'
           ? 404
