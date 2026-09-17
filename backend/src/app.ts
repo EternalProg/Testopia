@@ -12,6 +12,8 @@ import type { AuthService } from './auth/service.js';
 import type { TokenService } from './auth/tokens.js';
 import { getCorsOptions } from './cors.js';
 import databasePlugin from './plugins/database.js';
+import attemptsRoutes from './attempts/routes.js';
+import { AttemptError } from './attempts/errors.js';
 import testsRoutes from './tests/routes.js';
 import { TestError } from './tests/errors.js';
 import type { Database } from './db/client.js';
@@ -30,8 +32,10 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
   if (options.auth) {
     app.register(authRoutes, options.auth);
-    if (options.auth.database)
+    if (options.auth.database) {
       app.register(testsRoutes, { db: options.auth.database, tokens: options.auth.tokens });
+      app.register(attemptsRoutes, { db: options.auth.database, tokens: options.auth.tokens });
+    }
   } else if (options.database) {
     app.register(databasePlugin);
     app.register(async (instance) => {
@@ -39,6 +43,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
       instance.register(async (nested) => {
         const auth = createAuthServices(nested.db);
         nested.register(testsRoutes, { db: nested.db, tokens: auth.tokens });
+        nested.register(attemptsRoutes, { db: nested.db, tokens: auth.tokens });
       });
     });
   }
@@ -66,6 +71,19 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
             : error.code === 'CONFLICT'
               ? 409
               : 400;
+      return reply.code(statusCode).send({ error: error.code, message: error.message });
+    }
+    if (error instanceof AttemptError) {
+      const statusCode =
+        error.code === 'NOT_FOUND'
+          ? 404
+          : error.code === 'FORBIDDEN'
+            ? 403
+            : error.code === 'CONFLICT'
+              ? 409
+              : error.code === 'EXPIRED'
+                ? 410
+                : 400;
       return reply.code(statusCode).send({ error: error.code, message: error.message });
     }
     app.log.error(error);
