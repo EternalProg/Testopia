@@ -50,9 +50,17 @@ export function TestDetailPage() {
               </li>
             ))}
           </ol>
-          <Link to="/tests" className="text-link">
-            Back to browse
-          </Link>
+          <div className="attempt-actions">
+            <Link to={`/tests/${detail.test.id}/take`} className="button">
+              Start test
+            </Link>
+            <Link to={`/tests/${detail.test.id}/attempts`} className="text-link">
+              View attempt history
+            </Link>
+            <Link to="/tests" className="text-link">
+              Back to browse
+            </Link>
+          </div>
         </article>
       )}
     </TestLayout>

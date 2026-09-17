@@ -2,6 +2,7 @@ import type { LoginInput, RegisterInput, User } from '@practice-works/shared';
 
 import type { ApiErrorPayload, Session } from './types.js';
 import { tokenStorage } from './token-storage.js';
+import { attemptsApi } from '../attempts/api.js';
 import { testsApi } from '../tests/api.js';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
@@ -49,6 +50,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 function storeSession(session: Session): Session {
   accessToken = session.accessToken;
   testsApi.setAccessToken(session.accessToken);
+  attemptsApi.setAccessToken(session.accessToken);
   tokenStorage.setRefreshToken(session.refreshToken);
   return session;
 }
@@ -98,6 +100,7 @@ export const authApi = {
     } finally {
       accessToken = null;
       testsApi.setAccessToken(null);
+      attemptsApi.setAccessToken(null);
       tokenStorage.clear();
     }
   },
@@ -107,5 +110,6 @@ export const authApi = {
   clearAccessToken(): void {
     accessToken = null;
     testsApi.setAccessToken(null);
+    attemptsApi.setAccessToken(null);
   },
 };

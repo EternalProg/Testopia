@@ -2,9 +2,12 @@ import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
 import { useAuthStore } from './auth/store.js';
+import { AttemptHistoryPage } from './pages/AttemptHistoryPage.js';
+import { AttemptResultPage } from './pages/AttemptResultPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
+import { TakeTestPage } from './pages/TakeTestPage.js';
 import { TestDetailPage } from './pages/TestDetailPage.js';
 import { TestEditorPage } from './pages/TestEditorPage.js';
 import { TestListPage } from './pages/TestListPage.js';
@@ -59,6 +62,9 @@ export function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/tests/new" element={<TestEditorPage />} />
             <Route path="/tests/:id/edit" element={<TestEditorPage />} />
+            <Route path="/tests/:id/take" element={<TakeTestPage />} />
+            <Route path="/tests/:id/attempts" element={<AttemptHistoryPage />} />
+            <Route path="/attempts/:id/result" element={<AttemptResultPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
