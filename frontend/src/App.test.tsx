@@ -7,6 +7,6 @@ describe('App', () => {
   it('renders the application heading', () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: 'Log in to Practice Works' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
   });
 });

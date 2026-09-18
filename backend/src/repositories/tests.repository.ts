@@ -1,7 +1,7 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq } from 'drizzle-orm';
 
 import type { Database } from '../db/client.js';
-import { answerOptions, questions, tests } from '../db/schema.js';
+import { answerOptions, questions, testAttempts, tests } from '../db/schema.js';
 import { withTransaction } from '../db/transaction.js';
 
 type QuestionRow = typeof questions.$inferSelect;
@@ -38,6 +38,14 @@ export class TestsRepository {
 
   async delete(id: number) {
     await this.db.delete(tests).where(eq(tests.id, id));
+  }
+
+  async countAttempts(testId: number) {
+    const rows = await this.db
+      .select({ value: count() })
+      .from(testAttempts)
+      .where(eq(testAttempts.testId, testId));
+    return Number(rows[0]?.value ?? 0);
   }
 
   async findQuestions(testId: number) {

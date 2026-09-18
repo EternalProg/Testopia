@@ -35,6 +35,7 @@ function repository(overrides: Record<string, unknown> = {}) {
     update: vi.fn().mockResolvedValue(baseTest),
     create: vi.fn(),
     delete: vi.fn(),
+    countAttempts: vi.fn().mockResolvedValue(0),
     createQuestion: vi.fn(),
     updateQuestion: vi.fn(),
     deleteQuestion: vi.fn(),
@@ -189,5 +190,21 @@ describe('TestsService', () => {
         ],
       }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('refuses to delete a test that has attempts', async () => {
+    const repo = repository({ countAttempts: vi.fn().mockResolvedValue(2) });
+    const service = new TestsService(repo as never);
+    await expect(service.remove({ id: 10, role: 'user' }, 1)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+    expect(repo.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes a test without attempts', async () => {
+    const repo = repository();
+    const service = new TestsService(repo as never);
+    await service.remove({ id: 10, role: 'user' }, 1);
+    expect(repo.delete).toHaveBeenCalledWith(1);
   });
 });

@@ -1,5 +1,5 @@
-import type { CreateQuestionInput, CreateTestInput, UpdateTestInput } from '@practice-works/shared';
-import type { QuestionType } from '@practice-works/shared';
+import type { CreateQuestionInput, CreateTestInput, UpdateTestInput } from '@testopia/shared';
+import type { QuestionType } from '@testopia/shared';
 
 export type UpdateQuestionInput = {
   text?: string;

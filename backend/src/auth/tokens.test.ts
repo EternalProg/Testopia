@@ -7,7 +7,7 @@ const config = {
   accessSecret: 'access-secret-that-is-long-enough',
   refreshSecret: 'refresh-secret-that-is-long-enough',
   accessTtl: '15m',
-  issuer: 'practiceworks-test',
+  issuer: 'testopia-test',
   refreshTtlMs: 60_000,
 };
 

@@ -1,2 +1,2 @@
-CREATE DATABASE IF NOT EXISTS test_practiceworks;
-GRANT ALL PRIVILEGES ON test_practiceworks.* TO 'practiceworks'@'%';
+CREATE DATABASE IF NOT EXISTS test_testopia;
+GRANT ALL PRIVILEGES ON test_testopia.* TO 'testopia'@'%';

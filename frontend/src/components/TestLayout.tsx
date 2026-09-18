@@ -40,7 +40,7 @@ export function TestLayout({
         </a>
         <header className="site-header">
           <Link className="wordmark" to="/tests">
-            Practice Works
+            Testopia
           </Link>
           <nav aria-label="Main navigation">
             <NavLink to="/tests">Browse</NavLink>

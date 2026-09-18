@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose';
 
-import type { UserRole } from '@practice-works/shared';
+import type { UserRole } from '@testopia/shared';
 
 import type { RefreshTokensRepository } from '../repositories/refresh-tokens.repository.js';
 import type { refreshTokens } from '../db/schema.js';

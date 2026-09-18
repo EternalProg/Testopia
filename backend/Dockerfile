@@ -10,7 +10,7 @@ RUN npm install --ignore-scripts
 COPY tsconfig.base.json ./
 COPY shared shared
 COPY backend backend
-RUN npm run build --workspace=@practice-works/shared && npm run build --workspace=@practice-works/backend
+RUN npm run build --workspace=@testopia/shared && npm run build --workspace=@testopia/backend
 
 FROM node:22-alpine
 WORKDIR /app

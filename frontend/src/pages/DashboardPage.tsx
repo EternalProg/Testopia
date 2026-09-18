@@ -7,7 +7,7 @@ export function DashboardPage() {
   return (
     <TestLayout>
       <section className="dashboard-intro">
-        <h1>Practice Works</h1>
+        <h1>Testopia</h1>
         <p>Welcome, {user?.username}.</p>
       </section>
       <TestListPage mine={Boolean(user)} withLayout={false} />

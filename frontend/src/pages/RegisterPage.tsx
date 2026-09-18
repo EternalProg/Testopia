@@ -6,7 +6,7 @@ export function RegisterPage() {
   const navigate = useNavigate();
   return (
     <main className="page-content">
-      <h1>Create your Practice Works account</h1>
+      <h1>Create your Testopia account</h1>
       <AuthForm mode="register" onSuccess={() => navigate('/dashboard', { replace: true })} />
       <p>
         Already registered? <Link to="/login">Log in</Link>

@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import type { UserRole } from '@practice-works/shared';
+import type { UserRole } from '@testopia/shared';
 
 import { AuthError } from './errors.js';
 import type { TokenService } from './tokens.js';

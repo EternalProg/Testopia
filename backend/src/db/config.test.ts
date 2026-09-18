@@ -16,9 +16,9 @@ describe('database configuration', () => {
 
   it('allows only test databases for integration tests', () => {
     expect(() =>
-      assertTestDatabaseUrl('mysql://user:pass@localhost:3306/test_practiceworks'),
+      assertTestDatabaseUrl('mysql://user:pass@localhost:3306/test_testopia'),
     ).not.toThrow();
-    expect(() => assertTestDatabaseUrl('mysql://user:pass@localhost:3306/practiceworks')).toThrow(
+    expect(() => assertTestDatabaseUrl('mysql://user:pass@localhost:3306/testopia')).toThrow(
       'test_',
     );
   });

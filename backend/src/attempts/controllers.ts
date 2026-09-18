@@ -1,4 +1,4 @@
-import { submitAttemptSchema } from '@practice-works/shared';
+import { submitAttemptSchema } from '@testopia/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { AuthError } from '../auth/errors.js';

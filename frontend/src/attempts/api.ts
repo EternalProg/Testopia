@@ -1,4 +1,4 @@
-import type { SubmitAttemptInput } from '@practice-works/shared';
+import type { SubmitAttemptInput } from '@testopia/shared';
 
 import type {
   ApiAttemptHistoryItem,

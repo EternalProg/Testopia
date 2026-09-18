@@ -1,4 +1,4 @@
-import type { AnswerOption, Question, Test } from '@practice-works/shared';
+import type { AnswerOption, Question, Test } from '@testopia/shared';
 
 export type ApiTest = Omit<Test, 'createdAt' | 'updatedAt'> & {
   createdAt: string;

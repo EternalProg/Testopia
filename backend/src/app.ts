@@ -5,7 +5,7 @@ import fp from 'fastify-plugin';
 import { randomUUID } from 'node:crypto';
 import { ZodError } from 'zod';
 
-import { healthResponseSchema } from '@practice-works/shared';
+import { healthResponseSchema } from '@testopia/shared';
 
 import { AuthError } from './auth/errors.js';
 import { PasswordTooLongError } from './auth/password.js';

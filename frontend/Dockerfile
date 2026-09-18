@@ -12,7 +12,7 @@ COPY shared shared
 COPY frontend frontend
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-RUN npm run build --workspace=@practice-works/shared && npm run build --workspace=@practice-works/frontend
+RUN npm run build --workspace=@testopia/shared && npm run build --workspace=@testopia/frontend
 
 FROM nginx:alpine
 COPY --from=build /app/frontend/dist /usr/share/nginx/html

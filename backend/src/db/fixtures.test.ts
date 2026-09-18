@@ -1,4 +1,4 @@
-import { createQuestionSchema, createTestSchema, registerSchema } from '@practice-works/shared';
+import { createQuestionSchema, createTestSchema, registerSchema } from '@testopia/shared';
 import { describe, expect, it } from 'vitest';
 
 import {

@@ -15,7 +15,7 @@ afterEach(async () => {
 
 describe('Vite API proxy configuration', () => {
   it('loads VITE_API_PROXY_TARGET from .env.local for the active mode', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'practice-works-vite-'));
+    const directory = await mkdtemp(join(tmpdir(), 'testopia-vite-'));
     temporaryDirectories.push(directory);
     await writeFile(join(directory, '.env'), 'VITE_API_PROXY_TARGET=http://env.example\n');
     await writeFile(join(directory, '.env.local'), 'VITE_API_PROXY_TARGET=http://local.example\n');

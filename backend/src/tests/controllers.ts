@@ -3,7 +3,7 @@ import {
   createTestSchema,
   updateQuestionSchema,
   updateTestSchema,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { AuthError } from '../auth/errors.js';

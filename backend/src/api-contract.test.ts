@@ -5,7 +5,7 @@ import {
   loginSchema,
   registerSchema,
   submitAttemptSchema,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { buildApp } from './app.js';
@@ -26,6 +26,12 @@ vi.mock('./repositories/tests.repository.js', () => ({
     }
     async findQuestions() {
       return [];
+    }
+    async countAttempts() {
+      return 1;
+    }
+    async delete() {
+      return undefined;
     }
     async list() {
       return [];
@@ -169,6 +175,33 @@ describe('API contract', () => {
 
     expect(status).toBe(410);
     expect(body).toMatchObject({ error: 'EXPIRED', ...expiredResult });
+  });
+
+  it('refuses to delete a test with attempts over HTTP', async () => {
+    const authorApp = buildApp({
+      auth: {
+        service: {} as AuthService,
+        tokens: {
+          verifyAccessToken: vi.fn(async () => ({ sub: '10', role: 'user', type: 'access' })),
+        } as unknown as TokenService,
+        database: {} as Database,
+      },
+    });
+    await authorApp.ready();
+    try {
+      const response = await authorApp.inject({
+        method: 'DELETE',
+        url: '/api/v1/tests/1',
+        headers: { authorization: 'Bearer author-token' },
+      });
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({
+        error: 'CONFLICT',
+        message: 'Cannot delete a test with attempts',
+      });
+    } finally {
+      await authorApp.close();
+    }
   });
 
   it('rejects oversized JSON bodies with 413', async () => {

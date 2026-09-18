@@ -1,5 +1,5 @@
 {
-  "name": "@practice-works/backend",
+  "name": "@testopia/backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "pretest": "npm run build",
     "test": "vitest run",
     "pretest:coverage": "npm run build",
-    "test:integration": "RUN_MYSQL_INTEGRATION=1 vitest run integration",
+    "test:integration": "RUN_MYSQL_INTEGRATION=1 vitest run integration --no-file-parallelism",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
@@ -23,7 +23,7 @@
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/swagger": "^9.8.1",
     "@fastify/swagger-ui": "^6.1.1",
-    "@practice-works/shared": "*",
+    "@testopia/shared": "*",
     "bcryptjs": "^3.0.3",
     "dotenv": "latest",
     "drizzle-orm": "latest",

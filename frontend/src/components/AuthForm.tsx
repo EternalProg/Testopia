@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { LoginInput, RegisterInput } from '@practice-works/shared';
-import { loginSchema, registerSchema } from '@practice-works/shared';
+import type { LoginInput, RegisterInput } from '@testopia/shared';
+import { loginSchema, registerSchema } from '@testopia/shared';
 
 import { useAuthStore } from '../auth/store.js';
 

@@ -3,7 +3,7 @@ import type {
   CreateTestInput,
   RegisterInput,
   SubmitAnswerInput,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 
 export const userFixture: RegisterInput = {
   email: 'fixture@example.com',

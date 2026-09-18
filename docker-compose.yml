@@ -1,10 +1,12 @@
+name: testopia
+
 services:
   mysql:
     image: mysql:8.4
     environment:
-      MYSQL_DATABASE: practiceworks
-      MYSQL_USER: practiceworks
-      MYSQL_PASSWORD: practiceworks
+      MYSQL_DATABASE: testopia
+      MYSQL_USER: testopia
+      MYSQL_PASSWORD: testopia
       MYSQL_ROOT_PASSWORD: root
     ports:
       - '3306:3306'
@@ -31,7 +33,7 @@ services:
     environment:
       BACKEND_PORT: 3000
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-      DATABASE_URL: mysql://practiceworks:practiceworks@mysql:3306/practiceworks
+      DATABASE_URL: mysql://testopia:testopia@mysql:3306/testopia
       REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}

@@ -1,12 +1,12 @@
 import type { Session } from './auth/types.js';
-import type { User } from '@practice-works/shared';
+import type { User } from '@testopia/shared';
 import {
   createQuestionSchema,
   createTestSchema,
   loginSchema,
   registerSchema,
   submitAttemptSchema,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it } from 'vitest';
 

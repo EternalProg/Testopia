@@ -4,7 +4,7 @@ const authEnvironmentSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().default('15m'),
-  JWT_ISSUER: z.string().default('practiceworks'),
+  JWT_ISSUER: z.string().default('testopia'),
   JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(30),
 });
 

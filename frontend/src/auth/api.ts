@@ -1,4 +1,4 @@
-import type { LoginInput, RegisterInput, User } from '@practice-works/shared';
+import type { LoginInput, RegisterInput, User } from '@testopia/shared';
 
 import type { ApiErrorPayload, Session } from './types.js';
 import { tokenStorage } from './token-storage.js';

@@ -44,7 +44,7 @@ describe('authentication flows', () => {
     await user.type(screen.getByLabelText('Password'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
-    expect(await screen.findByRole('heading', { name: 'Practice Works' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Testopia' })).toBeInTheDocument();
   });
 
   it('shows validation errors without making a request', async () => {
@@ -91,7 +91,7 @@ describe('authentication flows', () => {
         return HttpResponse.json(session);
       }),
     );
-    sessionStorage.setItem('practice-works.refresh-token', session.refreshToken);
+    sessionStorage.setItem('testopia.refresh-token', session.refreshToken);
     renderAt('/dashboard');
 
     expect(screen.getByRole('status', { name: 'Loading your session...' })).toBeInTheDocument();
@@ -101,18 +101,16 @@ describe('authentication flows', () => {
   it('redirects unauthenticated users away from protected navigation', async () => {
     renderAt('/dashboard');
 
-    expect(
-      await screen.findByRole('heading', { name: 'Log in to Practice Works' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
   });
 
   it('refreshes an existing session and loads the current user', async () => {
-    sessionStorage.setItem('practice-works.refresh-token', session.refreshToken);
+    sessionStorage.setItem('testopia.refresh-token', session.refreshToken);
     renderAt('/dashboard');
 
     expect(await screen.findByText('Welcome, test-user.')).toBeInTheDocument();
     await waitFor(() =>
-      expect(sessionStorage.getItem('practice-works.refresh-token')).toBe(session.refreshToken),
+      expect(sessionStorage.getItem('testopia.refresh-token')).toBe(session.refreshToken),
     );
   });
 
@@ -125,7 +123,7 @@ describe('authentication flows', () => {
         return HttpResponse.json(session);
       }),
     );
-    sessionStorage.setItem('practice-works.refresh-token', session.refreshToken);
+    sessionStorage.setItem('testopia.refresh-token', session.refreshToken);
     window.history.pushState({}, '', '/dashboard');
     render(
       <StrictMode>
@@ -145,10 +143,8 @@ describe('authentication flows', () => {
     await user.click(screen.getByRole('button', { name: 'Log in' }));
     await user.click(await screen.findByRole('button', { name: 'Log out' }));
 
-    expect(
-      await screen.findByRole('heading', { name: 'Log in to Practice Works' }),
-    ).toBeInTheDocument();
-    expect(sessionStorage.getItem('practice-works.refresh-token')).toBeNull();
+    expect(await screen.findByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
+    expect(sessionStorage.getItem('testopia.refresh-token')).toBeNull();
   });
 
   it('clears local auth and redirects when logout fails on the server', async () => {
@@ -167,10 +163,8 @@ describe('authentication flows', () => {
     await user.click(screen.getByRole('button', { name: 'Log in' }));
     await user.click(await screen.findByRole('button', { name: 'Log out' }));
 
-    expect(
-      await screen.findByRole('heading', { name: 'Log in to Practice Works' }),
-    ).toBeInTheDocument();
-    expect(sessionStorage.getItem('practice-works.refresh-token')).toBeNull();
+    expect(await screen.findByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
+    expect(sessionStorage.getItem('testopia.refresh-token')).toBeNull();
     expect(screen.queryByText('Welcome, test-user.')).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import type { LoginInput, RegisterInput, User } from '@practice-works/shared';
+import type { LoginInput, RegisterInput, User } from '@testopia/shared';
 
 import type { Database } from '../db/client.js';
 import { isDuplicateEntryError } from '../db/errors.js';

@@ -1,4 +1,4 @@
-import type { LoginInput, RegisterInput, User } from '@practice-works/shared';
+import type { LoginInput, RegisterInput, User } from '@testopia/shared';
 import { create } from 'zustand';
 
 import { ApiError, authApi } from './api.js';

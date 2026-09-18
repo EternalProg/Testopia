@@ -6,7 +6,7 @@ import type {
   PublicQuestion,
   ResultQuestion,
   TestAttempt,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 
 export type ApiAttempt = Omit<TestAttempt, 'startedAt' | 'completedAt'> & {
   startedAt: string;

@@ -1,4 +1,4 @@
-const refreshTokenKey = 'practice-works.refresh-token';
+const refreshTokenKey = 'testopia.refresh-token';
 
 // Access tokens stay in memory; sessionStorage keeps the JSON refresh-token contract working.
 // Residual tradeoff: sessionStorage is readable by same-origin scripts, so XSS remains a risk.

@@ -8,7 +8,7 @@ import type {
   SubmitAttemptInput,
   SubmitAttemptResult,
   TestAttempt,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 
 import type {
   AnswerRecordInput,

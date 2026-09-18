@@ -6,7 +6,7 @@ import {
   questionTypes,
   type CreateQuestionInput,
   type QuestionType,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 
 import { Alert } from '../components/Alert.js';
 import { EmptyState } from '../components/EmptyState.js';

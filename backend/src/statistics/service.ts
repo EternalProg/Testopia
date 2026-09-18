@@ -1,4 +1,4 @@
-import type { ScoreBucket, TestStats } from '@practice-works/shared';
+import type { ScoreBucket, TestStats } from '@testopia/shared';
 
 import { AuthError } from '../auth/errors.js';
 import type { StatisticsRepository } from '../repositories/statistics.repository.js';

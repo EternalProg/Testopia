@@ -5,7 +5,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/mysql2/migrator';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { CreateQuestionInput } from '@practice-works/shared';
+import type { CreateQuestionInput } from '@testopia/shared';
 
 import { createAuthServices } from './auth/factory.js';
 import { buildApp } from './app.js';

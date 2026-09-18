@@ -6,7 +6,7 @@ import type {
   Test,
   UpdateQuestionInput,
   UpdateTestInput,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 
 import type { tests } from '../db/schema.js';
 import { isDuplicateEntryError } from '../db/errors.js';
@@ -83,6 +83,9 @@ export class TestsService {
 
   async remove(actor: Actor, id: number) {
     await this.requireManageable(id, actor);
+    if ((await this.repository.countAttempts(id)) > 0) {
+      throw new TestError('Cannot delete a test with attempts', 'CONFLICT');
+    }
     await this.repository.delete(id);
   }
 

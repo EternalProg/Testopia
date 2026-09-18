@@ -8,7 +8,7 @@ vi.mock('../db/client.js', () => ({
   createDatabase: vi.fn(() => ({ db: {}, pool: { end: poolEnd } })),
 }));
 vi.mock('../db/config.js', () => ({
-  getDatabaseUrl: vi.fn(() => 'mysql://test:test@localhost:3306/test_practiceworks'),
+  getDatabaseUrl: vi.fn(() => 'mysql://test:test@localhost:3306/test_testopia'),
 }));
 vi.mock('drizzle-orm/mysql2/migrator', () => ({
   migrate: vi.fn().mockRejectedValue(migrationError),

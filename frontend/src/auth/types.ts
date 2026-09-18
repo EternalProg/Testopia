@@ -1,4 +1,4 @@
-import type { User } from '@practice-works/shared';
+import type { User } from '@testopia/shared';
 
 export interface Session {
   user: User;

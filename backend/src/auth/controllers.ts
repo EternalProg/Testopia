@@ -1,4 +1,4 @@
-import { loginSchema, refreshTokenSchema, registerSchema, type User } from '@practice-works/shared';
+import { loginSchema, refreshTokenSchema, registerSchema, type User } from '@testopia/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { AuthError } from './errors.js';

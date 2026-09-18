@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { SubmitAttemptResult } from '@practice-works/shared';
+import type { SubmitAttemptResult } from '@testopia/shared';
 
 import { AttemptsService } from './service.js';
 

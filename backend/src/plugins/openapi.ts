@@ -9,7 +9,7 @@ import {
   submitAttemptSchema,
   updateQuestionSchema,
   updateTestSchema,
-} from '@practice-works/shared';
+} from '@testopia/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 import type { OpenAPIV3 } from 'openapi-types';
