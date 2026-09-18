@@ -75,6 +75,24 @@ describe('AuthService', () => {
     ).rejects.toMatchObject({ code: 'EMAIL_TAKEN' });
   });
 
+  it('maps a Drizzle-wrapped duplicate-key race during registration to EMAIL_TAKEN', async () => {
+    const duplicate = setup();
+    vi.mocked(duplicate.users.findByEmail).mockResolvedValue(null);
+    const driverError = Object.assign(
+      new Error("Duplicate entry 'user@example.com' for key 'users.users_email_unique'"),
+      { code: 'ER_DUP_ENTRY', errno: 1062 },
+    );
+    vi.mocked(duplicate.users.create).mockRejectedValue(
+      Object.assign(new Error('Failed query: insert into `users`'), {
+        name: 'DrizzleQueryError',
+        cause: driverError,
+      }),
+    );
+
+    await expect(
+      duplicate.service.register({ email: user.email, username: 'user', password: 'password123' }),
+    ).rejects.toMatchObject({ code: 'EMAIL_TAKEN' });
+  });
   it('logs in, refreshes, logs out, and loads the current user', async () => {
     const { service, users, tokens } = setup();
     vi.mocked(users.findByEmail).mockResolvedValue(user);

@@ -196,6 +196,43 @@ describe('test frontend', () => {
     await waitFor(() => expect(newQuestionPayload).toMatchObject({ orderIndex: 2 }));
   });
 
+  it('disables save while a question create is in flight', async () => {
+    const user = userEvent.setup();
+    let resolvePost!: (value: unknown) => void;
+    let postCount = 0;
+    server.use(
+      http.get('/api/v1/tests/1', () => HttpResponse.json({ test, questions: [] })),
+      http.post('/api/v1/tests/1/questions', async ({ request }) => {
+        postCount += 1;
+        const body = (await request.json()) as { text: string };
+        await new Promise((resolve) => {
+          resolvePost = resolve;
+        });
+        return HttpResponse.json({ ...question, id: 9, text: body.text }, { status: 201 });
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={['/tests/1/edit']}>
+        <Routes>
+          <Route path="/tests/:id/edit" element={<TestEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Questions' });
+    await user.click(screen.getByRole('button', { name: 'Add question' }));
+    const questionInputs = screen.getAllByLabelText('Question text');
+    await user.type(questionInputs[questionInputs.length - 1]!, 'In-flight?');
+    const optionInputs = screen.getAllByRole('textbox', { name: /Option/ });
+    await user.type(optionInputs[optionInputs.length - 2]!, 'A');
+    await user.type(optionInputs[optionInputs.length - 1]!, 'B');
+    const saveButtons = screen.getAllByRole('button', { name: 'Save question' });
+    await user.click(saveButtons[saveButtons.length - 1]!);
+    expect(await screen.findByRole('button', { name: 'Saving…' })).toBeDisabled();
+    resolvePost(undefined);
+    await waitFor(() => expect(postCount).toBe(1));
+    expect(await screen.findByRole('heading', { name: 'Question 1' })).toBeInTheDocument();
+  });
+
   it('preserves existing test metadata when saving details', async () => {
     const user = userEvent.setup();
     let payload: unknown;

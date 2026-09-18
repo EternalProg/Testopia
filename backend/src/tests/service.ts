@@ -9,6 +9,7 @@ import type {
 } from '@practice-works/shared';
 
 import type { tests } from '../db/schema.js';
+import { isDuplicateEntryError } from '../db/errors.js';
 import { AuthError } from '../auth/errors.js';
 import type { TestsRepository } from '../repositories/tests.repository.js';
 import { TestError } from './errors.js';
@@ -253,12 +254,7 @@ export class TestsService {
   }
 
   private mapPersistenceError(error: unknown) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      error.code === 'ER_DUP_ENTRY'
-    ) {
+    if (isDuplicateEntryError(error)) {
       return new TestError('Question order must be unique within a test', 'CONFLICT');
     }
     return error;

@@ -67,6 +67,7 @@ function QuestionForm({
 }) {
   const [draft, setDraft] = useState(question);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const optionGroupId = useId();
   const choice =
     draft.type === 'single_choice' ||
@@ -93,7 +94,7 @@ function QuestionForm({
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    if (readOnly) return;
+    if (readOnly || saving) return;
     const options: Array<{ text: string; isCorrect: boolean }> = [];
     if (choice) {
       for (const option of draft.options) {
@@ -115,11 +116,14 @@ function QuestionForm({
       setError(result.error.issues[0]?.message ?? 'Please check the question.');
       return;
     }
+    setSaving(true);
     try {
       await onSave(draft);
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Question could not be saved.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -218,8 +222,8 @@ function QuestionForm({
       {error && <Alert variant="error">{error}</Alert>}
       {readOnly && <EmptyState text="Unpublish this test to edit questions." />}
       {!readOnly && (
-        <button className="button" type="submit">
-          Save question
+        <button className="button" type="submit" disabled={saving}>
+          {saving ? 'Saving…' : 'Save question'}
         </button>
       )}
     </form>
@@ -429,17 +433,20 @@ export function TestEditorPage() {
                   className="button button-secondary"
                   type="button"
                   disabled={detail.test.isPublished}
-                  onClick={() =>
+                  onClick={() => {
+                    const nextOrderIndex = questions.length
+                      ? Math.max(...questions.map((item) => item.orderIndex)) + 1
+                      : 0;
                     setQuestions([
                       ...questions,
                       {
                         text: '',
                         type: 'single_choice',
-                        orderIndex: questions.length,
+                        orderIndex: nextOrderIndex,
                         options: blankOptions('single_choice'),
                       },
-                    ])
-                  }
+                    ]);
+                  }}
                 >
                   Add question
                 </button>

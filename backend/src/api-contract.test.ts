@@ -182,6 +182,18 @@ describe('API contract', () => {
     expect(response.json()).toMatchObject({ error: 'PAYLOAD_TOO_LARGE' });
   });
 
+  it('rejects empty JSON bodies with 400 instead of 500', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: 'FST_ERR_CTP_EMPTY_JSON_BODY' });
+  });
+
   it('rate-limits floods with a RATE_LIMITED 429', async () => {
     const previous = process.env.RATE_LIMIT_MAX;
     process.env.RATE_LIMIT_MAX = '3';

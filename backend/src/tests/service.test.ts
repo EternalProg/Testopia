@@ -164,4 +164,30 @@ describe('TestsService', () => {
       }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
+
+  it('translates Drizzle-wrapped duplicate order failures into conflicts', async () => {
+    const driverError = Object.assign(
+      new Error("Duplicate entry '1-0' for key 'questions.questions_test_order_unique'"),
+      { code: 'ER_DUP_ENTRY', errno: 1062 },
+    );
+    const wrapped = Object.assign(new Error('Failed query: insert into `questions`'), {
+      name: 'DrizzleQueryError',
+      cause: driverError,
+    });
+    const repo = repository({
+      createQuestion: vi.fn().mockRejectedValue(wrapped),
+    });
+    const service = new TestsService(repo as never);
+    await expect(
+      service.createQuestion({ id: 10, role: 'user' }, 1, {
+        text: 'Why?',
+        type: 'multiple_choice',
+        orderIndex: 0,
+        options: [
+          { text: 'a', isCorrect: true },
+          { text: 'b', isCorrect: false },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
 });

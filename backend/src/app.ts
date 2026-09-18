@@ -190,6 +190,18 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
                 : 400;
       return reply.code(statusCode).send({ error: error.code, message: error.message });
     }
+    const frameworkCode = (error as { code?: unknown }).code;
+    if (
+      typeof frameworkCode === 'string' &&
+      frameworkCode.startsWith('FST_ERR_') &&
+      typeof statusCode === 'number' &&
+      statusCode >= 400 &&
+      statusCode < 500
+    ) {
+      return reply
+        .code(statusCode)
+        .send({ error: frameworkCode, message: (error as Error).message });
+    }
     app.log.error(error);
     return reply.code(500).send({ error: 'INTERNAL_ERROR', message: 'Internal server error' });
   });

@@ -1,6 +1,7 @@
 import type { LoginInput, RegisterInput, User } from '@practice-works/shared';
 
 import type { Database } from '../db/client.js';
+import { isDuplicateEntryError } from '../db/errors.js';
 import { withTransaction } from '../db/transaction.js';
 import { RefreshTokensRepository } from '../repositories/refresh-tokens.repository.js';
 import { AuthError } from './errors.js';
@@ -130,9 +131,7 @@ export class AuthService {
 }
 
 function isDuplicateKeyError(error: unknown): boolean {
-  return (
-    typeof error === 'object' && error !== null && 'code' in error && error.code === 'ER_DUP_ENTRY'
-  );
+  return isDuplicateEntryError(error);
 }
 
 export type AuthSession = Awaited<ReturnType<AuthService['login']>>;

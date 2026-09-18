@@ -116,6 +116,29 @@ describe('API contract (frontend clients vs shared schemas)', () => {
     expect(submitAttemptSchema.safeParse(seen.submit).success).toBe(true);
   });
 
+  it('omits Content-Type on bodyless requests so servers skip JSON parsing', async () => {
+    const contentTypes: Record<string, string | null> = {};
+    const record = (key: string) => ({
+      handler: ({ request }: { request: Request }) => {
+        contentTypes[key] = request.headers.get('Content-Type');
+        return HttpResponse.json({});
+      },
+    });
+    server.use(
+      http.post('/api/v1/tests/1/publish', record('publish').handler),
+      http.delete('/api/v1/tests/1', record('delete').handler),
+      http.post('/api/v1/tests/1/attempts', record('start').handler),
+    );
+
+    await testsApi.publish(1);
+    await testsApi.delete(1);
+    await attemptsApi.start(1);
+
+    expect(contentTypes.publish).toBeNull();
+    expect(contentTypes.delete).toBeNull();
+    expect(contentTypes.start).toBeNull();
+  });
+
   it('keeps MSW auth fixtures aligned with the Api* mirrors', () => {
     const sessionMirror: Session = {
       ...session,
