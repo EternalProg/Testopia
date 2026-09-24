@@ -36,6 +36,7 @@ export const testFixture: CreateTestInput = {
   shuffleQuestions: false,
   timeLimitMinutes: 15,
   showAnswersAfterCompletion: true,
+  showQuestionsBeforeStart: true,
 };
 
 export const draftTestFixture: CreateTestInput = {
@@ -44,6 +45,7 @@ export const draftTestFixture: CreateTestInput = {
   isPublished: false,
   shuffleQuestions: false,
   showAnswersAfterCompletion: true,
+  showQuestionsBeforeStart: true,
 };
 
 export const publishedRevealedTestFixture: CreateTestInput = {
@@ -53,6 +55,7 @@ export const publishedRevealedTestFixture: CreateTestInput = {
   shuffleQuestions: false,
   timeLimitMinutes: 30,
   showAnswersAfterCompletion: true,
+  showQuestionsBeforeStart: true,
 };
 
 export const publishedHiddenTestFixture: CreateTestInput = {
@@ -62,6 +65,7 @@ export const publishedHiddenTestFixture: CreateTestInput = {
   shuffleQuestions: false,
   timeLimitMinutes: 30,
   showAnswersAfterCompletion: false,
+  showQuestionsBeforeStart: true,
 };
 
 export const questionFixture: CreateQuestionInput = {

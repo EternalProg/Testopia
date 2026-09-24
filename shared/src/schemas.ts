@@ -34,6 +34,7 @@ export const createTestSchema = z.object({
     .nullable()
     .optional(),
   showAnswersAfterCompletion: z.boolean().default(true),
+  showQuestionsBeforeStart: z.boolean().default(true),
 });
 
 export const updateTestSchema = createTestSchema.partial();

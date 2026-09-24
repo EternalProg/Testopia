@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   createQuestionSchema,
@@ -18,11 +18,19 @@ import type { ApiQuestion, TestDetail } from '../tests/types.js';
 type OptionDraft = { text: string; isCorrect?: boolean };
 type QuestionDraft = {
   id?: number;
+  /** Stable React key: drafts have no id yet, and orderIndex changes when moving. */
+  clientKey: string;
   text: string;
   type: QuestionType;
   orderIndex: number;
   options: OptionDraft[];
 };
+
+let nextClientKey = 0;
+function newClientKey(prefix: string): string {
+  nextClientKey += 1;
+  return `${prefix}-${nextClientKey}`;
+}
 
 const blankOptions = (type: QuestionType): OptionDraft[] => {
   if (type === 'true_false')
@@ -47,6 +55,7 @@ const questionTypeLabels: Record<QuestionType, string> = {
 
 function toDraft(question: ApiQuestion): QuestionDraft {
   return {
+    clientKey: `saved-${question.id}`,
     ...question,
     options: question.options.map(({ text, isCorrect }) =>
       isCorrect === undefined ? { text } : { text, isCorrect },
@@ -56,13 +65,25 @@ function toDraft(question: ApiQuestion): QuestionDraft {
 
 function QuestionForm({
   question,
+  position,
   onSave,
   onDelete,
+  onMoveUp,
+  onMoveDown,
+  moveUpDisabled = false,
+  moveDownDisabled = false,
+  moveDisabledReason,
   readOnly = false,
 }: {
   question: QuestionDraft;
+  position: number;
   onSave: (question: QuestionDraft) => Promise<void>;
   onDelete: () => Promise<void>;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  moveUpDisabled?: boolean;
+  moveDownDisabled?: boolean;
+  moveDisabledReason?: string | undefined;
   readOnly?: boolean;
 }) {
   const [draft, setDraft] = useState(question);
@@ -108,7 +129,9 @@ function QuestionForm({
     const payload: CreateQuestionInput = {
       text: draft.text,
       type: draft.type,
-      orderIndex: draft.orderIndex,
+      // orderIndex lives with the parent (it changes on reorder while this
+      // form keeps its own text/type/options draft).
+      orderIndex: question.orderIndex,
       ...(choice ? { options } : {}),
     };
     const result = createQuestionSchema.safeParse(payload);
@@ -118,7 +141,7 @@ function QuestionForm({
     }
     setSaving(true);
     try {
-      await onSave(draft);
+      await onSave({ ...draft, orderIndex: question.orderIndex });
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Question could not be saved.');
@@ -134,17 +157,43 @@ function QuestionForm({
     >
       <div className="flex items-start justify-between gap-5">
         <h2 className="mb-0 text-balance break-words text-[1.15rem] font-bold leading-snug tracking-[-0.015em] text-ink">
-          {question.id ? `Question ${question.orderIndex + 1}` : 'New question'}
+          {question.id ? `Question ${position}` : 'New question'}
         </h2>
-        {question.id && !readOnly && (
-          <button
-            className="border-0 bg-transparent p-0 text-[0.9rem] font-medium text-[#900] underline underline-offset-[3px] hover:decoration-2"
-            type="button"
-            onClick={() => void onDelete()}
-          >
-            Delete
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-3">
+          {!readOnly && onMoveUp && (
+            <button
+              className="rounded-lg border border-line-dark bg-white px-2.5 py-1.5 text-[0.82rem] font-semibold text-ink transition-colors duration-150 hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+              type="button"
+              disabled={moveUpDisabled}
+              title={moveDisabledReason}
+              aria-label={`Move question ${position} up`}
+              onClick={onMoveUp}
+            >
+              ↑ Up
+            </button>
+          )}
+          {!readOnly && onMoveDown && (
+            <button
+              className="rounded-lg border border-line-dark bg-white px-2.5 py-1.5 text-[0.82rem] font-semibold text-ink transition-colors duration-150 hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+              type="button"
+              disabled={moveDownDisabled}
+              title={moveDisabledReason}
+              aria-label={`Move question ${position} down`}
+              onClick={onMoveDown}
+            >
+              ↓ Down
+            </button>
+          )}
+          {question.id && !readOnly && (
+            <button
+              className="border-0 bg-transparent p-0 text-[0.9rem] font-medium text-[#900] underline underline-offset-[3px] hover:decoration-2"
+              type="button"
+              onClick={() => void onDelete()}
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
       <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
         Question text
@@ -257,10 +306,23 @@ export function TestEditorPage() {
   const [detail, setDetail] = useState<TestDetail | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [timeLimit, setTimeLimit] = useState('');
+  const [shuffle, setShuffle] = useState(false);
+  const [showAnswers, setShowAnswers] = useState(true);
+  const [showPreview, setShowPreview] = useState(true);
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
+  const [newQuestionType, setNewQuestionType] = useState<QuestionType>('single_choice');
+  const [movingId, setMovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(editing);
+
+  function syncSettings(test: TestDetail['test']) {
+    setTimeLimit(test.timeLimitMinutes === null ? '' : String(test.timeLimitMinutes));
+    setShuffle(test.shuffleQuestions);
+    setShowAnswers(test.showAnswersAfterCompletion);
+    setShowPreview(test.showQuestionsBeforeStart);
+  }
 
   useEffect(() => {
     if (!id) {
@@ -274,6 +336,7 @@ export function TestEditorPage() {
         setDetail(loaded);
         setTitle(loaded.test.title);
         setDescription(loaded.test.description ?? '');
+        syncSettings(loaded.test);
         setQuestions(loaded.questions.map(toDraft));
       })
       .catch((reason: { status?: number }) =>
@@ -288,13 +351,15 @@ export function TestEditorPage() {
 
   async function saveMetadata(event: React.FormEvent) {
     event.preventDefault();
+    const trimmedLimit = timeLimit.trim();
     const result = createTestSchema.safeParse({
       title,
       description: description || null,
       isPublished: detail?.test.isPublished ?? false,
-      shuffleQuestions: detail?.test.shuffleQuestions ?? false,
-      timeLimitMinutes: detail?.test.timeLimitMinutes ?? null,
-      showAnswersAfterCompletion: detail?.test.showAnswersAfterCompletion ?? true,
+      shuffleQuestions: shuffle,
+      timeLimitMinutes: trimmedLimit === '' ? null : Number(trimmedLimit),
+      showAnswersAfterCompletion: showAnswers,
+      showQuestionsBeforeStart: showPreview,
     });
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? 'Please check the test details.');
@@ -308,6 +373,7 @@ export function TestEditorPage() {
       setDetail(loaded);
       setTitle(loaded.test.title);
       setDescription(loaded.test.description ?? '');
+      syncSettings(loaded.test);
       setQuestions(loaded.questions.map(toDraft));
       setError(null);
       if (!editing) navigate(`/tests/${loaded.test.id}/edit`, { replace: true });
@@ -352,7 +418,8 @@ export function TestEditorPage() {
     setQuestions((current) =>
       question.id
         ? current.map((item) => (item.id === saved.id ? toDraft(saved) : item))
-        : [...current, toDraft(saved)],
+        : // New drafts have no id yet: match the draft that was just saved.
+          current.map((item) => (item.clientKey === question.clientKey ? toDraft(saved) : item)),
     );
     setDetail((current) =>
       current ? { ...current, test: { ...current.test, isPublished: false } } : current,
@@ -384,6 +451,84 @@ export function TestEditorPage() {
       setError(reason instanceof Error ? reason.message : 'Question could not be deleted.');
     }
   }
+
+  async function reloadQuestions() {
+    if (!detail) return;
+    try {
+      const loaded = await testsApi.get(detail.test.id);
+      setDetail(loaded);
+      setQuestions(loaded.questions.map(toDraft));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Questions could not be reloaded.');
+    }
+  }
+
+  function swapLocal(firstKey: string, secondKey: string) {
+    setQuestions((current) => {
+      const first = current.find((item) => item.clientKey === firstKey);
+      const second = current.find((item) => item.clientKey === secondKey);
+      if (!first || !second) return current;
+      return current.map((item) => {
+        if (item.clientKey === firstKey) return { ...item, orderIndex: second.orderIndex };
+        if (item.clientKey === secondKey) return { ...item, orderIndex: first.orderIndex };
+        return item;
+      });
+    });
+  }
+
+  async function moveQuestion(question: QuestionDraft, direction: -1 | 1) {
+    if (!detail || detail.test.isPublished || movingId !== null) return;
+    const ordered = [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
+    const at = ordered.findIndex((item) => item.clientKey === question.clientKey);
+    const neighbor = ordered[at + direction];
+    if (at < 0 || !neighbor) return;
+    // Unsaved drafts have no server row yet: reorder in local state only.
+    if (!question.id || !neighbor.id) {
+      swapLocal(question.clientKey, neighbor.clientKey);
+      return;
+    }
+    // The (testId, orderIndex) pair is unique, so a direct two-step swap
+    // would collide: park one side on a temporary free index first.
+    const tempIndex =
+      ordered.length > 0 ? Math.max(...ordered.map((item) => item.orderIndex)) + 1 : 0;
+    const firstIndex = question.orderIndex;
+    const secondIndex = neighbor.orderIndex;
+    setMovingId(question.clientKey);
+    try {
+      await testsApi.updateQuestion(detail.test.id, question.id, { orderIndex: tempIndex });
+      await testsApi.updateQuestion(detail.test.id, neighbor.id, { orderIndex: firstIndex });
+      await testsApi.updateQuestion(detail.test.id, question.id, { orderIndex: secondIndex });
+      swapLocal(question.clientKey, neighbor.clientKey);
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Question could not be moved.');
+      await reloadQuestions();
+    } finally {
+      setMovingId(null);
+    }
+  }
+
+  function addQuestion() {
+    if (detail?.test.isPublished) return;
+    const nextOrderIndex = questions.length
+      ? Math.max(...questions.map((item) => item.orderIndex)) + 1
+      : 0;
+    setQuestions([
+      ...questions,
+      {
+        clientKey: newClientKey('new'),
+        text: '',
+        type: newQuestionType,
+        orderIndex: nextOrderIndex,
+        options: blankOptions(newQuestionType),
+      },
+    ]);
+  }
+
+  const sortedQuestions = useMemo(
+    () => [...questions].sort((a, b) => a.orderIndex - b.orderIndex),
+    [questions],
+  );
 
   async function togglePublished() {
     if (!detail) return;
@@ -453,6 +598,66 @@ export function TestEditorPage() {
                 className="min-h-[96px] w-full resize-y rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] leading-relaxed text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
               />
             </label>
+            <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
+              Time limit (minutes)
+              <input
+                type="number"
+                min={1}
+                max={1440}
+                inputMode="numeric"
+                placeholder="No limit"
+                value={timeLimit}
+                onChange={(event) => setTimeLimit(event.target.value)}
+                className="w-full max-w-[220px] rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 placeholder:text-[#a7abb2] hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+              />
+              <span className="text-[0.83rem] font-normal text-muted">
+                Leave empty for no time limit (1–1440 minutes).
+              </span>
+            </label>
+            <fieldset className="m-0 grid gap-2.5 rounded-xl border border-line bg-[#fafaf9] p-4">
+              <legend className="px-2 text-[0.88rem] font-bold text-ink">Question order</legend>
+              <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
+                <input
+                  type="radio"
+                  name="question-order"
+                  checked={!shuffle}
+                  onChange={() => setShuffle(false)}
+                  className="h-[18px] w-[18px] shrink-0 accent-ink"
+                />
+                Manual — questions appear in the order I arrange below
+              </label>
+              <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
+                <input
+                  type="radio"
+                  name="question-order"
+                  checked={shuffle}
+                  onChange={() => setShuffle(true)}
+                  className="h-[18px] w-[18px] shrink-0 accent-ink"
+                />
+                Random — shuffle the order for each attempt
+              </label>
+            </fieldset>
+            <fieldset className="m-0 grid gap-2.5 rounded-xl border border-line bg-[#fafaf9] p-4">
+              <legend className="px-2 text-[0.88rem] font-bold text-ink">Test behavior</legend>
+              <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={showPreview}
+                  onChange={(event) => setShowPreview(event.target.checked)}
+                  className="h-[18px] w-[18px] shrink-0 accent-ink"
+                />
+                Show questions on the test page before starting
+              </label>
+              <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={showAnswers}
+                  onChange={(event) => setShowAnswers(event.target.checked)}
+                  className="h-[18px] w-[18px] shrink-0 accent-ink"
+                />
+                Reveal correct answers after completion
+              </label>
+            </fieldset>
             <button
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 hover:-translate-y-px hover:border-ink-soft hover:bg-ink-soft disabled:cursor-wait disabled:opacity-55"
               type="submit"
@@ -465,34 +670,69 @@ export function TestEditorPage() {
             <section className="mt-2 border-t border-line pt-7">
               <div className="mb-[18px] flex items-center justify-between gap-5">
                 <h2 className="mb-0 text-[1.15rem] font-bold text-ink">Questions</h2>
-                <button
-                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-line-dark bg-white px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-150 hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
-                  type="button"
-                  disabled={detail.test.isPublished}
-                  onClick={() => {
-                    const nextOrderIndex = questions.length
-                      ? Math.max(...questions.map((item) => item.orderIndex)) + 1
-                      : 0;
-                    setQuestions([
-                      ...questions,
-                      {
-                        text: '',
-                        type: 'single_choice',
-                        orderIndex: nextOrderIndex,
-                        options: blankOptions('single_choice'),
-                      },
-                    ]);
-                  }}
-                >
-                  Add question
-                </button>
               </div>
-              {questions.map((question) => (
+              <div className="mb-5 grid gap-3 rounded-2xl border border-dashed border-line-dark bg-white p-5">
+                <div className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
+                  <label htmlFor="new-question-type">Add a new question</label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <select
+                      id="new-question-type"
+                      value={newQuestionType}
+                      disabled={detail.test.isPublished}
+                      onChange={(event) => setNewQuestionType(event.target.value as QuestionType)}
+                      className="min-w-[200px] flex-1 rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:cursor-not-allowed disabled:opacity-60 sm:max-w-[280px]"
+                    >
+                      {questionTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {questionTypeLabels[type]}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 hover:-translate-y-px hover:border-ink-soft hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                      type="button"
+                      disabled={detail.test.isPublished}
+                      onClick={addQuestion}
+                    >
+                      Add question
+                    </button>
+                  </div>
+                  <span className="text-[0.83rem] font-normal text-muted">
+                    New questions appear at the end of the list below.
+                  </span>
+                </div>
+              </div>
+              {shuffle && sortedQuestions.length > 0 && !detail.test.isPublished && (
+                <p role="note" className="mb-4 text-[0.88rem] text-muted">
+                  Order is shuffled for each attempt. Switch to manual order above to arrange
+                  questions.
+                </p>
+              )}
+              {sortedQuestions.map((question, index) => (
                 <QuestionForm
-                  key={question.id ?? `new-${question.orderIndex}`}
+                  key={question.clientKey}
                   question={question}
+                  position={index + 1}
                   onSave={saveQuestion}
                   onDelete={() => removeQuestion(question)}
+                  onMoveUp={() => void moveQuestion(question, -1)}
+                  onMoveDown={() => void moveQuestion(question, 1)}
+                  moveUpDisabled={
+                    index === 0 || shuffle || detail.test.isPublished || movingId !== null
+                  }
+                  moveDownDisabled={
+                    index === sortedQuestions.length - 1 ||
+                    shuffle ||
+                    detail.test.isPublished ||
+                    movingId !== null
+                  }
+                  moveDisabledReason={
+                    detail.test.isPublished
+                      ? 'Unpublish the test to reorder questions'
+                      : shuffle
+                        ? 'Switch to manual order to rearrange questions'
+                        : undefined
+                  }
                   readOnly={detail.test.isPublished}
                 />
               ))}

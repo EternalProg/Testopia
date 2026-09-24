@@ -1,0 +1,1 @@
+ALTER TABLE `tests` ADD `show_questions_before_start` boolean DEFAULT true NOT NULL;

@@ -40,8 +40,14 @@ export class TestsService {
     actor?: Actor,
   ): Promise<{ test: Test; questions: Array<Question | PublicQuestion> }> {
     const test = await this.requireTest(id);
-    if (!test.isPublished && !this.canManage(test, actor)) {
+    const manageable = this.canManage(test, actor);
+    if (!test.isPublished && !manageable) {
       throw new TestError('Test not found', 'NOT_FOUND');
+    }
+    // When the author hides the preview, outsiders learn nothing about the
+    // questions until they start an attempt. Managers always see everything.
+    if (test.isPublished && !test.showQuestionsBeforeStart && !manageable) {
+      return { test: this.publicTest(test), questions: [] };
     }
     const questionRows = await this.repository.findQuestions(id);
     return {
@@ -59,6 +65,7 @@ export class TestsService {
       shuffleQuestions: input.shuffleQuestions,
       timeLimitMinutes: input.timeLimitMinutes ?? null,
       showAnswersAfterCompletion: input.showAnswersAfterCompletion,
+      showQuestionsBeforeStart: input.showQuestionsBeforeStart,
     });
     if (!row) throw new Error('Created test could not be loaded');
     if (input.isPublished) return this.publish(actor, row.id);
@@ -232,6 +239,9 @@ export class TestsService {
       ...(input.showAnswersAfterCompletion === undefined
         ? {}
         : { showAnswersAfterCompletion: input.showAnswersAfterCompletion }),
+      ...(input.showQuestionsBeforeStart === undefined
+        ? {}
+        : { showQuestionsBeforeStart: input.showQuestionsBeforeStart }),
     };
   }
 

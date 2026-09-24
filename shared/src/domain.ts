@@ -48,6 +48,7 @@ export interface Test {
   shuffleQuestions: boolean;
   timeLimitMinutes: number | null;
   showAnswersAfterCompletion: boolean;
+  showQuestionsBeforeStart: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

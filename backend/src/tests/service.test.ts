@@ -11,6 +11,7 @@ const baseTest = {
   shuffleQuestions: false,
   timeLimitMinutes: null,
   showAnswersAfterCompletion: true,
+  showQuestionsBeforeStart: true,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -124,6 +125,19 @@ describe('TestsService', () => {
     expect(owner.questions[0]?.options[0]).not.toHaveProperty('isCorrect');
     expect(otherUser.questions[0]?.options[0]).not.toHaveProperty('isCorrect');
     expect(anonymous.questions[0]?.options[0]).not.toHaveProperty('isCorrect');
+  });
+
+  it('hides the question preview from outsiders when the author disables it', async () => {
+    const hidden = { ...baseTest, isPublished: true, showQuestionsBeforeStart: false };
+    const repo = repository({ findById: vi.fn().mockResolvedValue(hidden) });
+    const service = new TestsService(repo as never);
+
+    expect((await service.get(1, { id: 11, role: 'user' })).questions).toEqual([]);
+    expect((await service.get(1)).questions).toEqual([]);
+    // Managers (author and admin) still see the full preview.
+    expect((await service.get(1, { id: 10, role: 'user' })).questions).toHaveLength(1);
+    expect((await service.get(1, { id: 99, role: 'admin' })).questions).toHaveLength(1);
+    expect(repo.findQuestions).toHaveBeenCalledTimes(2);
   });
 
   it('validates question types and passes replacement options atomically to the repository', async () => {

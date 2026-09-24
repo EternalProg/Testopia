@@ -308,6 +308,79 @@ describe('test frontend', () => {
     await waitFor(() => expect(metadataPayload).toMatchObject({ title: 'Published algebra' }));
   });
 
+  it('creates new questions of the type chosen in the add panel', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post('/api/v1/tests', () => HttpResponse.json({ test, questions: [] }, { status: 201 })),
+    );
+    render(<TestEditorPage />, {
+      wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
+    });
+    await user.type(screen.getByLabelText('Title'), 'Typed questions');
+    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await screen.findByRole('heading', { name: 'Questions' });
+    await user.selectOptions(screen.getByLabelText('Add a new question'), 'true_false');
+    await user.click(screen.getByRole('button', { name: 'Add question' }));
+    expect(await screen.findByDisplayValue('True')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('False')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'New question' })).toBeInTheDocument();
+  });
+
+  it('moves a saved question up with a collision-free reorder sequence', async () => {
+    const user = userEvent.setup();
+    const patches: unknown[] = [];
+    const first = { ...question, id: 2, orderIndex: 0, text: 'First question' };
+    const second = { ...question, id: 3, orderIndex: 1, text: 'Second question' };
+    server.use(
+      http.get('/api/v1/tests/1', () => HttpResponse.json({ test, questions: [first, second] })),
+      http.patch('/api/v1/tests/1/questions/:questionId', async ({ request }) => {
+        patches.push(await request.json());
+        return HttpResponse.json(first);
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={['/tests/1/edit']}>
+        <Routes>
+          <Route path="/tests/:id/edit" element={<TestEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Question 2' });
+    await user.click(screen.getByRole('button', { name: 'Move question 2 up' }));
+    await waitFor(() =>
+      expect(patches).toEqual([{ orderIndex: 2 }, { orderIndex: 1 }, { orderIndex: 0 }]),
+    );
+    // The moved question now leads the list.
+    const inputs = screen.getAllByLabelText('Question text');
+    expect(inputs[0]).toHaveDisplayValue('Second question');
+    expect(inputs[1]).toHaveDisplayValue('First question');
+  });
+
+  it('disables reordering while the test uses random order', async () => {
+    server.use(
+      http.get('/api/v1/tests/1', () =>
+        HttpResponse.json({
+          test: { ...test, shuffleQuestions: true },
+          questions: [
+            { ...question, id: 2, orderIndex: 0 },
+            { ...question, id: 3, orderIndex: 1 },
+          ],
+        }),
+      ),
+    );
+    render(
+      <MemoryRouter initialEntries={['/tests/1/edit']}>
+        <Routes>
+          <Route path="/tests/:id/edit" element={<TestEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Question 2' });
+    expect(screen.getByRole('button', { name: 'Move question 1 down' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move question 2 up' })).toBeDisabled();
+    expect(screen.getByRole('note')).toHaveTextContent('shuffled for each attempt');
+  });
+
   it('shows load and deletion failures without leaving the editor', async () => {
     const user = userEvent.setup();
     server.use(

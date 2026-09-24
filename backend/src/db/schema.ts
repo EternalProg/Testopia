@@ -67,6 +67,7 @@ export const tests = mysqlTable(
     shuffleQuestions: boolean('shuffle_questions').notNull().default(false),
     timeLimitMinutes: int('time_limit_minutes'),
     showAnswersAfterCompletion: boolean('show_answers_after_completion').notNull().default(true),
+    showQuestionsBeforeStart: boolean('show_questions_before_start').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
   },
