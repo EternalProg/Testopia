@@ -3,6 +3,7 @@ import type { LoginInput, RegisterInput } from '@testopia/shared';
 import { loginSchema, registerSchema } from '@testopia/shared';
 
 import { useAuthStore } from '../auth/store.js';
+import { btnPrimaryClass, fieldClass, fieldErrorClass, inputClass } from './ui.js';
 
 type AuthMode = 'login' | 'register';
 
@@ -55,62 +56,71 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
   }
 
   return (
-    <form onSubmit={submit} noValidate>
+    <form className="mt-6 grid gap-4" onSubmit={submit} noValidate>
       {mode === 'register' && (
-        <label>
+        <label className={fieldClass}>
           Username
           <input
             name="username"
+            autoComplete="username"
+            placeholder="e.g. ada_lovelace"
             value={values.username}
             onChange={(event) => update('username', event.target.value)}
             aria-invalid={Boolean(errors.username)}
             aria-describedby={describedBy('username')}
+            className={inputClass}
           />
           {errors.username && (
-            <span id="username-error" role="alert">
+            <span className={fieldErrorClass} id="username-error" role="alert">
               {errors.username}
             </span>
           )}
         </label>
       )}
-      <label>
+      <label className={fieldClass}>
         Email
         <input
           name="email"
           type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
           value={values.email}
           onChange={(event) => update('email', event.target.value)}
           aria-invalid={Boolean(errors.email)}
           aria-describedby={describedBy('email')}
+          className={inputClass}
         />
         {errors.email && (
-          <span id="email-error" role="alert">
+          <span className={fieldErrorClass} id="email-error" role="alert">
             {errors.email}
           </span>
         )}
       </label>
-      <label>
+      <label className={fieldClass}>
         Password
         <input
           name="password"
           type="password"
+          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+          placeholder="••••••••"
           value={values.password}
           onChange={(event) => update('password', event.target.value)}
           aria-invalid={Boolean(errors.password)}
           aria-describedby={describedBy('password')}
+          className={inputClass}
         />
         {errors.password && (
-          <span id="password-error" role="alert">
+          <span className={fieldErrorClass} id="password-error" role="alert">
             {errors.password}
           </span>
         )}
       </label>
       {serverError && (
-        <p id="form-error" role="alert">
+        <p className="error-message m-0" id="form-error" role="alert">
           {serverError}
         </p>
       )}
-      <button type="submit" disabled={status === 'loading'}>
+      <button className={`${btnPrimaryClass} w-full`} type="submit" disabled={status === 'loading'}>
         {status === 'loading' ? 'Please wait...' : mode === 'login' ? 'Log in' : 'Create account'}
       </button>
     </form>

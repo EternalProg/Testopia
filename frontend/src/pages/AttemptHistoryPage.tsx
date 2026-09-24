@@ -7,6 +7,7 @@ import { Alert } from '../components/Alert.js';
 import { EmptyState } from '../components/EmptyState.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
+import { Eyebrow, h1Class, textLinkClass } from '../components/ui.js';
 
 export function AttemptHistoryPage() {
   const { id } = useParams();
@@ -51,7 +52,7 @@ export function AttemptHistoryPage() {
     return (
       <TestLayout>
         <Alert variant="error">{loadError ?? 'Attempts could not be loaded.'}</Alert>
-        <Link to="/tests" className="text-link">
+        <Link to="/tests" className={textLinkClass}>
           Back to browse
         </Link>
       </TestLayout>
@@ -60,15 +61,18 @@ export function AttemptHistoryPage() {
 
   return (
     <TestLayout>
-      <p className="eyebrow">Attempt history</p>
-      <h1>Test #{id} attempts</h1>
+      <Eyebrow>Attempt history</Eyebrow>
+      <h1 className={h1Class}>Test #{id} attempts</h1>
       {items.length === 0 ? (
         <EmptyState text="No attempts yet." role="status" />
       ) : (
-        <ul className="attempt-list">
+        <ul className="m-0 my-6 grid list-none gap-3 p-0">
           {items.map((item) => (
-            <li key={item.id}>
-              <p>
+            <li
+              key={item.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-card px-5 py-[18px]"
+            >
+              <p className="m-0 text-[0.92rem] text-ink">
                 {item.username} — {item.status} —{' '}
                 {!item.answersRevealed
                   ? 'Hidden'
@@ -77,14 +81,14 @@ export function AttemptHistoryPage() {
                     : `Score: ${Math.round(item.score * 100)}%`}{' '}
                 — {new Date(item.startedAt).toLocaleString()}
               </p>
-              <Link to={`/attempts/${item.id}/result`} className="text-link">
+              <Link to={`/attempts/${item.id}/result`} className={`${textLinkClass} mt-0`}>
                 View result
               </Link>
             </li>
           ))}
         </ul>
       )}
-      <Link to={`/tests/${id}`} className="text-link">
+      <Link to={`/tests/${id}`} className={textLinkClass}>
         Back to test
       </Link>
     </TestLayout>

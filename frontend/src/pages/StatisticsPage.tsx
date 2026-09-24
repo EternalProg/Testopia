@@ -5,6 +5,7 @@ import { Alert } from '../components/Alert.js';
 import { EmptyState } from '../components/EmptyState.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
+import { Eyebrow, h1Class, h2Class, textLinkClass } from '../components/ui.js';
 import { StatisticsApiError, statisticsApi } from '../statistics/api.js';
 import { formatDuration } from '../statistics/format.js';
 import type { ApiTestStats } from '../statistics/types.js';
@@ -41,7 +42,7 @@ export function StatisticsPage() {
     return (
       <TestLayout>
         <Alert variant="error">{error}</Alert>
-        <Link to={`/tests/${id}`} className="text-link">
+        <Link to={`/tests/${id}`} className={textLinkClass}>
           Back to test
         </Link>
       </TestLayout>
@@ -60,7 +61,7 @@ export function StatisticsPage() {
     return (
       <TestLayout>
         <EmptyState title="No attempts yet" text="No attempts yet for this test." />
-        <Link to={`/tests/${id}`} className="text-link">
+        <Link to={`/tests/${id}`} className={textLinkClass}>
           Back to test
         </Link>
       </TestLayout>
@@ -71,43 +72,60 @@ export function StatisticsPage() {
 
   return (
     <TestLayout>
-      <p className="eyebrow">Test statistics</p>
-      <h1>Test statistics</h1>
+      <Eyebrow>Test statistics</Eyebrow>
+      <h1 className={h1Class}>Test statistics</h1>
       <section aria-label="Summary">
-        <dl className="stats-cards">
-          <div className="stat-card">
-            <dt>Attempts</dt>
-            <dd>{stats.attemptsCount}</dd>
+        <dl className="m-0 my-6 grid grid-cols-4 gap-3 p-0 max-sm:grid-cols-2">
+          <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
+              Attempts
+            </dt>
+            <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
+              {stats.attemptsCount}
+            </dd>
           </div>
-          <div className="stat-card">
-            <dt>Completed</dt>
-            <dd>{stats.completedAttemptsCount}</dd>
+          <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
+              Completed
+            </dt>
+            <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
+              {stats.completedAttemptsCount}
+            </dd>
           </div>
-          <div className="stat-card">
-            <dt>Average score</dt>
-            <dd>
+          <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
+              Average score
+            </dt>
+            <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
               {stats.averageScore === null ? '—' : `${(stats.averageScore * 100).toFixed(2)}%`}
             </dd>
           </div>
-          <div className="stat-card">
-            <dt>Average time</dt>
-            <dd>{formatDuration(stats.averageTimeSeconds)}</dd>
+          <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
+              Average time
+            </dt>
+            <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
+              {formatDuration(stats.averageTimeSeconds)}
+            </dd>
           </div>
         </dl>
       </section>
       <section aria-label="Score distribution">
-        <h2>Score distribution</h2>
-        <ul className="bars">
+        <h2 className={h2Class}>Score distribution</h2>
+        <ul className="m-0 my-4 grid list-none gap-2.5 rounded-2xl border border-line bg-card p-5">
           {stats.scoreDistribution.map((bucket) => {
             const width = maxBucketCount === 0 ? 0 : (bucket.count / maxBucketCount) * 100;
             return (
-              <li key={`${bucket.min}-${bucket.max}`} className="bar-row">
+              <li
+                key={`${bucket.min}-${bucket.max}`}
+                className="grid grid-cols-[90px_1fr_48px] items-center gap-3 text-[0.88rem] text-ink max-sm:grid-cols-1 max-sm:gap-1.5"
+              >
                 <span>
                   {bucket.min}–{bucket.max}
                 </span>
-                <div className="bar-track">
+                <div className="h-2.5 overflow-hidden rounded-full bg-wash">
                   <div
-                    className="bar-fill"
+                    className="h-full rounded-full bg-ink"
                     role="img"
                     aria-label={`Scores ${bucket.min} to ${bucket.max}: ${bucket.count} attempts`}
                     style={{ width: `${width}%` }}
@@ -120,25 +138,53 @@ export function StatisticsPage() {
         </ul>
       </section>
       <section aria-label="Per-question results">
-        <h2>Questions</h2>
-        <div className="table-scroll">
-          <table className="data-table">
-            <caption>Per-question results</caption>
+        <h2 className={h2Class}>Questions</h2>
+        <div className="my-4 overflow-x-auto rounded-2xl border border-line bg-white">
+          <table className="w-full min-w-[560px] border-collapse">
+            <caption className="px-4 pb-2 pt-4 text-left text-[0.9rem] font-bold text-muted">
+              Per-question results
+            </caption>
             <thead>
               <tr>
-                <th scope="col">Question</th>
-                <th scope="col">Attempts</th>
-                <th scope="col">Correct</th>
-                <th scope="col">Rate</th>
+                <th
+                  scope="col"
+                  className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
+                >
+                  Question
+                </th>
+                <th
+                  scope="col"
+                  className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
+                >
+                  Attempts
+                </th>
+                <th
+                  scope="col"
+                  className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
+                >
+                  Correct
+                </th>
+                <th
+                  scope="col"
+                  className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
+                >
+                  Rate
+                </th>
               </tr>
             </thead>
             <tbody>
               {stats.questionStats.map((question) => (
-                <tr key={question.questionId}>
-                  <td>{question.text}</td>
-                  <td>{question.attempts}</td>
-                  <td>{question.correctAnswers}</td>
-                  <td>
+                <tr key={question.questionId} className="last:[&>td]:border-b-0">
+                  <td className="border-b border-wash px-4 py-[11px] text-left text-[0.9rem] text-ink">
+                    {question.text}
+                  </td>
+                  <td className="border-b border-wash px-4 py-[11px] text-left text-[0.9rem] text-ink">
+                    {question.attempts}
+                  </td>
+                  <td className="border-b border-wash px-4 py-[11px] text-left text-[0.9rem] text-ink">
+                    {question.correctAnswers}
+                  </td>
+                  <td className="border-b border-wash px-4 py-[11px] text-left text-[0.9rem] text-ink">
                     {question.correctnessRate === null
                       ? '—'
                       : `${(question.correctnessRate * 100).toFixed(1)}%`}
@@ -149,7 +195,7 @@ export function StatisticsPage() {
           </table>
         </div>
       </section>
-      <Link to={`/tests/${id}`} className="text-link">
+      <Link to={`/tests/${id}`} className={textLinkClass}>
         Back to test
       </Link>
     </TestLayout>

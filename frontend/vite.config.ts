@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { loadEnv } from 'vite';
 import { defineConfig as defineVitestConfig } from 'vitest/config';
@@ -8,7 +9,7 @@ export function getApiProxyTarget(mode: string, cwd: string): string {
 }
 
 export default defineVitestConfig(({ mode }) => ({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     proxy: {
       '/api': {

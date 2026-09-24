@@ -6,6 +6,7 @@ import type { ApiAttemptResult } from '../attempts/types.js';
 import { Alert } from '../components/Alert.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
+import { Eyebrow, h1Class, h2Class, textLinkClass } from '../components/ui.js';
 
 function errorMessage(status: number | undefined): string {
   if (status === 404) return 'This result does not exist.';
@@ -54,7 +55,7 @@ export function AttemptResultPage() {
     return (
       <TestLayout>
         <Alert variant="error">{loadError ?? 'This result could not be loaded.'}</Alert>
-        <Link to="/tests" className="text-link">
+        <Link to="/tests" className={textLinkClass}>
           Back to browse
         </Link>
       </TestLayout>
@@ -65,12 +66,12 @@ export function AttemptResultPage() {
     return (
       <TestLayout>
         <article aria-label="Attempt result">
-          <p className="eyebrow">Result #{result.attempt.id}</p>
-          <h1>{result.test.title}</h1>
-          <p role="status">
+          <Eyebrow>Result #{result.attempt.id}</Eyebrow>
+          <h1 className={h1Class}>{result.test.title}</h1>
+          <p role="status" className="mt-0 text-muted">
             The author has hidden the answers for this test. Your answers were recorded.
           </p>
-          <Link to="/tests" className="text-link">
+          <Link to="/tests" className={textLinkClass}>
             Back to browse
           </Link>
         </article>
@@ -85,17 +86,24 @@ export function AttemptResultPage() {
   return (
     <TestLayout>
       <article aria-label="Attempt result">
-        <p className="eyebrow">Result #{result.attempt.id}</p>
-        <h1>{result.test.title}</h1>
-        {result.attempt.score === null ? (
-          <p role="status">This test needs manual grading. Your answers were recorded.</p>
-        ) : (
-          <p role="status">
-            Your score: {Math.round(result.attempt.score * 100)}% ({correct} of {graded.length}{' '}
-            auto-graded correct)
-          </p>
-        )}
-        <ol className="question-list">
+        <div className="mb-2 rounded-2xl border border-line bg-card p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <Eyebrow>Result #{result.attempt.id}</Eyebrow>
+          <h1 className={h1Class}>{result.test.title}</h1>
+          {result.attempt.score === null ? (
+            <p role="status" className="mb-0 mt-0 text-muted">
+              This test needs manual grading. Your answers were recorded.
+            </p>
+          ) : (
+            <p
+              role="status"
+              className="mb-0 mt-3 inline-flex items-center rounded-full bg-ink px-4 py-2 text-[0.92rem] font-bold text-white"
+            >
+              Your score: {Math.round(result.attempt.score * 100)}% ({correct} of {graded.length}{' '}
+              auto-graded correct)
+            </p>
+          )}
+        </div>
+        <ol className="my-7 grid list-inside list-decimal gap-5 pl-6 marker:font-bold">
           {result.questions.map((question, index) => {
             const answer = answersByQuestion.get(question.id);
             const selected = new Set(answer?.selectedOptionIds ?? []);
@@ -107,13 +115,28 @@ export function AttemptResultPage() {
                 : answer?.isCorrect === false
                   ? 'Incorrect'
                   : 'Needs manual grading';
+            const verdictClass =
+              answer?.isCorrect === true
+                ? 'border-ink bg-ink text-white'
+                : answer?.isCorrect === false
+                  ? 'border-ink bg-white text-ink'
+                  : 'border-dashed border-[#b9b9b3] text-muted';
             return (
-              <li key={question.id}>
-                <h2>
+              <li
+                key={question.id}
+                className="rounded-xl border border-line bg-white px-5 py-[18px]"
+              >
+                <h2 className={`${h2Class} inline text-[1.02rem]`}>
                   Question {index + 1}: {question.text}
                 </h2>
-                <p>{verdict}</p>
-                <p>
+                <p className="my-2">
+                  <span
+                    className={`inline-block rounded-full border px-2.5 py-[3px] text-[0.75rem] font-bold uppercase tracking-[0.06em] ${verdictClass}`}
+                  >
+                    {verdict}
+                  </span>
+                </p>
+                <p className="my-1 text-[0.94rem] text-ink">
                   Your answer:{' '}
                   {selectedOptions.length > 0
                     ? selectedOptions.map((option) => option.text).join(', ')
@@ -122,15 +145,19 @@ export function AttemptResultPage() {
                       : 'No answer given'}
                 </p>
                 {question.type === 'open_ended' ? (
-                  <p>Open-ended question — graded manually.</p>
+                  <p className="my-1 text-[0.9rem] text-muted">
+                    Open-ended question — graded manually.
+                  </p>
                 ) : (
-                  <p>Correct answer: {correctOptions.map((option) => option.text).join(', ')}</p>
+                  <p className="my-1 text-[0.9rem] text-muted">
+                    Correct answer: {correctOptions.map((option) => option.text).join(', ')}
+                  </p>
                 )}
               </li>
             );
           })}
         </ol>
-        <Link to="/tests" className="text-link">
+        <Link to="/tests" className={textLinkClass}>
           Back to browse
         </Link>
       </article>

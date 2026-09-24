@@ -5,6 +5,7 @@ import { Alert } from '../components/Alert.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 import { TestList } from '../components/TestList.js';
+import { Eyebrow, btnPrimaryClass, h1Class, pageHeadingClass } from '../components/ui.js';
 import { testsApi } from '../tests/api.js';
 import type { TestListItem } from '../tests/types.js';
 
@@ -38,13 +39,13 @@ export function TestListPage({
 
   const content = (
     <>
-      <div className="page-heading">
+      <div className={pageHeadingClass}>
         <div>
-          <p className="eyebrow">{mine ? 'Authoring' : 'Discover'}</p>
-          <h1>{mine ? 'My tests' : 'Browse tests'}</h1>
+          <Eyebrow>{mine ? 'Authoring' : 'Discover'}</Eyebrow>
+          <h1 className={h1Class}>{mine ? 'My tests' : 'Browse tests'}</h1>
         </div>
         {mine && (
-          <Link className="button" to="/tests/new">
+          <Link className={`${btnPrimaryClass} shrink-0`} to="/tests/new">
             Create test
           </Link>
         )}

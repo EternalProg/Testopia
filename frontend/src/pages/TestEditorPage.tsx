@@ -128,30 +128,41 @@ function QuestionForm({
   }
 
   return (
-    <form className="question-editor" onSubmit={save}>
-      <div className="question-heading">
-        <h2>{question.id ? `Question ${question.orderIndex + 1}` : 'New question'}</h2>
+    <form
+      onSubmit={save}
+      className="my-4 grid max-w-[800px] gap-[18px] rounded-2xl border border-line bg-card p-[22px] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+    >
+      <div className="flex items-start justify-between gap-5">
+        <h2 className="mb-0 text-balance break-words text-[1.15rem] font-bold leading-snug tracking-[-0.015em] text-ink">
+          {question.id ? `Question ${question.orderIndex + 1}` : 'New question'}
+        </h2>
         {question.id && !readOnly && (
-          <button className="link-button danger" type="button" onClick={() => void onDelete()}>
+          <button
+            className="border-0 bg-transparent p-0 text-[0.9rem] font-medium text-[#900] underline underline-offset-[3px] hover:decoration-2"
+            type="button"
+            onClick={() => void onDelete()}
+          >
             Delete
           </button>
         )}
       </div>
-      <label>
+      <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
         Question text
         <textarea
           value={draft.text}
           disabled={readOnly}
           onChange={(event) => setDraft({ ...draft, text: event.target.value })}
           rows={3}
+          className="min-h-[96px] w-full resize-y rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] leading-relaxed text-ink transition-all duration-150 placeholder:text-[#a7abb2] hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:cursor-not-allowed disabled:opacity-60"
         />
       </label>
-      <label>
+      <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
         Type
         <select
           value={draft.type}
           disabled={readOnly}
           onChange={(event) => setType(event.target.value as QuestionType)}
+          className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {questionTypes.map((type) => (
             <option key={type} value={type}>
@@ -161,10 +172,13 @@ function QuestionForm({
         </select>
       </label>
       {choice && (
-        <fieldset>
-          <legend>Answer options</legend>
+        <fieldset className="m-0 grid gap-3 rounded-xl border border-line bg-[#fafaf9] p-4">
+          <legend className="px-2 text-[0.88rem] font-bold text-ink">Answer options</legend>
           {draft.options.map((option, index) => (
-            <div className="option-row" key={index}>
+            <div
+              key={index}
+              className="grid grid-cols-[1fr_auto_auto] items-center gap-2.5 max-sm:grid-cols-1"
+            >
               <input
                 aria-label={`Option ${index + 1}`}
                 value={option.text}
@@ -177,20 +191,22 @@ function QuestionForm({
                     ),
                   })
                 }
+                className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10 disabled:cursor-not-allowed disabled:opacity-60"
               />
-              <label className="checkbox-label">
+              <label className="flex items-center gap-2 whitespace-nowrap text-[0.88rem] font-medium text-ink">
                 <input
                   type={draft.type === 'multiple_choice' ? 'checkbox' : 'radio'}
                   name={`correct-${question.id ?? optionGroupId}`}
                   checked={option.isCorrect}
                   disabled={readOnly}
                   onChange={(event) => setCorrect(index, event.target.checked)}
+                  className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />{' '}
                 Correct
               </label>
               {draft.type !== 'true_false' && draft.options.length > 2 && (
                 <button
-                  className="link-button danger"
+                  className="border-0 bg-transparent p-0 text-[0.9rem] font-medium text-[#900] underline underline-offset-[3px] hover:decoration-2 disabled:cursor-not-allowed disabled:opacity-50"
                   type="button"
                   disabled={readOnly}
                   onClick={() =>
@@ -207,7 +223,7 @@ function QuestionForm({
           ))}
           {draft.type !== 'true_false' && (
             <button
-              className="button button-secondary"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-line-dark bg-white px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-150 hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
               disabled={readOnly}
               onClick={() =>
@@ -222,7 +238,11 @@ function QuestionForm({
       {error && <Alert variant="error">{error}</Alert>}
       {readOnly && <EmptyState text="Unpublish this test to edit questions." />}
       {!readOnly && (
-        <button className="button" type="submit" disabled={saving}>
+        <button
+          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 hover:-translate-y-px hover:border-ink-soft hover:bg-ink-soft disabled:cursor-wait disabled:opacity-55"
+          type="submit"
+          disabled={saving}
+        >
           {saving ? 'Saving…' : 'Save question'}
         </button>
       )}
@@ -392,14 +412,18 @@ export function TestEditorPage() {
       {loading && <LoadingState text="Loading test..." />}
       {!loading && (
         <>
-          <div className="page-heading">
+          <div className="mb-7 flex items-start justify-between gap-5">
             <div>
-              <p className="eyebrow">Authoring</p>
-              <h1>{editing ? 'Edit test' : 'Create test'}</h1>
+              <p className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.13em] text-faint before:inline-block before:h-0.5 before:w-4 before:rounded-full before:bg-ink before:content-['']">
+                Authoring
+              </p>
+              <h1 className="mb-2.5 text-balance break-words text-[clamp(1.6rem,1.25rem+1.4vw,2.1rem)] font-bold leading-[1.15] tracking-[-0.025em] text-ink">
+                {editing ? 'Edit test' : 'Create test'}
+              </h1>
             </div>
             {detail && (
               <button
-                className="link-button danger"
+                className="shrink-0 border-0 bg-transparent p-0 text-[0.9rem] font-medium text-[#900] underline underline-offset-[3px] hover:decoration-2"
                 type="button"
                 onClick={() => void removeTest()}
               >
@@ -408,29 +432,41 @@ export function TestEditorPage() {
             )}
           </div>
           {error && <Alert variant="error">{error}</Alert>}
-          <form className="metadata-form" onSubmit={saveMetadata}>
-            <label>
+          <form
+            onSubmit={saveMetadata}
+            className="mx-0 mb-10 mt-2 grid max-w-[700px] gap-[18px] rounded-2xl border border-line bg-card p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+          >
+            <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
               Title
-              <input value={title} onChange={(event) => setTitle(event.target.value)} />
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+              />
             </label>
-            <label>
+            <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
               Description
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 rows={4}
+                className="min-h-[96px] w-full resize-y rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] leading-relaxed text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
               />
             </label>
-            <button className="button" type="submit" disabled={saving}>
+            <button
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 hover:-translate-y-px hover:border-ink-soft hover:bg-ink-soft disabled:cursor-wait disabled:opacity-55"
+              type="submit"
+              disabled={saving}
+            >
               {saving ? 'Saving...' : 'Save test details'}
             </button>
           </form>
           {detail && (
-            <section className="questions-section">
-              <div className="section-heading">
-                <h2>Questions</h2>
+            <section className="mt-2 border-t border-line pt-7">
+              <div className="mb-[18px] flex items-center justify-between gap-5">
+                <h2 className="mb-0 text-[1.15rem] font-bold text-ink">Questions</h2>
                 <button
-                  className="button button-secondary"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-line-dark bg-white px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-150 hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
                   type="button"
                   disabled={detail.test.isPublished}
                   onClick={() => {
@@ -465,20 +501,27 @@ export function TestEditorPage() {
               )}
               {detail.test.isPublished ? (
                 <button
-                  className="button button-secondary"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-line-dark bg-white px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-150 hover:border-ink"
                   type="button"
                   onClick={() => void togglePublished()}
                 >
                   Unpublish test
                 </button>
               ) : (
-                <button className="button" type="button" onClick={() => void togglePublished()}>
+                <button
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 hover:-translate-y-px hover:border-ink-soft hover:bg-ink-soft"
+                  type="button"
+                  onClick={() => void togglePublished()}
+                >
                   Publish test
                 </button>
               )}
             </section>
           )}
-          <Link className="text-link" to="/dashboard">
+          <Link
+            to="/dashboard"
+            className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
+          >
             Back to my tests
           </Link>
         </>

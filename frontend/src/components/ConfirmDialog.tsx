@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 
+import { btnPrimaryClass, btnSecondaryClass } from './ui.js';
+
 export function ConfirmDialog({
   title,
   description,
@@ -40,32 +42,32 @@ export function ConfirmDialog({
   }, [onCancel]);
 
   return (
+    // The `dialog-backdrop` class is asserted by tests — keep it.
     <div className="dialog-backdrop">
       <div
-        className="dialog"
+        className="grid w-full max-w-[440px] gap-3.5 rounded-2xl border border-line bg-white p-[26px] shadow-[0_24px_60px_rgba(0,0,0,0.22)]"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
       >
-        <h2 id="confirm-dialog-title">{title}</h2>
-        <p id="confirm-dialog-description">{description}</p>
-        <div className="dialog-actions">
+        <h2 id="confirm-dialog-title" className="m-0 text-[1.15rem] font-bold text-ink">
+          {title}
+        </h2>
+        <p id="confirm-dialog-description" className="m-0 text-[0.93rem] text-muted">
+          {description}
+        </p>
+        <div className="mt-1.5 flex flex-wrap gap-2.5">
           <button
             ref={confirmRef}
-            className="button"
+            className={btnPrimaryClass}
             type="button"
             disabled={busy}
             onClick={onConfirm}
           >
             {confirmLabel}
           </button>
-          <button
-            className="button button-secondary"
-            type="button"
-            disabled={busy}
-            onClick={onCancel}
-          >
+          <button className={btnSecondaryClass} type="button" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </button>
         </div>

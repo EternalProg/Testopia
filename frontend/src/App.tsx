@@ -52,7 +52,7 @@ export function App() {
   return (
     <BrowserRouter>
       <AuthBootstrap />
-      <div className="app-root">
+      <div className="min-h-screen">
         <Routes>
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />
