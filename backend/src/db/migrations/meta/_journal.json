@@ -29,6 +29,13 @@
       "when": 1790242301371,
       "tag": "0003_rare_leopardon",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790246495965,
+      "tag": "0004_mushy_giant_man",
+      "breakpoints": true
     }
   ]
 }

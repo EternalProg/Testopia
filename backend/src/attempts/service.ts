@@ -31,24 +31,38 @@ export class AttemptsService {
 
   async start(actor: Actor, testId: number): Promise<AttemptDetail> {
     const test = await this.requirePublishedTest(testId);
+    const now = new Date();
     const active = await this.attempts.findActiveAttempt(actor.id, testId);
     if (active) {
-      if (this.isPastDeadline(active, test)) {
+      const pastDeadline = this.isPastDeadline(active, test);
+      // Resume is allowed only while the window is still open for taking:
+      // past the close the active attempt is force-expired with empty
+      // records (score null), mirroring the start-time timeout path.
+      const closed = this.isAfterClose(test, now);
+      if (pastDeadline || closed) {
         // A null result means a concurrent submit already finished the
-        // attempt; either way it is terminal, so fall through and start fresh.
+        // attempt; either way it is terminal, so fall through and start fresh
+        // unless the window itself is closed.
         await this.attempts.completeAttempt(
           active.id,
           {
             status: 'expired',
             score: null,
-            timeSpentSeconds: this.timeSpentSeconds(active, new Date()),
-            completedAt: new Date(),
+            timeSpentSeconds: this.timeSpentSeconds(active, now),
+            completedAt: now,
           },
           [],
         );
+        if (closed) throw new AttemptError('This test is closed', 'TEST_CLOSED');
       } else {
         return this.detail(active);
       }
+    }
+    if (this.isBeforeOpen(test, now)) {
+      throw new AttemptError("This test hasn't opened yet", 'TEST_NOT_OPEN');
+    }
+    if (this.isAfterClose(test, now)) {
+      throw new AttemptError('This test is closed', 'TEST_CLOSED');
     }
     const questions = await this.tests.findQuestions(testId);
     const created = await this.attempts.createAttempt({
@@ -168,9 +182,11 @@ export class AttemptsService {
 
     const score = autoTotal === 0 ? null : Math.round((autoCorrect / autoTotal) * 100) / 100;
     const completedAt = new Date();
-    const status = this.isPastDeadline({ startedAt: attempt.startedAt }, test)
-      ? 'expired'
-      : 'completed';
+    // Force-expire on submit past the close: grade what was submitted but
+    // mark it expired, reusing the 410 EXPIRED-with-result flow.
+    const closed = this.isAfterClose(test, completedAt);
+    const pastDeadline = this.isPastDeadline({ startedAt: attempt.startedAt }, test);
+    const status = pastDeadline || closed ? 'expired' : 'completed';
     const completed = await this.attempts.completeAttempt(
       attempt.id,
       { status, score, timeSpentSeconds: this.timeSpentSeconds(attempt, completedAt), completedAt },
@@ -193,7 +209,11 @@ export class AttemptsService {
       result.answers = result.answers.map((answer) => ({ ...answer, isCorrect: null }));
     }
     if (status === 'expired') {
-      throw new AttemptError('Time limit exceeded', 'EXPIRED', result);
+      throw new AttemptError(
+        closed ? 'This test is closed' : 'Time limit exceeded',
+        'EXPIRED',
+        result,
+      );
     }
     return result;
   }
@@ -359,6 +379,16 @@ export class AttemptsService {
   ): boolean {
     if (test.timeLimitMinutes === null || test.timeLimitMinutes === undefined) return false;
     return Date.now() > new Date(attempt.startedAt).getTime() + test.timeLimitMinutes * 60_000;
+  }
+
+  private isBeforeOpen(test: { availableFrom: Date | null }, now: Date = new Date()): boolean {
+    if (test.availableFrom === null || test.availableFrom === undefined) return false;
+    return now.getTime() < new Date(test.availableFrom).getTime();
+  }
+
+  private isAfterClose(test: { availableUntil: Date | null }, now: Date = new Date()): boolean {
+    if (test.availableUntil === null || test.availableUntil === undefined) return false;
+    return now.getTime() > new Date(test.availableUntil).getTime();
   }
 
   private timeSpentSeconds(attempt: { startedAt: Date }, now: Date): number {

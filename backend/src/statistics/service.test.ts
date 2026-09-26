@@ -17,6 +17,9 @@ const draftTest = {
   shuffleQuestions: false,
   timeLimitMinutes: null,
   showAnswersAfterCompletion: true,
+  showQuestionsBeforeStart: true,
+  availableFrom: null,
+  availableUntil: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };

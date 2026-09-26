@@ -67,8 +67,11 @@ const state = vi.hoisted(() => {
         authorId: 10,
         isPublished: true,
         shuffleQuestions: false,
-        timeLimitMinutes: null,
+        timeLimitMinutes: null as number | null,
         showAnswersAfterCompletion: true,
+        showQuestionsBeforeStart: true,
+        availableFrom: null as Date | null,
+        availableUntil: null as Date | null,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       },
@@ -79,8 +82,11 @@ const state = vi.hoisted(() => {
         authorId: 10,
         isPublished: false,
         shuffleQuestions: false,
-        timeLimitMinutes: null,
+        timeLimitMinutes: null as number | null,
         showAnswersAfterCompletion: true,
+        showQuestionsBeforeStart: true,
+        availableFrom: null as Date | null,
+        availableUntil: null as Date | null,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       },
@@ -91,8 +97,11 @@ const state = vi.hoisted(() => {
         authorId: 10,
         isPublished: true,
         shuffleQuestions: false,
-        timeLimitMinutes: 60,
+        timeLimitMinutes: 60 as number | null,
         showAnswersAfterCompletion: true,
+        showQuestionsBeforeStart: true,
+        availableFrom: null as Date | null,
+        availableUntil: null as Date | null,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       },
@@ -103,8 +112,11 @@ const state = vi.hoisted(() => {
         authorId: 10,
         isPublished: true,
         shuffleQuestions: false,
-        timeLimitMinutes: null,
+        timeLimitMinutes: null as number | null,
         showAnswersAfterCompletion: false,
+        showQuestionsBeforeStart: true,
+        availableFrom: null as Date | null,
+        availableUntil: null as Date | null,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       },
@@ -692,6 +704,76 @@ describe('attempt routes', () => {
       });
     } finally {
       hidden!.timeLimitMinutes = null;
+    }
+  });
+
+  it('enforces the availability window on start and submit', async () => {
+    const published = state.tests.find((test) => test.id === 1);
+    const previousFrom = published!.availableFrom;
+    const previousUntil = published!.availableUntil;
+    try {
+      published!.availableFrom = new Date(Date.now() + 60_000);
+      published!.availableUntil = null;
+      const early = await app.inject({
+        method: 'POST',
+        url: '/api/v1/tests/1/attempts',
+        headers: authHeaders,
+      });
+      expect(early.statusCode).toBe(403);
+      expect(early.json()).toMatchObject({ error: 'TEST_NOT_OPEN' });
+
+      published!.availableFrom = null;
+      published!.availableUntil = new Date(Date.now() - 60_000);
+      const late = await app.inject({
+        method: 'POST',
+        url: '/api/v1/tests/1/attempts',
+        headers: authHeaders,
+      });
+      expect(late.statusCode).toBe(403);
+      expect(late.json()).toMatchObject({ error: 'TEST_CLOSED' });
+
+      // An in-progress attempt past the close force-expires on resume...
+      published!.availableFrom = null;
+      published!.availableUntil = new Date(Date.now() + 60_000);
+      const started = await app.inject({
+        method: 'POST',
+        url: '/api/v1/tests/1/attempts',
+        headers: authHeaders,
+      });
+      const attemptId = (started.json() as { attempt: { id: number } }).attempt.id;
+      published!.availableUntil = new Date(Date.now() - 1_000);
+      const resumed = await app.inject({
+        method: 'POST',
+        url: '/api/v1/tests/1/attempts',
+        headers: authHeaders,
+      });
+      expect(resumed.statusCode).toBe(403);
+      expect(resumed.json()).toMatchObject({ error: 'TEST_CLOSED' });
+      expect(state.attempts.find((attempt) => attempt.id === attemptId)?.status).toBe('expired');
+
+      // ...and a late submit grades as expired with a 410 result.
+      published!.availableUntil = new Date(Date.now() + 60_000);
+      const fresh = await app.inject({
+        method: 'POST',
+        url: '/api/v1/tests/1/attempts',
+        headers: authHeaders,
+      });
+      const freshId = (fresh.json() as { attempt: { id: number } }).attempt.id;
+      published!.availableUntil = new Date(Date.now() - 1_000);
+      const submitted = await app.inject({
+        method: 'POST',
+        url: `/api/v1/attempts/${freshId}/submit`,
+        headers: authHeaders,
+        payload: { answers: [{ questionId: 11, selectedOptionIds: [101] }] },
+      });
+      expect(submitted.statusCode).toBe(410);
+      expect(submitted.json()).toMatchObject({
+        error: 'EXPIRED',
+        attempt: { id: freshId, status: 'expired' },
+      });
+    } finally {
+      published!.availableFrom = previousFrom;
+      published!.availableUntil = previousUntil;
     }
   });
 });

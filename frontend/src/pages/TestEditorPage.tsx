@@ -63,6 +63,36 @@ function toDraft(question: ApiQuestion): QuestionDraft {
   };
 }
 
+function isQuestionDirty(draft: QuestionDraft, original: QuestionDraft): boolean {
+  if (draft.text !== original.text) return true;
+  if (draft.type !== original.type) return true;
+  if (draft.options.length !== original.options.length) return true;
+  return draft.options.some(
+    (option, index) =>
+      option.text !== original.options[index]?.text ||
+      option.isCorrect !== original.options[index]?.isCorrect,
+  );
+}
+
+function toDatetimeLocalValue(iso: string | null): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
+function fromDatetimeLocalValue(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) return trimmed;
+  return date.toISOString();
+}
+
 function QuestionForm({
   question,
   position,
@@ -94,6 +124,10 @@ function QuestionForm({
     draft.type === 'single_choice' ||
     draft.type === 'multiple_choice' ||
     draft.type === 'true_false';
+  // Clean + already persisted on the server = explicitly saved. The button
+  // stays disabled in that state so it is obvious no save is pending.
+  const dirty = isQuestionDirty(draft, question);
+  const saved = !dirty && question.id !== undefined;
 
   function setType(type: QuestionType) {
     setDraft((current) => ({ ...current, type, options: blankOptions(type) }));
@@ -184,13 +218,13 @@ function QuestionForm({
               ↓ Down
             </button>
           )}
-          {question.id && !readOnly && (
+          {!readOnly && (
             <button
               className="border-0 bg-transparent p-0 text-[0.9rem] font-medium text-[#900] underline underline-offset-[3px] hover:decoration-2"
               type="button"
               onClick={() => void onDelete()}
             >
-              Delete
+              {question.id ? 'Delete' : 'Discard'}
             </button>
           )}
         </div>
@@ -287,13 +321,19 @@ function QuestionForm({
       {error && <Alert variant="error">{error}</Alert>}
       {readOnly && <EmptyState text="Unpublish this test to edit questions." />}
       {!readOnly && (
-        <button
-          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 hover:-translate-y-px hover:border-ink-soft hover:bg-ink-soft disabled:cursor-wait disabled:opacity-55"
-          type="submit"
-          disabled={saving}
-        >
-          {saving ? 'Saving…' : 'Save question'}
-        </button>
+        <div className="grid justify-items-start gap-2">
+          <button
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 hover:-translate-y-px hover:border-ink-soft hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
+            type="submit"
+            disabled={saving || saved}
+            title={saved ? 'All changes saved' : undefined}
+          >
+            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save question'}
+          </button>
+          {saved && (
+            <span className="text-[0.83rem] font-normal text-muted">All changes saved.</span>
+          )}
+        </div>
       )}
     </form>
   );
@@ -307,6 +347,8 @@ export function TestEditorPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [timeLimit, setTimeLimit] = useState('');
+  const [availableFrom, setAvailableFrom] = useState('');
+  const [availableUntil, setAvailableUntil] = useState('');
   const [shuffle, setShuffle] = useState(false);
   const [showAnswers, setShowAnswers] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
@@ -319,6 +361,8 @@ export function TestEditorPage() {
 
   function syncSettings(test: TestDetail['test']) {
     setTimeLimit(test.timeLimitMinutes === null ? '' : String(test.timeLimitMinutes));
+    setAvailableFrom(toDatetimeLocalValue(test.availableFrom));
+    setAvailableUntil(toDatetimeLocalValue(test.availableUntil));
     setShuffle(test.shuffleQuestions);
     setShowAnswers(test.showAnswersAfterCompletion);
     setShowPreview(test.showQuestionsBeforeStart);
@@ -360,6 +404,8 @@ export function TestEditorPage() {
       timeLimitMinutes: trimmedLimit === '' ? null : Number(trimmedLimit),
       showAnswersAfterCompletion: showAnswers,
       showQuestionsBeforeStart: showPreview,
+      availableFrom: fromDatetimeLocalValue(availableFrom),
+      availableUntil: fromDatetimeLocalValue(availableUntil),
     });
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? 'Please check the test details.');
@@ -427,9 +473,15 @@ export function TestEditorPage() {
   }
 
   async function removeQuestion(question: QuestionDraft) {
-    if (!detail || !question.id) return;
+    if (!detail) return;
     if (detail.test.isPublished) {
       setError('Unpublish this test before editing questions.');
+      return;
+    }
+    // Unsaved drafts exist only in local state: discarding them needs no API call.
+    if (!question.id) {
+      setQuestions((current) => current.filter((item) => item.clientKey !== question.clientKey));
+      setError(null);
       return;
     }
     try {
@@ -614,6 +666,33 @@ export function TestEditorPage() {
                 Leave empty for no time limit (1–1440 minutes).
               </span>
             </label>
+            <fieldset className="m-0 grid gap-[18px] rounded-xl border border-line bg-[#fafaf9] p-4">
+              <legend className="px-2 text-[0.88rem] font-bold text-ink">
+                Availability window
+              </legend>
+              <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
+                Opens at
+                <input
+                  type="datetime-local"
+                  value={availableFrom}
+                  onChange={(event) => setAvailableFrom(event.target.value)}
+                  className="w-full max-w-[260px] rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+                />
+              </label>
+              <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
+                Closes at
+                <input
+                  type="datetime-local"
+                  value={availableUntil}
+                  onChange={(event) => setAvailableUntil(event.target.value)}
+                  className="w-full max-w-[260px] rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+                />
+              </label>
+              <span className="text-[0.83rem] font-normal text-muted">
+                Leave empty for no bound. Closing time must be after opening time. To reopen a
+                closed test, edit the closing time again.
+              </span>
+            </fieldset>
             <fieldset className="m-0 grid gap-2.5 rounded-xl border border-line bg-[#fafaf9] p-4">
               <legend className="px-2 text-[0.88rem] font-bold text-ink">Question order</legend>
               <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">

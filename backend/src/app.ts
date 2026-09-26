@@ -181,7 +181,9 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
       const statusCode =
         error.code === 'NOT_FOUND'
           ? 404
-          : error.code === 'FORBIDDEN'
+          : error.code === 'FORBIDDEN' ||
+              error.code === 'TEST_NOT_OPEN' ||
+              error.code === 'TEST_CLOSED'
             ? 403
             : error.code === 'CONFLICT'
               ? 409

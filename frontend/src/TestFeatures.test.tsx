@@ -423,4 +423,59 @@ describe('test frontend', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Test delete failed');
     expect(screen.getByRole('heading', { name: 'Edit test' })).toBeInTheDocument();
   });
+
+  it('discards an unsaved draft without calling the API', async () => {
+    const user = userEvent.setup();
+    let postCount = 0;
+    server.use(
+      http.get('/api/v1/tests/1', () => HttpResponse.json({ test, questions: [] })),
+      http.post('/api/v1/tests/1/questions', () => {
+        postCount += 1;
+        return HttpResponse.json(question, { status: 201 });
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={['/tests/1/edit']}>
+        <Routes>
+          <Route path="/tests/:id/edit" element={<TestEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Questions' });
+    await user.click(screen.getByRole('button', { name: 'Add question' }));
+    expect(await screen.findByRole('heading', { name: 'New question' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(screen.queryByRole('heading', { name: 'New question' })).not.toBeInTheDocument();
+    expect(postCount).toBe(0);
+  });
+
+  it('disables save while the question matches the saved version', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get('/api/v1/tests/1', () => HttpResponse.json({ test, questions: [question] })),
+      http.patch('/api/v1/tests/1/questions/2', async ({ request }) => {
+        const body = (await request.json()) as { text: string };
+        return HttpResponse.json({ ...question, text: body.text });
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={['/tests/1/edit']}>
+        <Routes>
+          <Route path="/tests/:id/edit" element={<TestEditorPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: 'Question 1' });
+    const savedButton = await screen.findByRole('button', { name: 'Saved ✓' });
+    expect(savedButton).toBeDisabled();
+
+    const input = screen.getByDisplayValue('What is 2 + 2?');
+    await user.clear(input);
+    await user.type(input, 'What is 2 + 2 (edited)?');
+    const saveButton = await screen.findByRole('button', { name: 'Save question' });
+    expect(saveButton).toBeEnabled();
+    await user.click(saveButton);
+    expect(await screen.findByRole('button', { name: 'Saved ✓' })).toBeDisabled();
+  });
 });

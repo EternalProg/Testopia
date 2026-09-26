@@ -1,3 +1,4 @@
+import { createTestSchema } from '@testopia/shared';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TestsService } from './service.js';
@@ -12,6 +13,8 @@ const baseTest = {
   timeLimitMinutes: null,
   showAnswersAfterCompletion: true,
   showQuestionsBeforeStart: true,
+  availableFrom: null,
+  availableUntil: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -220,5 +223,68 @@ describe('TestsService', () => {
     const service = new TestsService(repo as never);
     await service.remove({ id: 10, role: 'user' }, 1);
     expect(repo.delete).toHaveBeenCalledWith(1);
+  });
+
+  it('passes the availability window through on create and update', async () => {
+    const from = new Date('2026-02-01T00:00:00.000Z');
+    const until = new Date('2026-03-01T00:00:00.000Z');
+    const createRepo = repository({ create: vi.fn().mockResolvedValue(baseTest) });
+    const createService = new TestsService(createRepo as never);
+    await createService.create({ id: 10, role: 'user' }, {
+      title: 'Windowed',
+      isPublished: false,
+      shuffleQuestions: false,
+      showAnswersAfterCompletion: true,
+      showQuestionsBeforeStart: true,
+      availableFrom: from,
+      availableUntil: until,
+    } as never);
+    expect(createRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        availableFrom: from,
+        availableUntil: until,
+      }),
+    );
+
+    const updateRepo = repository();
+    const updateService = new TestsService(updateRepo as never);
+    await updateService.update({ id: 10, role: 'user' }, 1, {
+      availableFrom: from,
+      availableUntil: null,
+    } as never);
+    expect(updateRepo.update).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        availableFrom: from,
+        availableUntil: null,
+      }),
+    );
+  });
+
+  it('rejects an availability window that closes before it opens', async () => {
+    const from = new Date('2026-03-01T00:00:00.000Z');
+    const until = new Date('2026-02-01T00:00:00.000Z');
+    expect(
+      createTestSchema.safeParse({
+        title: 'Bad window',
+        availableFrom: from.toISOString(),
+        availableUntil: until.toISOString(),
+      }).success,
+    ).toBe(false);
+    expect(
+      createTestSchema.safeParse({
+        title: 'Equal window',
+        availableFrom: from.toISOString(),
+        availableUntil: from.toISOString(),
+      }).success,
+    ).toBe(false);
+    expect(
+      createTestSchema.safeParse({
+        title: 'Good window',
+        availableFrom: until.toISOString(),
+        availableUntil: from.toISOString(),
+      }).success,
+    ).toBe(true);
+    expect(createTestSchema.safeParse({ title: 'Open window' }).success).toBe(true);
   });
 });

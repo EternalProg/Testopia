@@ -68,6 +68,8 @@ export const tests = mysqlTable(
     timeLimitMinutes: int('time_limit_minutes'),
     showAnswersAfterCompletion: boolean('show_answers_after_completion').notNull().default(true),
     showQuestionsBeforeStart: boolean('show_questions_before_start').notNull().default(true),
+    availableFrom: timestamp('available_from'),
+    availableUntil: timestamp('available_until'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
   },

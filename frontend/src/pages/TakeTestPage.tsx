@@ -33,6 +33,12 @@ function formatRemaining(totalSeconds: number): string {
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof AttemptApiError) {
+    if (error.payload.error === 'TEST_CLOSED') {
+      return 'This test is closed. New attempts can no longer be started.';
+    }
+    if (error.payload.error === 'TEST_NOT_OPEN') {
+      return "This test hasn't opened yet. Please come back later.";
+    }
     return error.payload.message ?? error.payload.error ?? fallback;
   }
   return fallback;
@@ -140,13 +146,23 @@ export function TakeTestPage() {
         setDetail(attemptDetail);
         setState('ready');
       })
-      .catch((reason: { status?: number }) => {
+      .catch((reason: unknown) => {
         if (!active) return;
-        setLoadError(
-          reason?.status === 404
-            ? 'This test does not exist or is not published.'
-            : 'Your attempt could not be started.',
-        );
+        const status = (reason as { status?: number })?.status;
+        if (status === 404) {
+          setLoadError('This test does not exist or is not published.');
+        } else if (
+          reason instanceof AttemptApiError &&
+          (reason.payload.error === 'TEST_CLOSED' || reason.payload.error === 'TEST_NOT_OPEN')
+        ) {
+          setLoadError(errorMessage(reason, 'Your attempt could not be started.'));
+        } else {
+          setLoadError(
+            reason instanceof AttemptApiError
+              ? (reason.payload.message ?? 'Your attempt could not be started.')
+              : 'Your attempt could not be started.',
+          );
+        }
         setState('error');
       });
     return () => {
@@ -228,12 +244,30 @@ export function TakeTestPage() {
     return (
       <TestLayout>
         <Alert variant="error">{loadError ?? 'Your attempt could not be started.'}</Alert>
-        <Link
-          to="/tests"
-          className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
-        >
-          Back to browse
-        </Link>
+        <div className="flex flex-wrap gap-x-6">
+          {id && (
+            <Link
+              to={`/tests/${id}/attempts`}
+              className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
+            >
+              View attempt history
+            </Link>
+          )}
+          {id && (
+            <Link
+              to={`/tests/${id}`}
+              className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
+            >
+              Back to test
+            </Link>
+          )}
+          <Link
+            to="/tests"
+            className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
+          >
+            Back to browse
+          </Link>
+        </div>
       </TestLayout>
     );
   }

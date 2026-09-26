@@ -40,6 +40,27 @@ export function TestDetailPage() {
   // The author can hide the preview: outsiders see the questions only after
   // starting an attempt, while the author and admins always see them here.
   const previewHidden = !!detail && !detail.test.showQuestionsBeforeStart && !canManage;
+  const now = Date.now();
+  const fromTime = detail?.test.availableFrom
+    ? new Date(detail.test.availableFrom).getTime()
+    : null;
+  const untilTime = detail?.test.availableUntil
+    ? new Date(detail.test.availableUntil).getTime()
+    : null;
+  const availability: 'upcoming' | 'open' | 'closed' =
+    fromTime !== null && now < fromTime
+      ? 'upcoming'
+      : untilTime !== null && now > untilTime
+        ? 'closed'
+        : 'open';
+  const formatBound = (iso: string) =>
+    new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const startReason =
+    availability === 'upcoming' && detail?.test.availableFrom
+      ? `Opens ${formatBound(detail.test.availableFrom)}`
+      : availability === 'closed' && detail?.test.availableUntil
+        ? `Closed on ${formatBound(detail.test.availableUntil)}`
+        : null;
 
   return (
     <TestLayout>
@@ -47,7 +68,13 @@ export function TestDetailPage() {
       {!detail && !error && <LoadingState text="Loading test..." />}
       {detail && (
         <article className={`${cardClass} max-w-[800px] p-[26px]`}>
-          <Eyebrow>Published test</Eyebrow>
+          <Eyebrow>
+            {availability === 'closed'
+              ? 'Closed test'
+              : availability === 'upcoming'
+                ? 'Upcoming test'
+                : 'Published test'}
+          </Eyebrow>
           <h1 className={h1Class}>{detail.test.title}</h1>
           {detail.test.description && <p className={ledeClass}>{detail.test.description}</p>}
           <p className="mb-0 mt-3 text-[0.85rem] text-faint">
@@ -60,7 +87,30 @@ export function TestDetailPage() {
             {previewHidden
               ? 'Questions revealed at start'
               : `${detail.questions.length} question${detail.questions.length === 1 ? '' : 's'}`}
+            {detail.test.availableFrom || detail.test.availableUntil ? (
+              <>
+                {' • '}
+                {detail.test.availableFrom
+                  ? `Opens ${formatBound(detail.test.availableFrom)}`
+                  : 'Open'}
+                {detail.test.availableUntil
+                  ? ` — closes ${formatBound(detail.test.availableUntil)}`
+                  : ''}
+              </>
+            ) : null}
           </p>
+          {availability === 'closed' && (
+            <p
+              role="note"
+              className="my-7 rounded-xl border border-line bg-wash px-5 py-4 text-[0.92rem] text-muted"
+            >
+              This test is closed
+              {detail.test.availableUntil
+                ? ` (closed on ${formatBound(detail.test.availableUntil)})`
+                : ''}
+              . Existing results stay available below, but new attempts can no longer be started.
+            </p>
+          )}
           {previewHidden ? (
             <p
               role="note"
@@ -88,9 +138,25 @@ export function TestDetailPage() {
             </ol>
           )}
           <div className="my-7 grid justify-items-start gap-4">
-            <Link to={`/tests/${detail.test.id}/take`} className={btnPrimaryClass}>
-              Start test
-            </Link>
+            {availability === 'open' ? (
+              <Link to={`/tests/${detail.test.id}/take`} className={btnPrimaryClass}>
+                Start test
+              </Link>
+            ) : (
+              <>
+                <span
+                  aria-disabled="true"
+                  className={`${btnPrimaryClass} cursor-not-allowed opacity-50`}
+                >
+                  Start test
+                </span>
+                {startReason && (
+                  <p role="note" className="mb-0 text-[0.88rem] text-muted">
+                    {startReason}
+                  </p>
+                )}
+              </>
+            )}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
               <Link to={`/tests/${detail.test.id}/attempts`} className={`${textLinkClass} mt-0`}>
                 View attempt history

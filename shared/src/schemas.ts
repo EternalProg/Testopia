@@ -21,7 +21,7 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1),
 });
 
-export const createTestSchema = z.object({
+const baseTestSchema = z.object({
   title: z.string().trim().min(1).max(255),
   description: z.string().trim().max(10_000).nullable().optional(),
   isPublished: z.boolean().default(false),
@@ -35,9 +35,32 @@ export const createTestSchema = z.object({
     .optional(),
   showAnswersAfterCompletion: z.boolean().default(true),
   showQuestionsBeforeStart: z.boolean().default(true),
+  // ISO datetime strings (UTC) to stay representable in OpenAPI JSON Schema
+  // (z.coerce.date() breaks z.toJSONSchema). The service coerces to Date.
+  availableFrom: z.iso.datetime().nullable().optional(),
+  availableUntil: z.iso.datetime().nullable().optional(),
 });
 
-export const updateTestSchema = createTestSchema.partial();
+function checkAvailabilityWindow(
+  test: { availableFrom?: string | null | undefined; availableUntil?: string | null | undefined },
+  context: { addIssue: (issue: { code: 'custom'; path: string[]; message: string }) => void },
+) {
+  if (typeof test.availableFrom === 'string' && typeof test.availableUntil === 'string') {
+    const from = new Date(test.availableFrom).getTime();
+    const until = new Date(test.availableUntil).getTime();
+    if (!Number.isNaN(from) && !Number.isNaN(until) && from >= until) {
+      context.addIssue({
+        code: 'custom',
+        path: ['availableUntil'],
+        message: 'Closing time must be after opening time',
+      });
+    }
+  }
+}
+
+export const createTestSchema = baseTestSchema.superRefine(checkAvailabilityWindow);
+
+export const updateTestSchema = baseTestSchema.partial().superRefine(checkAvailabilityWindow);
 
 const answerOptionSchema = z.object({
   text: z.string().trim().min(1).max(500),

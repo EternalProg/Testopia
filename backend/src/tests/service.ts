@@ -66,6 +66,8 @@ export class TestsService {
       timeLimitMinutes: input.timeLimitMinutes ?? null,
       showAnswersAfterCompletion: input.showAnswersAfterCompletion,
       showQuestionsBeforeStart: input.showQuestionsBeforeStart,
+      availableFrom: this.toDateOrNull(input.availableFrom),
+      availableUntil: this.toDateOrNull(input.availableUntil),
     });
     if (!row) throw new Error('Created test could not be loaded');
     if (input.isPublished) return this.publish(actor, row.id);
@@ -242,7 +244,18 @@ export class TestsService {
       ...(input.showQuestionsBeforeStart === undefined
         ? {}
         : { showQuestionsBeforeStart: input.showQuestionsBeforeStart }),
+      ...(input.availableFrom === undefined
+        ? {}
+        : { availableFrom: this.toDateOrNull(input.availableFrom) }),
+      ...(input.availableUntil === undefined
+        ? {}
+        : { availableUntil: this.toDateOrNull(input.availableUntil) }),
     };
+  }
+
+  private toDateOrNull(value: string | Date | null | undefined): Date | null {
+    if (value === null || value === undefined) return null;
+    return value instanceof Date ? value : new Date(value);
   }
 
   private publicTest(test: typeof tests.$inferSelect): Test {

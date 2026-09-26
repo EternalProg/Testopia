@@ -1,5 +1,11 @@
 export type AttemptErrorCode =
-  'NOT_FOUND' | 'FORBIDDEN' | 'CONFLICT' | 'VALIDATION_ERROR' | 'EXPIRED';
+  | 'NOT_FOUND'
+  | 'FORBIDDEN'
+  | 'CONFLICT'
+  | 'VALIDATION_ERROR'
+  | 'EXPIRED'
+  | 'TEST_NOT_OPEN'
+  | 'TEST_CLOSED';
 
 export class AttemptError extends Error {
   constructor(

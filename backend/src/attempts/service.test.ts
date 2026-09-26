@@ -13,6 +13,9 @@ const publishedTest = {
   shuffleQuestions: false,
   timeLimitMinutes: null,
   showAnswersAfterCompletion: true,
+  showQuestionsBeforeStart: true,
+  availableFrom: null,
+  availableUntil: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -305,6 +308,105 @@ describe('AttemptsService', () => {
       expect.objectContaining({ status: 'expired' }),
       expect.any(Array),
     );
+  });
+
+  describe('availability window', () => {
+    it('blocks fresh starts before opening', async () => {
+      const { service, attempts } = setup({
+        tests: {
+          findById: vi
+            .fn()
+            .mockResolvedValue({ ...publishedTest, availableFrom: new Date(Date.now() + 60_000) }),
+        },
+      });
+
+      await expect(service.start({ id: 7, role: 'user' }, 1)).rejects.toMatchObject({
+        code: 'TEST_NOT_OPEN',
+      });
+      expect(attempts.createAttempt).not.toHaveBeenCalled();
+    });
+
+    it('blocks fresh starts after closing', async () => {
+      const { service, attempts } = setup({
+        tests: {
+          findById: vi
+            .fn()
+            .mockResolvedValue({ ...publishedTest, availableUntil: new Date(Date.now() - 60_000) }),
+        },
+      });
+
+      await expect(service.start({ id: 7, role: 'user' }, 1)).rejects.toMatchObject({
+        code: 'TEST_CLOSED',
+      });
+      expect(attempts.createAttempt).not.toHaveBeenCalled();
+    });
+
+    it('resumes the active attempt inside an open window', async () => {
+      const { service, attempts } = setup({
+        tests: {
+          findById: vi.fn().mockResolvedValue({
+            ...publishedTest,
+            availableFrom: new Date(Date.now() - 60_000),
+            availableUntil: new Date(Date.now() + 60_000),
+          }),
+        },
+        attempts: { findActiveAttempt: vi.fn().mockResolvedValue(inProgressAttempt) },
+      });
+
+      const detail = await service.start({ id: 7, role: 'user' }, 1);
+
+      expect(detail.attempt.id).toBe(5);
+      expect(attempts.createAttempt).not.toHaveBeenCalled();
+    });
+
+    it('force-expires the active attempt on start past the close', async () => {
+      const { service, attempts } = setup({
+        tests: {
+          findById: vi
+            .fn()
+            .mockResolvedValue({ ...publishedTest, availableUntil: new Date(Date.now() - 1_000) }),
+        },
+        attempts: { findActiveAttempt: vi.fn().mockResolvedValue(inProgressAttempt) },
+      });
+
+      await expect(service.start({ id: 7, role: 'user' }, 1)).rejects.toMatchObject({
+        code: 'TEST_CLOSED',
+      });
+      expect(attempts.completeAttempt).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({ status: 'expired', score: null }),
+        [],
+      );
+      expect(attempts.createAttempt).not.toHaveBeenCalled();
+    });
+
+    it('grades submit past the close as expired', async () => {
+      const { service, attempts } = setup({
+        tests: {
+          findById: vi
+            .fn()
+            .mockResolvedValue({ ...publishedTest, availableUntil: new Date(Date.now() - 1_000) }),
+        },
+      });
+
+      const failure = await service
+        .submit({ id: 7, role: 'user' } as never, 5, {
+          answers: [
+            { questionId: 11, selectedOptionIds: [101], textAnswer: null },
+            { questionId: 12, selectedOptionIds: [103, 104], textAnswer: null },
+            { questionId: 13, selectedOptionIds: [106], textAnswer: null },
+            { questionId: 14, selectedOptionIds: [], textAnswer: 'Because.' },
+          ],
+        } as never)
+        .catch((error: unknown) => error);
+
+      expect(failure).toMatchObject({ name: 'AttemptError', code: 'EXPIRED' });
+      const [, outcome] = attempts.completeAttempt.mock.calls[0] as [
+        number,
+        { status: string; score: number | null },
+      ];
+      expect(outcome).toMatchObject({ status: 'expired', score: 1 });
+    });
   });
 
   describe('results and answer visibility', () => {

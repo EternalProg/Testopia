@@ -77,6 +77,8 @@ describe('API contract (frontend clients vs shared schemas)', () => {
       timeLimitMinutes: 15,
       showAnswersAfterCompletion: true,
       showQuestionsBeforeStart: true,
+      availableFrom: null,
+      availableUntil: null,
     });
 
     capture('post', '/api/v1/tests/1/questions', 'createQuestion', { id: 1 });

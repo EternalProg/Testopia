@@ -1,6 +1,8 @@
 import type { AnswerOption, Question, Test } from '@testopia/shared';
 
-export type ApiTest = Omit<Test, 'createdAt' | 'updatedAt'> & {
+export type ApiTest = Omit<Test, 'availableFrom' | 'availableUntil' | 'createdAt' | 'updatedAt'> & {
+  availableFrom: string | null;
+  availableUntil: string | null;
   createdAt: string;
   updatedAt: string;
 };

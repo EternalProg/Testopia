@@ -49,6 +49,8 @@ export interface Test {
   timeLimitMinutes: number | null;
   showAnswersAfterCompletion: boolean;
   showQuestionsBeforeStart: boolean;
+  availableFrom: Date | null;
+  availableUntil: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
