@@ -1,5 +1,5 @@
 import type { CreateQuestionInput, CreateTestInput, UpdateTestInput } from '@testopia/shared';
-import type { QuestionType } from '@testopia/shared';
+import type { Difficulty, QuestionType, TestCategory } from '@testopia/shared';
 
 export type UpdateQuestionInput = {
   text?: string;
@@ -43,12 +43,24 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const testPath = (id: number) => `/api/v1/tests/${id}`;
 
+export interface TestListFilters {
+  search?: string;
+  category?: TestCategory;
+  difficulty?: Difficulty;
+}
+
 export const testsApi = {
   setAccessToken(token: string | null) {
     accessToken = token;
   },
-  list(scope?: 'mine'): Promise<TestListItem[]> {
-    return request(`/api/v1/tests${scope ? '?scope=mine' : ''}`);
+  list(scope?: 'mine', filters: TestListFilters = {}): Promise<TestListItem[]> {
+    const params = new URLSearchParams();
+    if (scope) params.set('scope', scope);
+    if (filters.search) params.set('q', filters.search);
+    if (filters.category) params.set('category', filters.category);
+    if (filters.difficulty) params.set('difficulty', filters.difficulty);
+    const query = params.toString();
+    return request(`/api/v1/tests${query ? `?${query}` : ''}`);
   },
   get(id: number): Promise<TestDetail> {
     return request(testPath(id));

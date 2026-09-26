@@ -1,9 +1,11 @@
 import type {
   CreateQuestionInput,
   CreateTestInput,
+  Difficulty,
   Question,
   PublicQuestion,
   Test,
+  TestCategory,
   UpdateQuestionInput,
   UpdateTestInput,
 } from '@testopia/shared';
@@ -17,22 +19,28 @@ import { TestError } from './errors.js';
 type Actor = { id: number; role: 'user' | 'admin' };
 type StoredQuestion = Awaited<ReturnType<TestsRepository['findQuestion']>>;
 
+export interface ListTestsFilters {
+  search?: string;
+  category?: TestCategory;
+  difficulty?: Difficulty;
+}
+
 export class TestsService {
   constructor(private readonly repository: TestsRepository) {}
 
-  async list(actor: Actor | undefined, scope?: string) {
+  async list(actor: Actor | undefined, scope?: string, filters: ListTestsFilters = {}) {
     if (scope === 'mine') {
       if (!actor) throw new AuthError('Authentication required', 'UNAUTHORIZED');
-      return this.repository.list({ authorId: actor.id, publishedOnly: false });
+      return this.repository.list({ authorId: actor.id, publishedOnly: false, ...filters });
     }
     if (scope === 'all') {
       if (!actor) throw new AuthError('Authentication required', 'UNAUTHORIZED');
       if (actor.role !== 'admin') {
         throw new TestError('Insufficient permissions', 'FORBIDDEN');
       }
-      return this.repository.list({ publishedOnly: false });
+      return this.repository.list({ publishedOnly: false, ...filters });
     }
-    return this.repository.list({ publishedOnly: true });
+    return this.repository.list({ publishedOnly: true, ...filters });
   }
 
   async get(
@@ -62,6 +70,8 @@ export class TestsService {
       description: input.description ?? null,
       authorId: actor.id,
       isPublished: false,
+      category: input.category ?? null,
+      difficulty: input.difficulty ?? null,
       shuffleQuestions: input.shuffleQuestions,
       timeLimitMinutes: input.timeLimitMinutes ?? null,
       showAnswersAfterCompletion: input.showAnswersAfterCompletion,
@@ -236,6 +246,8 @@ export class TestsService {
     return {
       ...(input.title === undefined ? {} : { title: input.title }),
       ...(input.description === undefined ? {} : { description: input.description }),
+      ...(input.category === undefined ? {} : { category: input.category }),
+      ...(input.difficulty === undefined ? {} : { difficulty: input.difficulty }),
       ...(input.shuffleQuestions === undefined ? {} : { shuffleQuestions: input.shuffleQuestions }),
       ...(input.timeLimitMinutes === undefined ? {} : { timeLimitMinutes: input.timeLimitMinutes }),
       ...(input.showAnswersAfterCompletion === undefined

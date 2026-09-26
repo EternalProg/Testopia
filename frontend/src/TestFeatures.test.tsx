@@ -45,6 +45,28 @@ describe('test frontend', () => {
     expect(await screen.findByRole('heading', { name: 'Algebra basics' })).toBeInTheDocument();
   });
 
+  it('saves category and difficulty with the test details', async () => {
+    const user = userEvent.setup();
+    let payload: unknown;
+    server.use(
+      http.post('/api/v1/tests', async ({ request }) => {
+        payload = await request.json();
+        return HttpResponse.json({ test, questions: [] }, { status: 201 });
+      }),
+    );
+    render(<TestEditorPage />, {
+      wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
+    });
+    await user.type(screen.getByLabelText('Title'), 'C++ basics');
+    await user.selectOptions(screen.getByLabelText('Category'), 'cpp');
+    await user.selectOptions(screen.getByLabelText('Difficulty'), 'medium');
+    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await waitFor(() =>
+      expect(payload).toMatchObject({ title: 'C++ basics', category: 'cpp', difficulty: 'medium' }),
+    );
+    expect(await screen.findByRole('heading', { name: 'Questions' })).toBeInTheDocument();
+  });
+
   it('creates a test from the authoring form', async () => {
     const user = userEvent.setup();
     let payload: unknown;

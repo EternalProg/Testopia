@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import type { TestListItem } from '../tests/types.js';
+import { categoryLabels, difficultyLabels } from '../tests/meta.js';
 import { EmptyState } from './EmptyState.js';
 import { btnSecondaryClass } from './ui.js';
 
@@ -34,6 +35,16 @@ export function TestList({ tests, mine = false }: { tests: TestListItem[]; mine?
                 {closed && (
                   <span className="inline-flex items-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-[0.09em] text-muted before:inline-block before:h-[7px] before:w-[7px] before:rounded-full before:bg-[#900] before:content-['']">
                     Closed
+                  </span>
+                )}
+                {test.category !== null && test.category !== undefined && (
+                  <span className="inline-flex items-center rounded-full border border-line-dark bg-wash px-2.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-[0.09em] text-ink">
+                    {categoryLabels[test.category] ?? test.category}
+                  </span>
+                )}
+                {test.difficulty !== null && test.difficulty !== undefined && (
+                  <span className="inline-flex items-center rounded-full border border-line-dark bg-wash px-2.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-[0.09em] text-ink">
+                    {difficultyLabels[test.difficulty] ?? test.difficulty}
                   </span>
                 )}
               </p>

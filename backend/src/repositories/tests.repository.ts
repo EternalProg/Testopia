@@ -1,4 +1,6 @@
-import { and, asc, count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, like, or } from 'drizzle-orm';
+
+import type { Difficulty, TestCategory } from '@testopia/shared';
 
 import type { Database } from '../db/client.js';
 import { answerOptions, questions, testAttempts, tests } from '../db/schema.js';
@@ -6,6 +8,19 @@ import { withTransaction } from '../db/transaction.js';
 
 type QuestionRow = typeof questions.$inferSelect;
 type OptionRow = typeof answerOptions.$inferSelect;
+
+export interface ListTestsInput {
+  authorId?: number;
+  publishedOnly: boolean;
+  search?: string;
+  category?: TestCategory;
+  difficulty?: Difficulty;
+}
+
+// LIKE metacharacters escaped with a backslash (MySQL's default LIKE escape).
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
 
 export class TestsRepository {
   constructor(private readonly db: Database) {}
@@ -20,10 +35,16 @@ export class TestsRepository {
     return rows[0] ?? null;
   }
 
-  async list(input: { authorId?: number; publishedOnly: boolean }) {
+  async list(input: ListTestsInput) {
     const conditions = [];
     if (input.authorId !== undefined) conditions.push(eq(tests.authorId, input.authorId));
     if (input.publishedOnly) conditions.push(eq(tests.isPublished, true));
+    if (input.category !== undefined) conditions.push(eq(tests.category, input.category));
+    if (input.difficulty !== undefined) conditions.push(eq(tests.difficulty, input.difficulty));
+    if (input.search !== undefined && input.search !== '') {
+      const pattern = `%${escapeLikePattern(input.search)}%`;
+      conditions.push(or(like(tests.title, pattern), like(tests.description, pattern)));
+    }
     return this.db
       .select()
       .from(tests)

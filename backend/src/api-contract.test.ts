@@ -268,6 +268,8 @@ describe('API contract', () => {
         isPublished: false,
         shuffleQuestions: false,
         showAnswersAfterCompletion: true,
+        category: 'cpp',
+        difficulty: 'medium',
       }).success,
     ).toBe(true);
     expect(

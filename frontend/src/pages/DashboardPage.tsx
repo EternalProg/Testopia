@@ -13,7 +13,7 @@ export function DashboardPage() {
         <h1 className={h1Class}>Testopia</h1>
         <p className={ledeClass}>Welcome, {user?.username}.</p>
       </section>
-      <TestListPage mine={Boolean(user)} withLayout={false} />
+      <TestListPage mine={Boolean(user)} withLayout={false} filterable={false} />
       <MyStatisticsSection />
     </TestLayout>
   );

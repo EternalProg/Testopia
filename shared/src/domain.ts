@@ -12,6 +12,25 @@ export type QuestionType = (typeof questionTypes)[number];
 export const attemptStatuses = ['in_progress', 'completed', 'expired'] as const;
 export type AttemptStatus = (typeof attemptStatuses)[number];
 
+export const testCategories = [
+  'c',
+  'cpp',
+  'java',
+  'python',
+  'javascript',
+  'typescript',
+  'go',
+  'rust',
+  'sql',
+  'math',
+  'physics',
+  'other',
+] as const;
+export type TestCategory = (typeof testCategories)[number];
+
+export const difficulties = ['easy', 'medium', 'hard'] as const;
+export type Difficulty = (typeof difficulties)[number];
+
 export interface User {
   id: number;
   email: string;
@@ -45,6 +64,8 @@ export interface Test {
   description: string | null;
   authorId: number;
   isPublished: boolean;
+  category: TestCategory | null;
+  difficulty: Difficulty | null;
   shuffleQuestions: boolean;
   timeLimitMinutes: number | null;
   showAnswersAfterCompletion: boolean;

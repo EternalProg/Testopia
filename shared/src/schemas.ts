@@ -1,10 +1,18 @@
 import { z } from 'zod';
 
-import { attemptStatuses, questionTypes, userRoles } from './domain.js';
+import {
+  attemptStatuses,
+  difficulties,
+  questionTypes,
+  testCategories,
+  userRoles,
+} from './domain.js';
 
 export const userRoleSchema = z.enum(userRoles);
 export const questionTypeSchema = z.enum(questionTypes);
 export const attemptStatusSchema = z.enum(attemptStatuses);
+export const testCategorySchema = z.enum(testCategories);
+export const difficultySchema = z.enum(difficulties);
 
 export const registerSchema = z.object({
   email: z.string().trim().email(),
@@ -25,6 +33,8 @@ const baseTestSchema = z.object({
   title: z.string().trim().min(1).max(255),
   description: z.string().trim().max(10_000).nullable().optional(),
   isPublished: z.boolean().default(false),
+  category: testCategorySchema.nullable().optional(),
+  difficulty: difficultySchema.nullable().optional(),
   shuffleQuestions: z.boolean().default(false),
   timeLimitMinutes: z
     .number()

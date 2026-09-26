@@ -15,6 +15,7 @@ import {
   textLinkClass,
 } from '../components/ui.js';
 import { testsApi } from '../tests/api.js';
+import { categoryLabels, difficultyLabels } from '../tests/meta.js';
 import type { TestDetail } from '../tests/types.js';
 
 export function TestDetailPage() {
@@ -83,6 +84,18 @@ export function TestDetailPage() {
               : 'No time limit'}
             {' • '}
             {detail.test.shuffleQuestions ? 'Shuffled order' : 'Fixed order'}
+            {detail.test.category !== null && detail.test.category !== undefined && (
+              <>
+                {' • '}
+                {categoryLabels[detail.test.category] ?? detail.test.category}
+              </>
+            )}
+            {detail.test.difficulty !== null && detail.test.difficulty !== undefined && (
+              <>
+                {' • '}
+                {difficultyLabels[detail.test.difficulty] ?? detail.test.difficulty}
+              </>
+            )}
             {' • '}
             {previewHidden
               ? 'Questions revealed at start'

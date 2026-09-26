@@ -75,6 +75,8 @@ describe('API contract (frontend clients vs shared schemas)', () => {
       title: 'Contract test',
       description: null,
       isPublished: false,
+      category: 'cpp',
+      difficulty: 'medium',
       shuffleQuestions: false,
       timeLimitMinutes: 15,
       showAnswersAfterCompletion: true,

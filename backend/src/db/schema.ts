@@ -12,6 +12,8 @@ import {
   varchar,
 } from 'drizzle-orm/mysql-core';
 
+import { difficulties, testCategories } from '@testopia/shared';
+
 export const userRoleEnum = mysqlEnum('role', ['user', 'admin']);
 export const questionTypeEnum = mysqlEnum('type', [
   'single_choice',
@@ -64,6 +66,8 @@ export const tests = mysqlTable(
       .notNull()
       .references(() => users.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
     isPublished: boolean('is_published').notNull().default(false),
+    category: mysqlEnum('category', testCategories),
+    difficulty: mysqlEnum('difficulty', difficulties),
     shuffleQuestions: boolean('shuffle_questions').notNull().default(false),
     timeLimitMinutes: int('time_limit_minutes'),
     showAnswersAfterCompletion: boolean('show_answers_after_completion').notNull().default(true),
@@ -73,7 +77,11 @@ export const tests = mysqlTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
   },
-  (table) => [index('tests_author_id_idx').on(table.authorId)],
+  (table) => [
+    index('tests_author_id_idx').on(table.authorId),
+    index('tests_category_idx').on(table.category),
+    index('tests_difficulty_idx').on(table.difficulty),
+  ],
 );
 
 export const questions = mysqlTable(

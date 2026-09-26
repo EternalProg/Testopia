@@ -5,7 +5,9 @@ import {
   createTestSchema,
   questionTypes,
   type CreateQuestionInput,
+  type Difficulty,
   type QuestionType,
+  type TestCategory,
 } from '@testopia/shared';
 
 import { Alert } from '../components/Alert.js';
@@ -13,6 +15,7 @@ import { EmptyState } from '../components/EmptyState.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 import { testsApi, TestApiError } from '../tests/api.js';
+import { categoryLabels, difficulties, difficultyLabels, testCategories } from '../tests/meta.js';
 import type { ApiQuestion, TestDetail } from '../tests/types.js';
 
 type OptionDraft = { text: string; isCorrect?: boolean };
@@ -346,6 +349,8 @@ export function TestEditorPage() {
   const [detail, setDetail] = useState<TestDetail | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<TestCategory | ''>('');
+  const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
   const [timeLimit, setTimeLimit] = useState('');
   const [availableFrom, setAvailableFrom] = useState('');
   const [availableUntil, setAvailableUntil] = useState('');
@@ -360,6 +365,8 @@ export function TestEditorPage() {
   const [loading, setLoading] = useState(editing);
 
   function syncSettings(test: TestDetail['test']) {
+    setCategory(test.category ?? '');
+    setDifficulty(test.difficulty ?? '');
     setTimeLimit(test.timeLimitMinutes === null ? '' : String(test.timeLimitMinutes));
     setAvailableFrom(toDatetimeLocalValue(test.availableFrom));
     setAvailableUntil(toDatetimeLocalValue(test.availableUntil));
@@ -400,6 +407,8 @@ export function TestEditorPage() {
       title,
       description: description || null,
       isPublished: detail?.test.isPublished ?? false,
+      category: category === '' ? null : category,
+      difficulty: difficulty === '' ? null : difficulty,
       shuffleQuestions: shuffle,
       timeLimitMinutes: trimmedLimit === '' ? null : Number(trimmedLimit),
       showAnswersAfterCompletion: showAnswers,
@@ -650,6 +659,38 @@ export function TestEditorPage() {
                 className="min-h-[96px] w-full resize-y rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] leading-relaxed text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
               />
             </label>
+            <div className="grid gap-[18px] sm:grid-cols-2">
+              <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
+                Category
+                <select
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value as TestCategory | '')}
+                  className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+                >
+                  <option value="">Uncategorized</option>
+                  {testCategories.map((value) => (
+                    <option key={value} value={value}>
+                      {categoryLabels[value]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
+                Difficulty
+                <select
+                  value={difficulty}
+                  onChange={(event) => setDifficulty(event.target.value as Difficulty | '')}
+                  className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+                >
+                  <option value="">Not set</option>
+                  {difficulties.map((value) => (
+                    <option key={value} value={value}>
+                      {difficultyLabels[value]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
               Time limit (minutes)
               <input

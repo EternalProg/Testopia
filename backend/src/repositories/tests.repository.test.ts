@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { answerOptions, questions } from '../db/schema.js';
-import { TestsRepository } from './tests.repository.js';
+import { escapeLikePattern, TestsRepository } from './tests.repository.js';
 
 describe('TestsRepository', () => {
+  it('escapes LIKE metacharacters in search input', () => {
+    expect(escapeLikePattern('c++')).toBe('c++');
+    expect(escapeLikePattern('100% coverage_used\\path')).toBe('100\\% coverage\\_used\\\\path');
+    expect(escapeLikePattern('plain')).toBe('plain');
+  });
   it('loads questions and options with one ordered joined query', async () => {
     const rows = [
       {

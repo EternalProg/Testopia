@@ -13,6 +13,8 @@ const test = {
   description: 'A short test',
   authorId: 1,
   isPublished: true,
+  category: 'cpp',
+  difficulty: 'medium',
   shuffleQuestions: false,
   timeLimitMinutes: null,
   showAnswersAfterCompletion: true,
@@ -78,5 +80,24 @@ describe('TestDetailPage statistics entry', () => {
     await screen.findByRole('heading', { name: 'Algebra basics' });
     expect(screen.queryByRole('link', { name: 'Show Statistic' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View attempt history' })).toBeInTheDocument();
+  });
+
+  it('shows category and difficulty in the test meta line', async () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      user: {
+        id: 2,
+        email: 'taker@example.com',
+        username: 'taker',
+        role: 'user',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+      error: null,
+    });
+    renderDetailPage();
+
+    await screen.findByRole('heading', { name: 'Algebra basics' });
+    expect(screen.getByText(/C\+\+/)).toBeInTheDocument();
+    expect(screen.getByText(/Medium/)).toBeInTheDocument();
   });
 });

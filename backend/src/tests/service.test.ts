@@ -92,6 +92,72 @@ describe('TestsService', () => {
     expect(repo.list).toHaveBeenCalledWith({ publishedOnly: false });
   });
 
+  it('forwards search and facet filters when listing', async () => {
+    const repo = repository({ list: vi.fn().mockResolvedValue([]) });
+    const service = new TestsService(repo as never);
+
+    await service.list(undefined, undefined, {
+      search: 'c++',
+      category: 'cpp',
+      difficulty: 'hard',
+    });
+    expect(repo.list).toHaveBeenCalledWith({
+      publishedOnly: true,
+      search: 'c++',
+      category: 'cpp',
+      difficulty: 'hard',
+    });
+
+    await service.list({ id: 10, role: 'user' }, 'mine', { category: 'cpp' });
+    expect(repo.list).toHaveBeenCalledWith({
+      authorId: 10,
+      publishedOnly: false,
+      category: 'cpp',
+    });
+  });
+
+  it('persists category and difficulty on create and update', async () => {
+    const createRepo = repository({ create: vi.fn().mockResolvedValue(baseTest) });
+    const createService = new TestsService(createRepo as never);
+    await createService.create(
+      { id: 10, role: 'user' },
+      {
+        title: 'C++ basics',
+        isPublished: false,
+        shuffleQuestions: false,
+        showAnswersAfterCompletion: true,
+        showQuestionsBeforeStart: true,
+        category: 'cpp',
+        difficulty: 'easy',
+      },
+    );
+    expect(createRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'cpp', difficulty: 'easy' }),
+    );
+
+    const updateRepo = repository();
+    const updateService = new TestsService(updateRepo as never);
+    await updateService.update({ id: 10, role: 'user' }, 1, {
+      category: 'cpp',
+      difficulty: null,
+    });
+    expect(updateRepo.update).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ category: 'cpp', difficulty: null }),
+    );
+  });
+
+  it('accepts category and difficulty in the shared test schemas', () => {
+    expect(
+      createTestSchema.safeParse({ title: 'Tagged', category: 'cpp', difficulty: 'medium' })
+        .success,
+    ).toBe(true);
+    expect(createTestSchema.safeParse({ title: 'Tagged', category: 'cobol' }).success).toBe(false);
+    expect(createTestSchema.safeParse({ title: 'Tagged', difficulty: 'extreme' }).success).toBe(
+      false,
+    );
+  });
+
   it('demotes a published test when its final question is deleted', async () => {
     const repo = repository({
       findById: vi.fn().mockResolvedValue({ ...baseTest, isPublished: true }),

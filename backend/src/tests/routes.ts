@@ -11,6 +11,7 @@ import type { TokenService } from '../auth/tokens.js';
 export interface TestsRouteOptions {
   db: Database;
   tokens: TokenService;
+  service?: TestsService;
 }
 
 const bearerSecurity = { security: [{ bearerAuth: [] }] };
@@ -19,7 +20,8 @@ const bearerSecurity = { security: [{ bearerAuth: [] }] };
 const optionalBearerSecurity = { security: [{ bearerAuth: [] }, {}] };
 
 const testsRoutes: FastifyPluginAsync<TestsRouteOptions> = async (app, options) => {
-  const controller = createTestsController(new TestsService(new TestsRepository(options.db)));
+  const service = options.service ?? new TestsService(new TestsRepository(options.db));
+  const controller = createTestsController(service);
   const authenticate = authenticationGuard(options.tokens);
   const optionalAuthenticate = optionalAuthenticationGuard(options.tokens);
 
@@ -32,7 +34,8 @@ const testsRoutes: FastifyPluginAsync<TestsRouteOptions> = async (app, options) 
     {
       onRequest: optionalAuthenticate,
       schema: {
-        description: 'List published tests (scope=mine/all adds authenticated views).',
+        description:
+          'List published tests (scope=mine/all adds authenticated views; q searches titles and descriptions, category/difficulty filter).',
         tags: ['tests'],
         ...optionalBearerSecurity,
       },
