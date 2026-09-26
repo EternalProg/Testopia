@@ -94,6 +94,22 @@ export function StatisticsPage() {
           </div>
           <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
+              Unique takers
+            </dt>
+            <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
+              {stats.uniqueTakers}
+            </dd>
+          </div>
+          <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
+              Completion rate
+            </dt>
+            <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
+              {stats.completionRate === null ? '—' : `${(stats.completionRate * 100).toFixed(1)}%`}
+            </dd>
+          </div>
+          <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
               Average score
             </dt>
             <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">

@@ -22,6 +22,20 @@ const statisticsRoutes: FastifyPluginAsync<StatisticsRouteOptions> = async (app,
   const controller = createStatisticsController(service);
   const authenticate = authenticationGuard(options.tokens);
 
+  app.get(
+    '/api/v1/users/me/statistics',
+    {
+      onRequest: authenticate,
+      // Docs-only metadata (no validation schemas): runtime behavior unchanged.
+      schema: {
+        description: 'Get aggregate statistics across all tests the current user took.',
+        tags: ['statistics'],
+        security: [{ bearerAuth: [] }],
+      },
+    },
+    controller.getMyStatistics,
+  );
+
   app.get<{ Params: { id: string } }>(
     '/api/v1/tests/:id/statistics',
     {

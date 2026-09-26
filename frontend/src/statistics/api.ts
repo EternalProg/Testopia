@@ -1,4 +1,4 @@
-import type { ApiTestStats } from './types.js';
+import type { ApiMyStatistics, ApiTestStats } from './types.js';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
 let accessToken: string | null = null;
@@ -37,5 +37,8 @@ export const statisticsApi = {
   },
   get(testId: number): Promise<ApiTestStats> {
     return request(`/api/v1/tests/${testId}/statistics`);
+  },
+  my(): Promise<ApiMyStatistics> {
+    return request('/api/v1/users/me/statistics');
   },
 };

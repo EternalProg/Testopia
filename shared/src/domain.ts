@@ -126,8 +126,31 @@ export interface TestStats {
   testId: number;
   attemptsCount: number;
   completedAttemptsCount: number;
+  uniqueTakers: number;
+  completionRate: number | null;
   averageScore: number | null;
   averageTimeSeconds: number | null;
   scoreDistribution: ScoreBucket[];
   questionStats: QuestionStats[];
+}
+
+export interface MyTestStatItem {
+  testId: number;
+  title: string;
+  attempts: number;
+  bestScore: number | null;
+  lastScore: number | null;
+  lastTakenAt: Date | null;
+  lastStatus: AttemptStatus | null;
+}
+
+export interface MyStatistics {
+  testsTaken: number;
+  totalAttempts: number;
+  completedAttempts: number;
+  passRate: number | null;
+  averageScore: number | null;
+  averageAttemptsPerTest: number | null;
+  bestScore: number | null;
+  tests: MyTestStatItem[];
 }

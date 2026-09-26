@@ -42,6 +42,7 @@ const expectedRoutes: ExpectedRoute[] = [
   { method: 'GET', path: '/api/v1/tests/{id}/attempts', access: 'protected' },
   { method: 'POST', path: '/api/v1/attempts/{id}/submit', access: 'protected' },
   { method: 'GET', path: '/api/v1/tests/{id}/statistics', access: 'protected' },
+  { method: 'GET', path: '/api/v1/users/me/statistics', access: 'protected' },
 ];
 
 describe('openapi plugin', () => {
@@ -121,6 +122,12 @@ describe('openapi plugin', () => {
       password: expect.anything(),
     });
     expect(spec.components.schemas.SubmitAttemptRequest).toMatchObject({ type: 'object' });
+    expect(spec.components.schemas.MyStatisticsResponse).toMatchObject({ type: 'object' });
+    expect(spec.components.schemas.MyStatisticsResponse?.properties).toMatchObject({
+      testsTaken: expect.anything(),
+      totalAttempts: expect.anything(),
+      tests: expect.anything(),
+    });
   });
 
   it('serves the Swagger UI', async () => {

@@ -143,6 +143,30 @@ export const paginationSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+// Taker-facing aggregate over every test the user attempted. String dates
+// keep the payload representable in OpenAPI JSON Schema
+// (z.coerce.date() breaks z.toJSONSchema).
+export const myTestStatItemSchema = z.object({
+  testId: z.number().int().positive(),
+  title: z.string(),
+  attempts: z.number().int().min(0),
+  bestScore: z.number().min(0).max(1).nullable(),
+  lastScore: z.number().min(0).max(1).nullable(),
+  lastTakenAt: z.iso.datetime().nullable(),
+  lastStatus: attemptStatusSchema.nullable(),
+});
+
+export const myStatisticsSchema = z.object({
+  testsTaken: z.number().int().min(0),
+  totalAttempts: z.number().int().min(0),
+  completedAttempts: z.number().int().min(0),
+  passRate: z.number().min(0).max(1).nullable(),
+  averageScore: z.number().min(0).max(1).nullable(),
+  averageAttemptsPerTest: z.number().min(0).nullable(),
+  bestScore: z.number().min(0).max(1).nullable(),
+  tests: z.array(myTestStatItemSchema),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateTestInput = z.infer<typeof createTestSchema>;
@@ -152,5 +176,7 @@ export type UpdateQuestionInput = z.infer<typeof updateQuestionSchema>;
 export type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>;
 export type SubmitAttemptInput = z.infer<typeof submitAttemptSchema>;
 export type PaginationInput = z.infer<typeof paginationSchema>;
+export type MyTestStatItemInput = z.infer<typeof myTestStatItemSchema>;
+export type MyStatisticsInput = z.infer<typeof myStatisticsSchema>;
 
 export { userRoles };

@@ -4,6 +4,7 @@ import {
   createQuestionSchema,
   createTestSchema,
   loginSchema,
+  myStatisticsSchema,
   refreshTokenSchema,
   registerSchema,
   submitAttemptSchema,
@@ -28,6 +29,7 @@ const requestComponents = {
   CreateQuestionRequest: createQuestionSchema,
   UpdateQuestionRequest: updateQuestionSchema,
   SubmitAttemptRequest: submitAttemptSchema,
+  MyStatisticsResponse: myStatisticsSchema,
 };
 
 function componentSchemas(): Record<string, OpenAPIV3.SchemaObject> {

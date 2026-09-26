@@ -50,7 +50,7 @@ export function TestLayout({
         <header className="sticky top-0 z-20 border-b border-line bg-paper/85 backdrop-blur-md">
           <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-5 px-7 py-3.5 max-sm:flex-col max-sm:items-start max-sm:gap-2.5">
             <Link
-              to="/tests"
+              to={user ? '/dashboard' : '/tests'}
               className="inline-flex items-center gap-2.5 text-[1.05rem] font-extrabold tracking-[-0.02em] text-ink no-underline"
             >
               <span
@@ -62,12 +62,13 @@ export function TestLayout({
               Testopia
             </Link>
             <nav aria-label="Main navigation" className="flex items-center gap-1 max-sm:flex-wrap">
-              <NavLink to="/tests" className={navLinkClass}>
-                Browse
-              </NavLink>
-              {user && (
+              {user ? (
                 <NavLink to="/dashboard" className={navLinkClass}>
-                  My tests
+                  Dashboard
+                </NavLink>
+              ) : (
+                <NavLink to="/tests" className={navLinkClass}>
+                  Browse
                 </NavLink>
               )}
               {user ? (

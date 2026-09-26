@@ -10,6 +10,8 @@ const stats = {
   testId: 1,
   attemptsCount: 4,
   completedAttemptsCount: 3,
+  uniqueTakers: 3,
+  completionRate: 0.75,
   averageScore: 0.856667,
   averageTimeSeconds: 192,
   scoreDistribution: [
@@ -67,9 +69,12 @@ describe('StatisticsPage', () => {
     const summary = await screen.findByRole('region', { name: 'Summary' });
     expect(summary).toHaveTextContent('Attempts');
     expect(summary).toHaveTextContent('Completed');
+    expect(summary).toHaveTextContent('Unique takers');
+    expect(summary).toHaveTextContent('Completion rate');
     expect(summary).toHaveTextContent('Average score');
     expect(summary).toHaveTextContent('Average time');
     expect(summary).toHaveTextContent('85.67%');
+    expect(summary).toHaveTextContent('75.0%');
     expect(summary).toHaveTextContent('3m 12s');
   });
 
@@ -104,6 +109,8 @@ describe('StatisticsPage', () => {
           ...stats,
           attemptsCount: 0,
           completedAttemptsCount: 0,
+          uniqueTakers: 0,
+          completionRate: null,
           averageScore: null,
           averageTimeSeconds: null,
           scoreDistribution: [],

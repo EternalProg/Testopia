@@ -84,6 +84,7 @@ describe('API contract', () => {
       '/api/v1/tests/{id}/attempts',
       '/api/v1/attempts/{id}/submit',
       '/api/v1/tests/{id}/statistics',
+      '/api/v1/users/me/statistics',
     ]) {
       expect(spec.paths[path], `${path} documented`).toBeDefined();
     }
@@ -101,6 +102,7 @@ describe('API contract', () => {
       { method: 'GET', url: '/api/v1/tests/2/attempts' },
       { method: 'POST', url: '/api/v1/attempts/1/submit', payload: { answers: [] } },
       { method: 'GET', url: '/api/v1/tests/2/statistics' },
+      { method: 'GET', url: '/api/v1/users/me/statistics' },
     ] as const) {
       const response = await app.inject(request);
       expect(response.statusCode).toBe(401);

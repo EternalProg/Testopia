@@ -162,11 +162,8 @@ export function TestDetailPage() {
                 View attempt history
               </Link>
               {canManage && (
-                <Link
-                  to={`/tests/${detail.test.id}/statistics`}
-                  className={`${textLinkClass} mt-0`}
-                >
-                  View statistics
+                <Link to={`/tests/${detail.test.id}/statistics`} className={btnPrimaryClass}>
+                  Show Statistic
                 </Link>
               )}
               <Link to="/tests" className={`${textLinkClass} mt-0`}>

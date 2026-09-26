@@ -4,6 +4,7 @@ import {
   createQuestionSchema,
   createTestSchema,
   loginSchema,
+  myStatisticsSchema,
   registerSchema,
   submitAttemptSchema,
 } from '@testopia/shared';
@@ -14,6 +15,7 @@ import { attemptsApi } from './attempts/api.js';
 import { authApi } from './auth/api.js';
 import { useAuthStore } from './auth/store.js';
 import { server } from './test/server.js';
+import { statisticsApi } from './statistics/api.js';
 import { handlers, session, user } from './test/mocks.js';
 import { testsApi } from './tests/api.js';
 
@@ -117,6 +119,35 @@ describe('API contract (frontend clients vs shared schemas)', () => {
     });
 
     expect(submitAttemptSchema.safeParse(seen.submit).success).toBe(true);
+  });
+
+  it('fetches taker statistics matching the shared MyStatistics schema', async () => {
+    const payload = {
+      testsTaken: 1,
+      totalAttempts: 2,
+      completedAttempts: 1,
+      passRate: 0.5,
+      averageScore: 0.75,
+      averageAttemptsPerTest: 2,
+      bestScore: 1,
+      tests: [
+        {
+          testId: 1,
+          title: 'Contract test',
+          attempts: 2,
+          bestScore: 1,
+          lastScore: 0.5,
+          lastTakenAt: '2026-03-03T00:00:00.000Z',
+          lastStatus: 'completed',
+        },
+      ],
+    };
+    server.use(http.get('/api/v1/users/me/statistics', () => HttpResponse.json(payload)));
+
+    const stats = await statisticsApi.my();
+
+    expect(myStatisticsSchema.safeParse(stats).success).toBe(true);
+    expect(myStatisticsSchema.safeParse({ ...stats, tests: 'not-an-array' }).success).toBe(false);
   });
 
   it('omits Content-Type on bodyless requests so servers skip JSON parsing', async () => {

@@ -1,7 +1,7 @@
-import { and, avg, count, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, avg, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 
 import type { Database } from '../db/client.js';
-import { answerRecords, questions, testAttempts } from '../db/schema.js';
+import { answerRecords, questions, testAttempts, tests } from '../db/schema.js';
 
 export interface AttemptSummary {
   total: number;
@@ -14,6 +14,15 @@ export interface QuestionCorrectness {
   questionId: number;
   attempts: number;
   correctAnswers: number;
+}
+
+export interface UserAttemptRow {
+  testId: number;
+  title: string;
+  status: 'in_progress' | 'completed' | 'expired';
+  score: number | null;
+  startedAt: Date;
+  completedAt: Date | null;
 }
 
 export class StatisticsRepository {
@@ -43,6 +52,14 @@ export class StatisticsRepository {
     };
   }
 
+  async countUniqueTakers(testId: number): Promise<number> {
+    const rows = await this.db
+      .select({ uniqueTakers: sql<number>`count(distinct ${testAttempts.userId})` })
+      .from(testAttempts)
+      .where(eq(testAttempts.testId, testId));
+    return Number(rows[0]?.uniqueTakers ?? 0);
+  }
+
   async listTerminalScores(testId: number): Promise<number[]> {
     const rows = await this.db
       .select({ score: testAttempts.score })
@@ -55,6 +72,30 @@ export class StatisticsRepository {
         ),
       );
     return rows.map((row) => row.score).filter((score): score is number => score !== null);
+  }
+
+  async listAttemptsByUser(userId: number): Promise<UserAttemptRow[]> {
+    const rows = await this.db
+      .select({
+        testId: testAttempts.testId,
+        title: tests.title,
+        status: testAttempts.status,
+        score: testAttempts.score,
+        startedAt: testAttempts.startedAt,
+        completedAt: testAttempts.completedAt,
+      })
+      .from(testAttempts)
+      .innerJoin(tests, eq(tests.id, testAttempts.testId))
+      .where(eq(testAttempts.userId, userId))
+      .orderBy(desc(testAttempts.startedAt));
+    return rows.map((row) => ({
+      testId: Number(row.testId),
+      title: row.title,
+      status: row.status,
+      score: row.score,
+      startedAt: row.startedAt,
+      completedAt: row.completedAt,
+    }));
   }
 
   async getQuestionCorrectness(testId: number): Promise<QuestionCorrectness[]> {
