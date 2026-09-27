@@ -44,6 +44,7 @@ function repository(overrides: Record<string, unknown> = {}) {
     updateQuestion: vi.fn(),
     deleteQuestion: vi.fn(),
     list: vi.fn(),
+    count: vi.fn().mockResolvedValue(0),
     ...overrides,
   };
 }
@@ -352,5 +353,99 @@ describe('TestsService', () => {
       }).success,
     ).toBe(true);
     expect(createTestSchema.safeParse({ title: 'Open window' }).success).toBe(true);
+  });
+
+  describe('test list pagination and sorting', () => {
+    const items = [
+      { ...baseTest, id: 1 },
+      { ...baseTest, id: 2 },
+    ];
+
+    it('returns the legacy array when page is absent', async () => {
+      const repo = repository({ list: vi.fn().mockResolvedValue(items) });
+      const service = new TestsService(repo as never);
+
+      const result = await service.list(undefined);
+
+      expect(result).toEqual(items);
+      expect(repo.list).toHaveBeenCalledWith({ publishedOnly: true });
+      expect(repo.count).not.toHaveBeenCalled();
+    });
+
+    it('sorts the legacy array when only sort is passed', async () => {
+      const repo = repository({ list: vi.fn().mockResolvedValue(items) });
+      const service = new TestsService(repo as never);
+
+      const result = await service.list(
+        undefined,
+        undefined,
+        { category: 'cpp' },
+        { sort: 'popular' },
+      );
+
+      expect(result).toEqual(items);
+      expect(repo.list).toHaveBeenCalledWith({
+        publishedOnly: true,
+        category: 'cpp',
+        sort: 'popular',
+      });
+      expect(repo.count).not.toHaveBeenCalled();
+    });
+
+    it('returns the opt-in envelope with the filtered total', async () => {
+      const repo = repository({
+        list: vi.fn().mockResolvedValue([items[0]]),
+        count: vi.fn().mockResolvedValue(7),
+      });
+      const service = new TestsService(repo as never);
+
+      const result = await service.list(
+        undefined,
+        undefined,
+        { difficulty: 'easy' },
+        { page: 2, pageSize: 5, sort: 'hardest' },
+      );
+
+      expect(result).toEqual({ items: [items[0]], page: 2, pageSize: 5, total: 7 });
+      expect(repo.list).toHaveBeenCalledWith({
+        publishedOnly: true,
+        difficulty: 'easy',
+        sort: 'hardest',
+        limit: 5,
+        offset: 5,
+      });
+      // The total counts the same filtered set (no window, no sort).
+      expect(repo.count).toHaveBeenCalledWith({ publishedOnly: true, difficulty: 'easy' });
+    });
+
+    it('defaults the envelope page size to 20 and starts at offset 0', async () => {
+      const repo = repository({
+        list: vi.fn().mockResolvedValue(items),
+        count: vi.fn().mockResolvedValue(2),
+      });
+      const service = new TestsService(repo as never);
+
+      const result = await service.list({ id: 10, role: 'user' }, 'mine', {}, { page: 1 });
+
+      expect(result).toEqual({ items, page: 1, pageSize: 20, total: 2 });
+      expect(repo.list).toHaveBeenCalledWith({
+        authorId: 10,
+        publishedOnly: false,
+        limit: 20,
+        offset: 0,
+      });
+    });
+
+    it('yields an empty page with the correct total past the end', async () => {
+      const repo = repository({
+        list: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(2),
+      });
+      const service = new TestsService(repo as never);
+
+      const result = await service.list(undefined, undefined, {}, { page: 99, pageSize: 20 });
+
+      expect(result).toEqual({ items: [], page: 99, pageSize: 20, total: 2 });
+    });
   });
 });

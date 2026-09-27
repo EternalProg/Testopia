@@ -153,6 +153,23 @@ export const paginationSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+// Browse ordering for GET /api/v1/tests: newest keeps the current
+// createdAt DESC default; popular ranks by attempt count DESC; hardest
+// ranks by lowest average terminal score first (tests without terminal
+// scores sort last).
+export const testListSorts = ['newest', 'popular', 'hardest'] as const;
+
+export const testListSortSchema = z.enum(testListSorts);
+
+// Opt-in envelope for GET /api/v1/tests: only returned when ?page= is
+// present; otherwise the endpoint keeps returning the legacy bare array.
+export interface PaginatedResponse<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
 const gradeEntrySchema = z.object({
   questionId: z.number().int().positive(),
   isCorrect: z.boolean(),
@@ -211,6 +228,7 @@ export type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>;
 export type SubmitAttemptInput = z.infer<typeof submitAttemptSchema>;
 export type GradeAttemptInput = z.infer<typeof gradeAttemptSchema>;
 export type PaginationInput = z.infer<typeof paginationSchema>;
+export type TestListSort = z.infer<typeof testListSortSchema>;
 export type MyTestStatItemInput = z.infer<typeof myTestStatItemSchema>;
 export type MyStatisticsInput = z.infer<typeof myStatisticsSchema>;
 

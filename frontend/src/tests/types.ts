@@ -14,3 +14,10 @@ export interface TestDetail {
   questions: ApiQuestion[];
 }
 export type TestListItem = ApiTest;
+
+export interface TestListEnvelope {
+  items: TestListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+}

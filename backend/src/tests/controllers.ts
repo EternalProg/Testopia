@@ -2,16 +2,18 @@ import {
   createQuestionSchema,
   createTestSchema,
   difficulties,
+  paginationSchema,
   testCategories,
+  testListSorts,
   updateQuestionSchema,
   updateTestSchema,
 } from '@testopia/shared';
-import type { Difficulty, TestCategory } from '@testopia/shared';
+import type { Difficulty, TestCategory, TestListSort } from '@testopia/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { AuthError } from '../auth/errors.js';
 import { TestError } from './errors.js';
-import type { ListTestsFilters, TestsService } from './service.js';
+import type { ListTestsFilters, ListTestsOptions, TestsService } from './service.js';
 
 type IdParams = { id: string };
 type QuestionParams = { id: string; questionId: string };
@@ -75,8 +77,27 @@ export function createTestsController(service: TestsService) {
         q?: unknown;
         category?: unknown;
         difficulty?: unknown;
+        page?: unknown;
+        pageSize?: unknown;
+        sort?: unknown;
       };
-      return reply.send(await service.list(request.authUser, query.scope, listFilters(query)));
+      const options: ListTestsOptions = {};
+      const sort =
+        query.sort === undefined
+          ? undefined
+          : enumFilter<TestListSort>(query.sort, testListSorts, 'sort');
+      if (sort !== undefined) options.sort = sort;
+      // Opt-in pagination: the envelope is only returned when ?page= is
+      // present, so legacy clients (bare array) are unaffected. Zod failures
+      // surface as 400 via the existing ZodError handler.
+      if (query.page !== undefined) {
+        const pagination = paginationSchema.parse({ page: query.page, pageSize: query.pageSize });
+        options.page = pagination.page;
+        options.pageSize = pagination.pageSize;
+      }
+      return reply.send(
+        await service.list(request.authUser, query.scope, listFilters(query), options),
+      );
     },
     get: async (request: FastifyRequest<{ Params: IdParams }>, reply: FastifyReply) =>
       reply.send(await service.get(id(request.params.id), request.authUser)),

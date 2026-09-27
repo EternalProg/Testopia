@@ -1,5 +1,5 @@
 import type { CreateQuestionInput, CreateTestInput, UpdateTestInput } from '@testopia/shared';
-import type { Difficulty, QuestionType, TestCategory } from '@testopia/shared';
+import type { Difficulty, QuestionType, TestCategory, TestListSort } from '@testopia/shared';
 
 export type UpdateQuestionInput = {
   text?: string;
@@ -8,7 +8,7 @@ export type UpdateQuestionInput = {
   options?: Array<{ text: string; isCorrect: boolean }>;
 };
 
-import type { ApiQuestion, TestDetail, TestListItem } from './types.js';
+import type { ApiQuestion, TestDetail, TestListEnvelope, TestListItem } from './types.js';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
 let accessToken: string | null = null;
@@ -49,16 +49,27 @@ export interface TestListFilters {
   difficulty?: Difficulty;
 }
 
+export interface TestListParams extends TestListFilters {
+  page?: number;
+  pageSize?: number;
+  sort?: TestListSort;
+}
+
 export const testsApi = {
   setAccessToken(token: string | null) {
     accessToken = token;
   },
-  list(scope?: 'mine', filters: TestListFilters = {}): Promise<TestListItem[]> {
+  // Passing page opts into the { items, page, pageSize, total } envelope;
+  // without it the legacy bare array is returned. Narrow on Array.isArray.
+  list(scope?: 'mine', filters: TestListParams = {}): Promise<TestListItem[] | TestListEnvelope> {
     const params = new URLSearchParams();
     if (scope) params.set('scope', scope);
     if (filters.search) params.set('q', filters.search);
     if (filters.category) params.set('category', filters.category);
     if (filters.difficulty) params.set('difficulty', filters.difficulty);
+    if (filters.sort) params.set('sort', filters.sort);
+    if (filters.page !== undefined) params.set('page', String(filters.page));
+    if (filters.pageSize !== undefined) params.set('pageSize', String(filters.pageSize));
     const query = params.toString();
     return request(`/api/v1/tests${query ? `?${query}` : ''}`);
   },

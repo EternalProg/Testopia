@@ -7,6 +7,7 @@ import {
   loginSchema,
   paginationSchema,
   registerSchema,
+  testListSortSchema,
 } from './schemas.js';
 
 describe('shared schemas', () => {
@@ -79,5 +80,19 @@ describe('shared schemas', () => {
       pageSize: 50,
     });
     expect(paginationSchema.safeParse({ page: 0 }).success).toBe(false);
+  });
+
+  it('parses the test list sort', () => {
+    expect(testListSortSchema.parse('newest')).toBe('newest');
+    expect(testListSortSchema.parse('popular')).toBe('popular');
+    expect(testListSortSchema.parse('hardest')).toBe('hardest');
+    expect(testListSortSchema.safeParse('random').success).toBe(false);
+    expect(testListSortSchema.safeParse(undefined).success).toBe(false);
+  });
+
+  it('caps the test list page size at 100', () => {
+    expect(paginationSchema.safeParse({ page: 1, pageSize: 200 }).success).toBe(false);
+    expect(paginationSchema.safeParse({ page: 1, pageSize: 101 }).success).toBe(false);
+    expect(paginationSchema.parse({ page: 1 }).pageSize).toBe(20);
   });
 });

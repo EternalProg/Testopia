@@ -55,11 +55,16 @@ describe('test list filters', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(list).toHaveBeenCalledWith(undefined, undefined, {
-      search: 'c++',
-      category: 'cpp',
-      difficulty: 'easy',
-    });
+    expect(list).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      {
+        search: 'c++',
+        category: 'cpp',
+        difficulty: 'easy',
+      },
+      {},
+    );
   });
 
   it('ignores a blank search query', async () => {
@@ -67,7 +72,7 @@ describe('test list filters', () => {
     const response = await app.inject({ method: 'GET', url: '/api/v1/tests?q=%20%20' });
 
     expect(response.statusCode).toBe(200);
-    expect(list).toHaveBeenCalledWith(undefined, undefined, {});
+    expect(list).toHaveBeenCalledWith(undefined, undefined, {}, {});
   });
 
   it('rejects unknown category and difficulty values', async () => {
@@ -84,5 +89,57 @@ describe('test list filters', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ error: 'VALIDATION_ERROR' });
+  });
+
+  it('passes sort without page through as a sorted legacy array', async () => {
+    list.mockClear();
+    const response = await app.inject({ method: 'GET', url: '/api/v1/tests?sort=popular' });
+
+    expect(response.statusCode).toBe(200);
+    expect(list).toHaveBeenCalledWith(undefined, undefined, {}, { sort: 'popular' });
+  });
+
+  it('opts into pagination only when page is present', async () => {
+    list.mockClear();
+    const paged = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tests?page=2&pageSize=5&sort=hardest',
+    });
+
+    expect(paged.statusCode).toBe(200);
+    expect(list).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      {},
+      { sort: 'hardest', page: 2, pageSize: 5 },
+    );
+
+    list.mockClear();
+    const defaulted = await app.inject({ method: 'GET', url: '/api/v1/tests?page=1' });
+
+    expect(defaulted.statusCode).toBe(200);
+    expect(list).toHaveBeenCalledWith(undefined, undefined, {}, { page: 1, pageSize: 20 });
+
+    // pageSize alone does not opt into the envelope.
+    list.mockClear();
+    const legacy = await app.inject({ method: 'GET', url: '/api/v1/tests?pageSize=5' });
+
+    expect(legacy.statusCode).toBe(200);
+    expect(list).toHaveBeenCalledWith(undefined, undefined, {}, {});
+  });
+
+  it('rejects invalid sort and pagination values', async () => {
+    for (const url of [
+      '/api/v1/tests?sort=random',
+      '/api/v1/tests?page=0',
+      '/api/v1/tests?page=abc',
+      '/api/v1/tests?page=1&pageSize=101',
+      '/api/v1/tests?page=1&pageSize=0',
+    ]) {
+      const response = await app.inject({ method: 'GET', url });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ error: 'VALIDATION_ERROR' });
+    }
   });
 });

@@ -2,10 +2,12 @@ import type {
   CreateQuestionInput,
   CreateTestInput,
   Difficulty,
+  PaginatedResponse,
   Question,
   PublicQuestion,
   Test,
   TestCategory,
+  TestListSort,
   UpdateQuestionInput,
   UpdateTestInput,
 } from '@testopia/shared';
@@ -13,7 +15,7 @@ import type {
 import type { tests } from '../db/schema.js';
 import { isDuplicateEntryError } from '../db/errors.js';
 import { AuthError } from '../auth/errors.js';
-import type { TestsRepository } from '../repositories/tests.repository.js';
+import type { ListTestsInput, TestsRepository } from '../repositories/tests.repository.js';
 import { TestError } from './errors.js';
 
 type Actor = { id: number; role: 'user' | 'admin' };
@@ -25,22 +27,59 @@ export interface ListTestsFilters {
   difficulty?: Difficulty;
 }
 
+export interface ListTestsOptions {
+  sort?: TestListSort;
+  page?: number;
+  pageSize?: number;
+}
+
 export class TestsService {
   constructor(private readonly repository: TestsRepository) {}
 
-  async list(actor: Actor | undefined, scope?: string, filters: ListTestsFilters = {}) {
+  // Without page the legacy bare array is returned (optionally sorted);
+  // with page the opt-in { items, page, pageSize, total } envelope is
+  // returned where total counts the same filtered set.
+  async list(
+    actor: Actor | undefined,
+    scope?: string,
+    filters: ListTestsFilters = {},
+    options: ListTestsOptions = {},
+  ): Promise<Test[] | PaginatedResponse<Test>> {
+    const base = this.listInput(actor, scope, filters);
+    const paged: ListTestsInput =
+      options.sort === undefined ? base : { ...base, sort: options.sort };
+    if (options.page === undefined) {
+      return this.repository.list(paged);
+    }
+    const pageSize = options.pageSize ?? 20;
+    const [items, total] = await Promise.all([
+      this.repository.list({
+        ...paged,
+        limit: pageSize,
+        offset: (options.page - 1) * pageSize,
+      }),
+      this.repository.count(base),
+    ]);
+    return { items, page: options.page, pageSize, total };
+  }
+
+  private listInput(
+    actor: Actor | undefined,
+    scope?: string,
+    filters: ListTestsFilters = {},
+  ): ListTestsInput {
     if (scope === 'mine') {
       if (!actor) throw new AuthError('Authentication required', 'UNAUTHORIZED');
-      return this.repository.list({ authorId: actor.id, publishedOnly: false, ...filters });
+      return { authorId: actor.id, publishedOnly: false, ...filters };
     }
     if (scope === 'all') {
       if (!actor) throw new AuthError('Authentication required', 'UNAUTHORIZED');
       if (actor.role !== 'admin') {
         throw new TestError('Insufficient permissions', 'FORBIDDEN');
       }
-      return this.repository.list({ publishedOnly: false, ...filters });
+      return { publishedOnly: false, ...filters };
     }
-    return this.repository.list({ publishedOnly: true, ...filters });
+    return { publishedOnly: true, ...filters };
   }
 
   async get(

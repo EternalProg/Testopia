@@ -35,7 +35,7 @@ const testsRoutes: FastifyPluginAsync<TestsRouteOptions> = async (app, options) 
       onRequest: optionalAuthenticate,
       schema: {
         description:
-          'List published tests (scope=mine/all adds authenticated views; q searches titles and descriptions, category/difficulty filter).',
+          'List published tests (scope=mine/all adds authenticated views; q searches titles and descriptions, category/difficulty filter; sort=newest|popular|hardest; ?page= opts into the { items, page, pageSize, total } envelope, pageSize capped at 100).',
         tags: ['tests'],
         ...optionalBearerSecurity,
       },

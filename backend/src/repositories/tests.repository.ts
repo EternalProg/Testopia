@@ -1,6 +1,6 @@
-import { and, asc, count, desc, eq, like, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, like, or, sql } from 'drizzle-orm';
 
-import type { Difficulty, TestCategory } from '@testopia/shared';
+import type { Difficulty, TestCategory, TestListSort } from '@testopia/shared';
 
 import type { Database } from '../db/client.js';
 import { answerOptions, questions, testAttempts, tests } from '../db/schema.js';
@@ -15,6 +15,9 @@ export interface ListTestsInput {
   search?: string;
   category?: TestCategory;
   difficulty?: Difficulty;
+  sort?: TestListSort;
+  limit?: number;
+  offset?: number;
 }
 
 // LIKE metacharacters escaped with a backslash (MySQL's default LIKE escape).
@@ -36,6 +39,30 @@ export class TestsRepository {
   }
 
   async list(input: ListTestsInput) {
+    const conditions = this.listConditions(input);
+    const query = this.db
+      .select()
+      .from(tests)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(...this.listOrder(input.sort))
+      .$dynamic();
+    if (input.limit !== undefined) query.limit(input.limit);
+    if (input.offset !== undefined) query.offset(input.offset);
+    return query;
+  }
+
+  // Total of the same filtered set the paginated list() slices — sort and
+  // window (limit/offset) never apply here.
+  async count(input: ListTestsInput) {
+    const conditions = this.listConditions(input);
+    const rows = await this.db
+      .select({ value: count() })
+      .from(tests)
+      .where(conditions.length ? and(...conditions) : undefined);
+    return Number(rows[0]?.value ?? 0);
+  }
+
+  private listConditions(input: ListTestsInput) {
     const conditions = [];
     if (input.authorId !== undefined) conditions.push(eq(tests.authorId, input.authorId));
     if (input.publishedOnly) conditions.push(eq(tests.isPublished, true));
@@ -45,11 +72,34 @@ export class TestsRepository {
       const pattern = `%${escapeLikePattern(input.search)}%`;
       conditions.push(or(like(tests.title, pattern), like(tests.description, pattern)));
     }
-    return this.db
-      .select()
-      .from(tests)
-      .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(tests.createdAt));
+    return conditions;
+  }
+
+  private listOrder(sort: TestListSort | undefined) {
+    switch (sort) {
+      case 'popular':
+        return [desc(this.attemptCountSubquery()), desc(tests.createdAt)];
+      case 'hardest':
+        // Lowest average terminal score first; tests without terminal scores
+        // (avg is null) sort last. Reuses the statistics
+        // avg(case when status in ('completed','expired') then score end)
+        // semantics.
+        return [
+          sql`${this.averageTerminalScoreSubquery()} is null`,
+          asc(this.averageTerminalScoreSubquery()),
+          desc(tests.createdAt),
+        ];
+      default:
+        return [desc(tests.createdAt)];
+    }
+  }
+
+  private attemptCountSubquery() {
+    return sql<number>`(select count(*) from ${testAttempts} where ${testAttempts.testId} = ${tests.id})`;
+  }
+
+  private averageTerminalScoreSubquery() {
+    return sql<number>`(select avg(case when ${testAttempts.status} in ('completed', 'expired') then ${testAttempts.score} end) from ${testAttempts} where ${testAttempts.testId} = ${tests.id})`;
   }
 
   async update(id: number, input: Partial<typeof tests.$inferInsert>) {
