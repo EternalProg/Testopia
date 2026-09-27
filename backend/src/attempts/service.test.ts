@@ -334,9 +334,159 @@ describe('AttemptsService', () => {
     const detail = await service.get(5, { id: 7, role: 'user' });
 
     expect(detail.test).toMatchObject({ id: 1, title: 'Basics', timeLimitMinutes: null });
-    expect(detail.questions.map((question) => question.id)).toEqual([14, 11, 12, 13]);
+    // A stored questionOrder is the exact asked set: 12 and 13 were not part
+    // of it, so they stay out of the attempt even though the test owns them.
+    expect(detail.questions.map((question) => question.id)).toEqual([14, 11]);
     const choice = detail.questions.find((question) => question.id === 11);
     expect(choice?.options[0]).not.toHaveProperty('isCorrect');
+  });
+
+  it('asks a random subset sized by the test question count', async () => {
+    const { service, attempts } = setup({
+      tests: {
+        findById: vi.fn().mockResolvedValue({ ...publishedTest, questionCount: 2 }),
+      },
+    });
+    const bank = [11, 12, 13, 14];
+    const seen = new Set<string>();
+
+    for (let run = 0; run < 40; run += 1) {
+      await service.start({ id: 7, role: 'user' }, 1);
+      const order = (attempts.createAttempt.mock.calls.at(-1)![0] as { questionOrder: number[] })
+        .questionOrder;
+      // Property, not order: exactly N distinct ids, all from the bank.
+      expect(order).toHaveLength(2);
+      expect(new Set(order).size).toBe(2);
+      for (const id of order) expect(bank).toContain(id);
+      seen.add([...order].sort((a, b) => a - b).join(','));
+    }
+
+    // Repeated runs really do vary the subset, and each run is internally
+    // consistent because the fixture allows only one active attempt.
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('keeps the manual order for display when sampling without shuffling', async () => {
+    const { service, attempts } = setup({
+      tests: {
+        findById: vi.fn().mockResolvedValue({ ...publishedTest, questionCount: 2 }),
+      },
+    });
+    for (let run = 0; run < 20; run += 1) {
+      await service.start({ id: 7, role: 'user' }, 1);
+      const order = (attempts.createAttempt.mock.calls.at(-1)![0] as { questionOrder: number[] })
+        .questionOrder;
+      // A fixed-order test still varies which questions are asked, but the
+      // asked ones keep their orderIndex sequence.
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+    }
+  });
+
+  it('asks every question when the count is empty, zero, or above the bank size', async () => {
+    for (const questionCount of [null, 0, -3, 4, 99]) {
+      const { service, attempts } = setup({
+        tests: {
+          findById: vi.fn().mockResolvedValue({ ...publishedTest, questionCount }),
+        },
+      });
+      await service.start({ id: 7, role: 'user' }, 1);
+      expect(attempts.createAttempt, `questionCount ${questionCount}`).toHaveBeenCalledWith(
+        expect.objectContaining({ questionOrder: [11, 12, 13, 14] }),
+      );
+    }
+  });
+
+  it('excludes unasked questions from the score, records, and result', async () => {
+    const sampled = setup({
+      attempts: {
+        findAttemptById: vi
+          .fn()
+          .mockResolvedValue({ ...inProgressAttempt, questionOrder: [11, 12] }),
+        completeAttempt: vi.fn().mockImplementation(async (id: number, outcome: object) => ({
+          ...inProgressAttempt,
+          id,
+          status: 'completed' as const,
+          ...outcome,
+        })),
+      },
+    });
+
+    const result = await sampled.service.submit({ id: 7, role: 'user' }, 5, {
+      answers: [{ questionId: 11, selectedOptionIds: [101] }],
+    });
+
+    // Only the asked pair is graded, so the mean is over those two verdicts:
+    // one correct single-choice plus one unanswered multiple-choice (0).
+    expect(result.attempt.score).toBe(0.5);
+    expect(result.answers.map((answer) => answer.questionId)).toEqual([11, 12]);
+    const inserted = sampled.attempts.completeAttempt.mock.calls[0]![2] as Array<{
+      questionId: number;
+    }>;
+    expect([...new Set(inserted.map((record) => record.questionId))].sort((a, b) => a - b)).toEqual(
+      [11, 12],
+    );
+
+    // The result view shows the same two questions, never the whole bank.
+    const graded = setup({
+      attempts: {
+        findAttemptById: vi.fn().mockResolvedValue({
+          ...inProgressAttempt,
+          status: 'completed',
+          questionOrder: [11, 12],
+        }),
+        findAnswerRecords: vi.fn().mockResolvedValue([]),
+      },
+    });
+    const view = await graded.service.getResult(5, { id: 7, role: 'user' });
+    expect(view.questions.map((question) => question.id)).toEqual([11, 12]);
+    expect(view.answers.map((answer) => answer.questionId)).toEqual([11, 12]);
+  });
+
+  it('rejects answers and grades for questions the attempt never asked', async () => {
+    const sampled = setup({
+      attempts: {
+        findAttemptById: vi
+          .fn()
+          .mockResolvedValue({ ...inProgressAttempt, questionOrder: [11, 12] }),
+      },
+    });
+
+    await expect(
+      sampled.service.submit({ id: 7, role: 'user' }, 5, {
+        answers: [{ questionId: 13, selectedOptionIds: [106] }],
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+
+    const gradable = setup({
+      attempts: {
+        findAttemptById: vi.fn().mockResolvedValue({
+          ...inProgressAttempt,
+          status: 'completed',
+          questionOrder: [11, 12],
+        }),
+        findAnswerRecords: vi.fn().mockResolvedValue([]),
+      },
+    });
+    await expect(
+      gradable.service.gradeAttempt({ id: 10, role: 'user' }, 5, {
+        grades: [{ questionId: 14, isCorrect: true }],
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    expect(gradable.attempts.updateAnswerVerdicts).not.toHaveBeenCalled();
+  });
+
+  it('falls back to every question when no order was stored', async () => {
+    const { service } = setup({
+      attempts: {
+        findAttemptById: vi.fn().mockResolvedValue({ ...inProgressAttempt, questionOrder: null }),
+      },
+    });
+
+    const detail = await service.get(5, { id: 7, role: 'user' });
+
+    // Legacy rows (and pre-sampling attempts) have no order: all questions
+    // by orderIndex, which is today's behavior.
+    expect(detail.questions.map((question) => question.id)).toEqual([11, 12, 13, 14]);
   });
 
   it('restricts attempt reads to the owner and admins', async () => {

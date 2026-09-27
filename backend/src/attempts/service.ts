@@ -114,7 +114,7 @@ export class AttemptsService {
     const created = await this.attempts.createAttempt({
       userId: actor.id,
       testId,
-      questionOrder: this.buildQuestionOrder(test, questions),
+      questionOrder: this.buildAttemptQuestionIds(test, questions),
       optionOrder: this.buildOptionOrder(test, questions),
     });
     if (!created) throw new Error('Created attempt could not be loaded');
@@ -166,7 +166,10 @@ export class AttemptsService {
     const test = await this.tests.findById(attempt.testId);
     if (!test) throw new AttemptError('Test not found', 'NOT_FOUND');
     const questions = await this.tests.findQuestions(test.id);
-    const byId = new Map(questions.map((question) => [question.id, question]));
+    // Only the asked set is graded: a sampled-out question produces no record
+    // and contributes nothing to the score.
+    const asked = this.orderedQuestions(questions, attempt);
+    const byId = new Map(asked.map((question) => [question.id, question]));
     for (const answer of input.answers) {
       const question = byId.get(answer.questionId);
       if (!question) {
@@ -190,7 +193,7 @@ export class AttemptsService {
     const answers: AttemptAnswer[] = [];
     const records: AnswerRecordInput[] = [];
     const credits: Array<number | null> = [];
-    for (const question of questions) {
+    for (const question of asked) {
       const answer = submitted.get(question.id);
       const selectedIds = answer?.selectedOptionIds ?? [];
       const textAnswer = answer?.textAnswer ?? null;
@@ -293,7 +296,10 @@ export class AttemptsService {
   ): Promise<{ attempt: TestAttempt }> {
     const { attempt, test } = await this.requireGradeableAttempt(attemptId, actor);
     const questions = await this.tests.findQuestions(test.id);
-    const byId = new Map(questions.map((question) => [question.id, question]));
+    // Grading is restricted to the asked set, so a sampled-out question can
+    // neither receive a verdict nor change the recomputed score.
+    const asked = this.orderedQuestions(questions, attempt);
+    const byId = new Map(asked.map((question) => [question.id, question]));
     for (const entry of input.grades) {
       const question = byId.get(entry.questionId);
       if (!question) {
@@ -318,7 +324,7 @@ export class AttemptsService {
     }
     const overrides = new Map(input.grades.map((entry) => [entry.questionId, entry.isCorrect]));
     const credits: Array<number | null> = [];
-    for (const question of questions) {
+    for (const question of asked) {
       if (question.type === 'open_ended') {
         const override = overrides.get(question.id);
         if (override !== undefined) {
@@ -425,25 +431,22 @@ export class AttemptsService {
     attempt: AttemptRow,
   ): QuestionWithOptions[] {
     const order = attempt.questionOrder;
+    // A non-empty questionOrder is the exact asked set: with sampling on,
+    // unasked questions are excluded from the taking page, the result, the
+    // answers, and grading. The empty case covers legacy rows and attempts
+    // created before sampling existed, which still mean "all questions".
     const ordered =
       !order || !order.length
         ? [...questions].sort((a, b) => a.orderIndex - b.orderIndex)
-        : this.questionsInOrder(questions, order);
+        : this.askedQuestions(questions, order);
     return this.withOptionOrder(ordered, normalizeOptionOrder(attempt.optionOrder));
   }
 
-  private questionsInOrder(
-    questions: QuestionWithOptions[],
-    order: number[],
-  ): QuestionWithOptions[] {
+  private askedQuestions(questions: QuestionWithOptions[], order: number[]): QuestionWithOptions[] {
     const byId = new Map(questions.map((question) => [question.id, question]));
-    const ordered = order
+    return order
       .map((id) => byId.get(id))
       .filter((question): question is QuestionWithOptions => !!question);
-    for (const question of questions) {
-      if (!order.includes(question.id)) ordered.push(question);
-    }
-    return ordered;
   }
 
   /**
@@ -544,16 +547,40 @@ export class AttemptsService {
     return test.showAnswersAfterCompletion || this.canManage(test, actor);
   }
 
-  private buildQuestionOrder(
+  /**
+   * Question ids this attempt asks, in display order.
+   *
+   * Starts from natural orderIndex order and shuffles when the test asks for
+   * it. When `questionCount` is set, a partial Fisher-Yates picks N of them,
+   * so even a fixed-order test gets a different subset per attempt. The
+   * selected subset is then re-sorted by orderIndex for display unless the
+   * test shuffles questions, so sampling never scrambles a manual order on
+   * its own.
+   *
+   * A `questionCount` below 1 cannot arrive through the request schemas; the
+   * guard keeps a hand-edited row behaving like "ask everything".
+   */
+  private buildAttemptQuestionIds(
     test: NonNullable<TestRow>,
     questions: QuestionWithOptions[],
-  ): number[] | null {
-    const ids = [...questions].sort((a, b) => a.orderIndex - b.orderIndex).map((q) => q.id);
-    if (!test.shuffleQuestions) return ids;
-    for (let i = ids.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+  ): number[] {
+    const ordered = [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
+    const requested = test.questionCount;
+    const count =
+      requested === null || requested === undefined || requested < 1
+        ? ordered.length
+        : Math.min(requested, ordered.length);
+
+    // Partial Fisher-Yates: the first `count` slots end up holding a uniform
+    // random subset, the rest keeps the unselected questions in order.
+    for (let i = 0; i < count; i += 1) {
+      const j = i + Math.floor(Math.random() * (ordered.length - i));
+      [ordered[i], ordered[j]] = [ordered[j]!, ordered[i]!];
     }
+    const selected = ordered.slice(0, count);
+    const ids = test.shuffleQuestions
+      ? selected.map((question) => question.id)
+      : [...selected].sort((a, b) => a.orderIndex - b.orderIndex).map((question) => question.id);
     return ids;
   }
 
