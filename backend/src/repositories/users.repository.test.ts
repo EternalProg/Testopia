@@ -65,4 +65,48 @@ describe('UsersRepository', () => {
       repository.create({ email: 'a@b.com', username: 'ab', passwordHash: 'hash' }),
     ).rejects.toThrow('Created user could not be loaded');
   });
+
+  it('lists and re-roles users through an explicit column select', async () => {
+    const mock = databaseMock();
+    const publicRow = {
+      id: mock.user.id,
+      email: mock.user.email,
+      username: mock.user.username,
+      role: 'admin' as const,
+      createdAt: mock.user.createdAt,
+    };
+    const orderBy = vi.fn().mockResolvedValue([publicRow]);
+    const from = vi.fn().mockReturnValue({ orderBy });
+    mock.select.mockReturnValue({ from });
+    const repository = new UsersRepository(mock.db);
+
+    await expect(repository.listUsers()).resolves.toEqual([publicRow]);
+    // A bare select() would pull password_hash into the admin response.
+    expect(Object.keys(mock.select.mock.calls[0]![0] as object).sort()).toEqual([
+      'createdAt',
+      'email',
+      'id',
+      'role',
+      'username',
+    ]);
+  });
+
+  it('reports an absent user as null after a role update', async () => {
+    const where = vi.fn().mockResolvedValue(undefined);
+    const set = vi.fn().mockReturnValue({ where });
+    const update = vi.fn().mockReturnValue({ set });
+    const db = {
+      update,
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }),
+        }),
+      }),
+    } as unknown as Database;
+    const repository = new UsersRepository(db);
+
+    await expect(repository.updateRole(404, 'admin')).resolves.toBeNull();
+    expect(set).toHaveBeenCalledWith({ role: 'admin' });
+    expect(where).toHaveBeenCalledOnce();
+  });
 });

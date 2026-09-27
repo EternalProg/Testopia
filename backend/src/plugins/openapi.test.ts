@@ -43,6 +43,8 @@ const expectedRoutes: ExpectedRoute[] = [
   { method: 'POST', path: '/api/v1/attempts/{id}/submit', access: 'protected' },
   { method: 'GET', path: '/api/v1/tests/{id}/statistics', access: 'protected' },
   { method: 'GET', path: '/api/v1/users/me/statistics', access: 'protected' },
+  { method: 'GET', path: '/api/v1/admin/users', access: 'protected' },
+  { method: 'PATCH', path: '/api/v1/admin/users/{id}/role', access: 'protected' },
 ];
 
 describe('openapi plugin', () => {

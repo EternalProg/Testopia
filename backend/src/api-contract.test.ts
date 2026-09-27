@@ -103,6 +103,7 @@ describe('API contract', () => {
       { method: 'POST', url: '/api/v1/attempts/1/submit', payload: { answers: [] } },
       { method: 'GET', url: '/api/v1/tests/2/statistics' },
       { method: 'GET', url: '/api/v1/users/me/statistics' },
+      { method: 'GET', url: '/api/v1/admin/users' },
     ] as const) {
       const response = await app.inject(request);
       expect(response.statusCode).toBe(401);

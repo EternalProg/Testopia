@@ -292,6 +292,24 @@ describe('TestsService', () => {
     expect(repo.delete).toHaveBeenCalledWith(1);
   });
 
+  // The admin panel exposes test deletion to admins without a dedicated
+  // endpoint, so the capability is pinned here: canManage() admits admins and
+  // the has-attempts guard applies to them exactly as it does to authors.
+  it('lets an admin delete another author attempt-less test but not one with attempts', async () => {
+    const attemptFree = repository();
+    const adminService = new TestsService(attemptFree as never);
+    await adminService.remove({ id: 99, role: 'admin' }, 1);
+    expect(attemptFree.delete).toHaveBeenCalledWith(1);
+
+    const attempted = repository({ countAttempts: vi.fn().mockResolvedValue(1) });
+    const blocked = new TestsService(attempted as never);
+    await expect(blocked.remove({ id: 99, role: 'admin' }, 1)).rejects.toMatchObject({
+      code: 'CONFLICT',
+      message: 'Cannot delete a test with attempts',
+    });
+    expect(attempted.delete).not.toHaveBeenCalled();
+  });
+
   it('passes the availability window through on create and update', async () => {
     const from = new Date('2026-02-01T00:00:00.000Z');
     const until = new Date('2026-03-01T00:00:00.000Z');

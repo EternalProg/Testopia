@@ -61,7 +61,11 @@ export const testsApi = {
   },
   // Passing page opts into the { items, page, pageSize, total } envelope;
   // without it the legacy bare array is returned. Narrow on Array.isArray.
-  list(scope?: 'mine', filters: TestListParams = {}): Promise<TestListItem[] | TestListEnvelope> {
+  // scope=all is admin-only server-side (the server answers 403 otherwise).
+  list(
+    scope?: 'mine' | 'all',
+    filters: TestListParams = {},
+  ): Promise<TestListItem[] | TestListEnvelope> {
     const params = new URLSearchParams();
     if (scope) params.set('scope', scope);
     if (filters.search) params.set('q', filters.search);

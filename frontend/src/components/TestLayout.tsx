@@ -71,6 +71,11 @@ export function TestLayout({
                   Browse
                 </NavLink>
               )}
+              {user?.role === 'admin' && (
+                <NavLink to="/admin" className={navLinkClass}>
+                  Admin
+                </NavLink>
+              )}
               {user ? (
                 <>
                   <span className="inline-flex items-center gap-2 pl-1" title={user.username}>

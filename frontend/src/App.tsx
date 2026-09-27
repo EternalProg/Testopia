@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
 import { useAuthStore } from './auth/store.js';
+import { AdminPage } from './pages/AdminPage.js';
 import { AttemptHistoryPage } from './pages/AttemptHistoryPage.js';
 import { AttemptResultPage } from './pages/AttemptResultPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
@@ -49,6 +50,24 @@ function PublicRoute() {
   return status === 'authenticated' ? <Navigate to="/dashboard" replace /> : <Outlet />;
 }
 
+/**
+ * Admin-only pages. The role comes from the access token, so the redirect is
+ * a UI convenience; the server enforces the same rule on every admin route.
+ */
+function AdminRoute() {
+  const status = useAuthStore((state) => state.status);
+  const user = useAuthStore((state) => state.user);
+  if (status === 'idle' || status === 'loading') {
+    return (
+      <p role="status" aria-live="polite" aria-label="Loading your session...">
+        Loading your session...
+      </p>
+    );
+  }
+  if (status !== 'authenticated') return <Navigate to="/login" replace />;
+  return user?.role === 'admin' ? <Outlet /> : <Navigate to="/dashboard" replace />;
+}
+
 export function App() {
   return (
     <BrowserRouter>
@@ -63,6 +82,9 @@ export function App() {
           <Route path="/tests/:id" element={<TestDetailPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminPage />} />
+            </Route>
             <Route path="/tests/new" element={<TestEditorPage />} />
             <Route path="/tests/:id/edit" element={<TestEditorPage />} />
             <Route path="/tests/:id/take" element={<TakeTestPage />} />

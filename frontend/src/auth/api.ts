@@ -2,6 +2,7 @@ import type { LoginInput, RegisterInput, User } from '@testopia/shared';
 
 import type { ApiErrorPayload, Session } from './types.js';
 import { tokenStorage } from './token-storage.js';
+import { adminApi } from '../admin/api.js';
 import { attemptsApi } from '../attempts/api.js';
 import { statisticsApi } from '../statistics/api.js';
 import { testsApi } from '../tests/api.js';
@@ -53,6 +54,7 @@ function storeSession(session: Session): Session {
   testsApi.setAccessToken(session.accessToken);
   attemptsApi.setAccessToken(session.accessToken);
   statisticsApi.setAccessToken(session.accessToken);
+  adminApi.setAccessToken(session.accessToken);
   tokenStorage.setRefreshToken(session.refreshToken);
   return session;
 }
@@ -104,6 +106,7 @@ export const authApi = {
       testsApi.setAccessToken(null);
       attemptsApi.setAccessToken(null);
       statisticsApi.setAccessToken(null);
+      adminApi.setAccessToken(null);
       tokenStorage.clear();
     }
   },
@@ -115,5 +118,6 @@ export const authApi = {
     testsApi.setAccessToken(null);
     attemptsApi.setAccessToken(null);
     statisticsApi.setAccessToken(null);
+    adminApi.setAccessToken(null);
   },
 };
