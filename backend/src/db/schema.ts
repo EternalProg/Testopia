@@ -69,6 +69,12 @@ export const tests = mysqlTable(
     category: mysqlEnum('category', testCategories),
     difficulty: mysqlEnum('difficulty', difficulties),
     shuffleQuestions: boolean('shuffle_questions').notNull().default(false),
+    shuffleOptions: boolean('shuffle_options').notNull().default(false),
+    // Null means unlimited attempts.
+    maxAttempts: int('max_attempts'),
+    // Null means every question is asked; the service clamps values above the
+    // question count down to the bank size.
+    questionCount: int('question_count'),
     timeLimitMinutes: int('time_limit_minutes'),
     showAnswersAfterCompletion: boolean('show_answers_after_completion').notNull().default(true),
     showQuestionsBeforeStart: boolean('show_questions_before_start').notNull().default(true),
@@ -133,6 +139,10 @@ export const testAttempts = mysqlTable(
     // tests.shuffle_questions is true, otherwise natural orderIndex order.
     // Older rows may be null; readers fall back to orderIndex order.
     questionOrder: json('question_order').$type<number[]>(),
+    // Maps questionId to the ordered optionIds shown for this attempt. MySQL
+    // returns the object keys as strings, so readers normalize them (see
+    // normalizeOptionOrder); null means natural option order.
+    optionOrder: json('option_order').$type<Record<number, number[]> | null>(),
   },
   (table) => [
     index('test_attempts_user_id_idx').on(table.userId),

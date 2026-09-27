@@ -126,6 +126,7 @@ describe('TestsService', () => {
         title: 'C++ basics',
         isPublished: false,
         shuffleQuestions: false,
+        shuffleOptions: false,
         showAnswersAfterCompletion: true,
         showQuestionsBeforeStart: true,
         category: 'cpp',

@@ -75,6 +75,9 @@ const state = vi.hoisted(() => {
         authorId: 10,
         isPublished: true,
         shuffleQuestions: false,
+        shuffleOptions: false,
+        maxAttempts: null as number | null,
+        questionCount: null as number | null,
         timeLimitMinutes: null as number | null,
         showAnswersAfterCompletion: true,
         showQuestionsBeforeStart: true,
@@ -140,6 +143,7 @@ const state = vi.hoisted(() => {
       score: number | null;
       timeSpentSeconds: number | null;
       questionOrder: number[] | null;
+      optionOrder: Record<number, number[]> | null;
     }>,
     nextAttemptId: 1,
     answerRecords: [] as Array<{
@@ -195,7 +199,20 @@ vi.mock('../repositories/attempts.repository.js', () => ({
         }))
         .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime() || b.id - a.id);
     }
-    async createAttempt(input: { userId: number; testId: number; questionOrder: number[] | null }) {
+    async countTerminalByUser(userId: number, testId: number) {
+      return state.attempts.filter(
+        (attempt) =>
+          attempt.userId === userId &&
+          attempt.testId === testId &&
+          (attempt.status === 'completed' || attempt.status === 'expired'),
+      ).length;
+    }
+    async createAttempt(input: {
+      userId: number;
+      testId: number;
+      questionOrder: number[] | null;
+      optionOrder: Record<number, number[]> | null;
+    }) {
       const attempt = {
         id: state.nextAttemptId,
         status: 'in_progress' as const,
@@ -880,6 +897,44 @@ describe('attempt routes', () => {
     });
     expect(foreign.statusCode).toBe(400);
     expect(foreign.json()).toMatchObject({ error: 'VALIDATION_ERROR' });
+  });
+
+  it('answers 403 with the used budget once the attempt limit is reached', async () => {
+    const published = state.tests.find((test) => test.id === 1);
+    const previousMax = published!.maxAttempts ?? null;
+    try {
+      published!.maxAttempts = 3;
+      for (let used = 0; used < 3; used += 1) {
+        const started = await app.inject({
+          method: 'POST',
+          url: '/api/v1/tests/1/attempts',
+          headers: authHeaders,
+        });
+        expect(started.statusCode).toBe(201);
+        const attemptId = (started.json() as { attempt: { id: number } }).attempt.id;
+        const submitted = await app.inject({
+          method: 'POST',
+          url: `/api/v1/attempts/${attemptId}/submit`,
+          headers: authHeaders,
+          payload: { answers: [{ questionId: 11, selectedOptionIds: [101] }] },
+        });
+        expect(submitted.statusCode).toBe(200);
+      }
+
+      const blocked = await app.inject({
+        method: 'POST',
+        url: '/api/v1/tests/1/attempts',
+        headers: authHeaders,
+      });
+      expect(blocked.statusCode).toBe(403);
+      expect(blocked.json()).toMatchObject({
+        error: 'ATTEMPT_LIMIT',
+        message: 'Attempt limit reached (3 of 3 used)',
+      });
+      expect(state.attempts).toHaveLength(3);
+    } finally {
+      published!.maxAttempts = previousMax;
+    }
   });
 
   it('enforces the availability window on start and submit', async () => {

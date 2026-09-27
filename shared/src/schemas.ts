@@ -36,6 +36,13 @@ const baseTestSchema = z.object({
   category: testCategorySchema.nullable().optional(),
   difficulty: difficultySchema.nullable().optional(),
   shuffleQuestions: z.boolean().default(false),
+  shuffleOptions: z.boolean().default(false),
+  // Empty (null) means unlimited attempts. The 100 cap bounds the number of
+  // attempts an author can mint per taker by design.
+  maxAttempts: z.number().int().min(1).max(100).nullable().optional(),
+  // Empty (null) asks every question; the service clamps values above the
+  // question count down to the bank size.
+  questionCount: z.number().int().min(1).nullable().optional(),
   timeLimitMinutes: z
     .number()
     .int()

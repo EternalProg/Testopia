@@ -39,6 +39,10 @@ function errorMessage(error: unknown, fallback: string): string {
     if (error.payload.error === 'TEST_NOT_OPEN') {
       return "This test hasn't opened yet. Please come back later.";
     }
+    if (error.payload.error === 'ATTEMPT_LIMIT') {
+      // The server reports how many of the allowed attempts were used.
+      return error.payload.message ?? 'Attempt limit reached.';
+    }
     return error.payload.message ?? error.payload.error ?? fallback;
   }
   return fallback;
@@ -153,7 +157,9 @@ export function TakeTestPage() {
           setLoadError('This test does not exist or is not published.');
         } else if (
           reason instanceof AttemptApiError &&
-          (reason.payload.error === 'TEST_CLOSED' || reason.payload.error === 'TEST_NOT_OPEN')
+          (reason.payload.error === 'TEST_CLOSED' ||
+            reason.payload.error === 'TEST_NOT_OPEN' ||
+            reason.payload.error === 'ATTEMPT_LIMIT')
         ) {
           setLoadError(errorMessage(reason, 'Your attempt could not be started.'));
         } else {

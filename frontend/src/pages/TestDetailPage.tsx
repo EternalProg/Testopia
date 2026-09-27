@@ -96,6 +96,20 @@ export function TestDetailPage() {
                 {difficultyLabels[detail.test.difficulty] ?? detail.test.difficulty}
               </>
             )}
+            {detail.test.maxAttempts !== null && detail.test.maxAttempts !== undefined && (
+              <>
+                {' '}
+                {' • '}Max {detail.test.maxAttempts} attempts
+              </>
+            )}
+            {detail.test.shuffleOptions && <> {' • '}Shuffled options</>}
+            {detail.test.questionCount !== null && detail.test.questionCount !== undefined && (
+              <>
+                {' '}
+                {' • '}
+                {detail.test.questionCount} questions per attempt
+              </>
+            )}
             {' • '}
             {previewHidden
               ? 'Questions revealed at start'

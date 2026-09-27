@@ -112,6 +112,9 @@ export class TestsService {
       category: input.category ?? null,
       difficulty: input.difficulty ?? null,
       shuffleQuestions: input.shuffleQuestions,
+      shuffleOptions: input.shuffleOptions,
+      maxAttempts: input.maxAttempts ?? null,
+      questionCount: input.questionCount ?? null,
       timeLimitMinutes: input.timeLimitMinutes ?? null,
       showAnswersAfterCompletion: input.showAnswersAfterCompletion,
       showQuestionsBeforeStart: input.showQuestionsBeforeStart,
@@ -288,6 +291,9 @@ export class TestsService {
       ...(input.category === undefined ? {} : { category: input.category }),
       ...(input.difficulty === undefined ? {} : { difficulty: input.difficulty }),
       ...(input.shuffleQuestions === undefined ? {} : { shuffleQuestions: input.shuffleQuestions }),
+      ...(input.shuffleOptions === undefined ? {} : { shuffleOptions: input.shuffleOptions }),
+      ...(input.maxAttempts === undefined ? {} : { maxAttempts: input.maxAttempts }),
+      ...(input.questionCount === undefined ? {} : { questionCount: input.questionCount }),
       ...(input.timeLimitMinutes === undefined ? {} : { timeLimitMinutes: input.timeLimitMinutes }),
       ...(input.showAnswersAfterCompletion === undefined
         ? {}

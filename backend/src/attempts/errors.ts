@@ -5,7 +5,8 @@ export type AttemptErrorCode =
   | 'VALIDATION_ERROR'
   | 'EXPIRED'
   | 'TEST_NOT_OPEN'
-  | 'TEST_CLOSED';
+  | 'TEST_CLOSED'
+  | 'ATTEMPT_LIMIT';
 
 export class AttemptError extends Error {
   constructor(

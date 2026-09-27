@@ -194,7 +194,8 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
           ? 404
           : error.code === 'FORBIDDEN' ||
               error.code === 'TEST_NOT_OPEN' ||
-              error.code === 'TEST_CLOSED'
+              error.code === 'TEST_CLOSED' ||
+              error.code === 'ATTEMPT_LIMIT'
             ? 403
             : error.code === 'CONFLICT'
               ? 409

@@ -67,6 +67,9 @@ export interface Test {
   category: TestCategory | null;
   difficulty: Difficulty | null;
   shuffleQuestions: boolean;
+  shuffleOptions: boolean;
+  maxAttempts: number | null;
+  questionCount: number | null;
   timeLimitMinutes: number | null;
   showAnswersAfterCompletion: boolean;
   showQuestionsBeforeStart: boolean;

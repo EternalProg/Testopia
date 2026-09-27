@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 
 import type { Database } from '../db/client.js';
 import { answerRecords, testAttempts, users } from '../db/schema.js';
@@ -55,7 +55,31 @@ export class AttemptsRepository {
     return rows.map((row) => ({ ...row.attempt, username: row.username }));
   }
 
-  async createAttempt(input: { userId: number; testId: number; questionOrder: number[] | null }) {
+  /**
+   * Attempts that already consumed the maxAttempts budget. In-progress
+   * attempts are excluded on purpose: they resume through findActiveAttempt
+   * instead of being counted as used.
+   */
+  async countTerminalByUser(userId: number, testId: number) {
+    const rows = await this.db
+      .select({ value: count() })
+      .from(testAttempts)
+      .where(
+        and(
+          eq(testAttempts.userId, userId),
+          eq(testAttempts.testId, testId),
+          inArray(testAttempts.status, ['completed', 'expired']),
+        ),
+      );
+    return Number(rows[0]?.value ?? 0);
+  }
+
+  async createAttempt(input: {
+    userId: number;
+    testId: number;
+    questionOrder: number[] | null;
+    optionOrder: Record<number, number[]> | null;
+  }) {
     const result = await this.db.insert(testAttempts).values(input);
     return this.findAttemptById(Number(result[0].insertId));
   }

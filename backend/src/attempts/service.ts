@@ -37,6 +37,37 @@ export function scoreOf(verdicts: Array<number | null>): number | null {
   );
 }
 
+/**
+ * Turns the stored `option_order` JSON into a `Map<number, number[]>`. MySQL
+ * returns JSON object keys as strings, so a stored `{ "11": [3, 4] }` becomes
+ * `Map<11, [3, 4]>`; the caller then decides whether the entry is usable.
+ * Malformed values (non-object, non-numeric key, non-integer-id array) are
+ * dropped rather than trusted — the question falls back to natural order.
+ */
+export function normalizeOptionOrder(value: unknown): Map<number, number[]> {
+  const normalized = new Map<number, number[]>();
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return normalized;
+  for (const [key, order] of Object.entries(value)) {
+    const questionId = Number(key);
+    if (!Number.isSafeInteger(questionId) || questionId <= 0) continue;
+    if (!Array.isArray(order)) continue;
+    if (!order.every((id) => typeof id === 'number' && Number.isSafeInteger(id))) continue;
+    normalized.set(questionId, order as number[]);
+  }
+  return normalized;
+}
+
+/** True when `order` lists exactly the given option ids, once each. */
+export function isPermutation(order: number[], ids: number[]): boolean {
+  if (order.length !== ids.length) return false;
+  const remaining = new Set(ids);
+  return order.every((id) => {
+    if (!remaining.has(id)) return false;
+    remaining.delete(id);
+    return true;
+  });
+}
+
 export class AttemptsService {
   constructor(
     private readonly tests: TestsRepository,
@@ -78,11 +109,13 @@ export class AttemptsService {
     if (this.isAfterClose(test, now)) {
       throw new AttemptError('This test is closed', 'TEST_CLOSED');
     }
+    await this.assertWithinAttemptLimit(actor, test);
     const questions = await this.tests.findQuestions(testId);
     const created = await this.attempts.createAttempt({
       userId: actor.id,
       testId,
       questionOrder: this.buildQuestionOrder(test, questions),
+      optionOrder: this.buildOptionOrder(test, questions),
     });
     if (!created) throw new Error('Created attempt could not be loaded');
     return this.detail(created);
@@ -336,6 +369,24 @@ export class AttemptsService {
     return test;
   }
 
+  /**
+   * Refuses a fresh attempt once the taker used the whole budget. The check
+   * is best-effort under a concurrent double-start: two simultaneous requests
+   * can both read the same terminal count and each insert an attempt. The
+   * same race already exists in the active-attempt lookup above, and closing
+   * it would mean a row lock on every start, so it is documented instead.
+   */
+  private async assertWithinAttemptLimit(actor: Actor, test: NonNullable<TestRow>): Promise<void> {
+    if (test.maxAttempts === null || test.maxAttempts === undefined) return;
+    const used = await this.attempts.countTerminalByUser(actor.id, test.id);
+    if (used >= test.maxAttempts) {
+      throw new AttemptError(
+        `Attempt limit reached (${used} of ${test.maxAttempts} used)`,
+        'ATTEMPT_LIMIT',
+      );
+    }
+  }
+
   private async requireOwnedAttempt(attemptId: number, actor: Actor): Promise<AttemptRow> {
     const attempt = await this.attempts.findAttemptById(attemptId);
     if (!attempt) throw new AttemptError('Attempt not found', 'NOT_FOUND');
@@ -374,9 +425,17 @@ export class AttemptsService {
     attempt: AttemptRow,
   ): QuestionWithOptions[] {
     const order = attempt.questionOrder;
-    if (!order || !order.length) {
-      return [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
-    }
+    const ordered =
+      !order || !order.length
+        ? [...questions].sort((a, b) => a.orderIndex - b.orderIndex)
+        : this.questionsInOrder(questions, order);
+    return this.withOptionOrder(ordered, normalizeOptionOrder(attempt.optionOrder));
+  }
+
+  private questionsInOrder(
+    questions: QuestionWithOptions[],
+    order: number[],
+  ): QuestionWithOptions[] {
     const byId = new Map(questions.map((question) => [question.id, question]));
     const ordered = order
       .map((id) => byId.get(id))
@@ -385,6 +444,34 @@ export class AttemptsService {
       if (!order.includes(question.id)) ordered.push(question);
     }
     return ordered;
+  }
+
+  /**
+   * Applies the attempt's stored option order. An entry is honored only when
+   * it is an exact permutation of the question's current option ids: authors
+   * can add or remove options mid-attempt, and a stale order would otherwise
+   * drop or duplicate choices. Open-ended questions (no options) fall out
+   * naturally because their stored array is empty.
+   */
+  private withOptionOrder(
+    questions: QuestionWithOptions[],
+    optionOrder: Map<number, number[]>,
+  ): QuestionWithOptions[] {
+    if (optionOrder.size === 0) return questions;
+    return questions.map((question) => {
+      const order = optionOrder.get(question.id);
+      if (
+        !order ||
+        !isPermutation(
+          order,
+          question.options.map((option) => option.id),
+        )
+      ) {
+        return question;
+      }
+      const byId = new Map(question.options.map((option) => [option.id, option]));
+      return { ...question, options: order.map((id) => byId.get(id)!) };
+    });
   }
 
   private reconstructAnswers(
@@ -468,6 +555,29 @@ export class AttemptsService {
       [ids[i], ids[j]] = [ids[j]!, ids[i]!];
     }
     return ids;
+  }
+
+  /**
+   * Per-attempt option display order, or null when the test does not shuffle
+   * options. Open-ended questions get an entry too (an empty array): keeping
+   * the key set stable means a later type change still round-trips through
+   * the same normalization path.
+   */
+  private buildOptionOrder(
+    test: NonNullable<TestRow>,
+    questions: QuestionWithOptions[],
+  ): Record<number, number[]> | null {
+    if (!test.shuffleOptions) return null;
+    const order: Record<number, number[]> = {};
+    for (const question of questions) {
+      const ids = question.options.map((option) => option.id);
+      for (let i = ids.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+      }
+      order[question.id] = ids;
+    }
+    return order;
   }
 
   /**

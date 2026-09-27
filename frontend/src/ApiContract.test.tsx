@@ -78,6 +78,7 @@ describe('API contract (frontend clients vs shared schemas)', () => {
       category: 'cpp',
       difficulty: 'medium',
       shuffleQuestions: false,
+      shuffleOptions: false,
       timeLimitMinutes: 15,
       showAnswersAfterCompletion: true,
       showQuestionsBeforeStart: true,

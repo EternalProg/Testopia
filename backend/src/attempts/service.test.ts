@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { SubmitAttemptResult } from '@testopia/shared';
 
-import { AttemptsService, scoreOf } from './service.js';
+import { AttemptsService, isPermutation, normalizeOptionOrder, scoreOf } from './service.js';
 
 const publishedTest = {
   id: 1,
@@ -11,6 +11,9 @@ const publishedTest = {
   authorId: 10,
   isPublished: true,
   shuffleQuestions: false,
+  shuffleOptions: false,
+  maxAttempts: null,
+  questionCount: null,
   timeLimitMinutes: null,
   showAnswersAfterCompletion: true,
   showQuestionsBeforeStart: true,
@@ -74,7 +77,8 @@ const inProgressAttempt = {
   completedAt: null,
   score: null,
   timeSpentSeconds: null,
-  questionOrder: [11, 12, 13, 14],
+  questionOrder: [11, 12, 13, 14] as number[] | null,
+  optionOrder: null as Record<number, number[]> | null,
 };
 
 function setup(
@@ -90,15 +94,22 @@ function setup(
     findAttemptById: vi.fn().mockResolvedValue(inProgressAttempt),
     findAnswerRecords: vi.fn().mockResolvedValue([]),
     listAttemptsByTest: vi.fn().mockResolvedValue([]),
+    countTerminalByUser: vi.fn().mockResolvedValue(0),
     createAttempt: vi
       .fn()
       .mockImplementation(
-        async (input: { userId: number; testId: number; questionOrder: number[] | null }) => ({
+        async (input: {
+          userId: number;
+          testId: number;
+          questionOrder: number[] | null;
+          optionOrder: Record<number, number[]> | null;
+        }) => ({
           ...inProgressAttempt,
           id: 6,
           userId: input.userId,
           testId: input.testId,
           questionOrder: input.questionOrder,
+          optionOrder: input.optionOrder,
         }),
       ),
     completeAttempt: vi
@@ -156,7 +167,9 @@ describe('AttemptsService', () => {
   });
 
   it('persists shuffled order only when the test shuffles questions', async () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0);
+    // A fixed mid draw forces a definite permutation in either shuffle
+    // direction, so the assertion does not depend on the swap order.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const shuffled = setup({
       tests: {
         findById: vi.fn().mockResolvedValue({ ...publishedTest, shuffleQuestions: true }),
@@ -164,15 +177,149 @@ describe('AttemptsService', () => {
       },
     });
     await shuffled.service.start({ id: 7, role: 'user' }, 1);
-    expect(shuffled.attempts.createAttempt).toHaveBeenCalledWith(
-      expect.objectContaining({ questionOrder: [12, 13, 14, 11] }),
-    );
+    const shuffledOrder = (
+      shuffled.attempts.createAttempt.mock.calls[0]![0] as { questionOrder: number[] }
+    ).questionOrder;
+    expect([...shuffledOrder].sort((a, b) => a - b)).toEqual([11, 12, 13, 14]);
+    expect(shuffledOrder).not.toEqual([11, 12, 13, 14]);
 
     const natural = setup();
     await natural.service.start({ id: 7, role: 'user' }, 1);
     expect(natural.attempts.createAttempt).toHaveBeenCalledWith(
       expect.objectContaining({ questionOrder: [11, 12, 13, 14] }),
     );
+  });
+
+  it('refuses a fresh attempt once the taker used the whole budget', async () => {
+    const limited = setup({
+      tests: { findById: vi.fn().mockResolvedValue({ ...publishedTest, maxAttempts: 3 }) },
+      attempts: { countTerminalByUser: vi.fn().mockResolvedValue(3) },
+    });
+
+    await expect(limited.service.start({ id: 7, role: 'user' }, 1)).rejects.toMatchObject({
+      code: 'ATTEMPT_LIMIT',
+      message: 'Attempt limit reached (3 of 3 used)',
+    });
+    expect(limited.attempts.createAttempt).not.toHaveBeenCalled();
+  });
+
+  it('allows the attempt below the limit and skips the check when unlimited', async () => {
+    const belowLimit = setup({
+      tests: { findById: vi.fn().mockResolvedValue({ ...publishedTest, maxAttempts: 3 }) },
+      attempts: { countTerminalByUser: vi.fn().mockResolvedValue(2) },
+    });
+    await belowLimit.service.start({ id: 7, role: 'user' }, 1);
+    expect(belowLimit.attempts.createAttempt).toHaveBeenCalledOnce();
+
+    // An in-progress attempt resumes through findActiveAttempt, so the budget
+    // check must not run (and block) for it.
+    const resumed = setup({
+      tests: { findById: vi.fn().mockResolvedValue({ ...publishedTest, maxAttempts: 1 }) },
+      attempts: {
+        findActiveAttempt: vi.fn().mockResolvedValue(inProgressAttempt),
+        countTerminalByUser: vi.fn().mockResolvedValue(1),
+      },
+    });
+    const detail = await resumed.service.start({ id: 7, role: 'user' }, 1);
+    expect(detail.attempt.id).toBe(5);
+    expect(resumed.attempts.countTerminalByUser).not.toHaveBeenCalled();
+
+    const unlimited = setup();
+    await unlimited.service.start({ id: 7, role: 'user' }, 1);
+    expect(unlimited.attempts.countTerminalByUser).not.toHaveBeenCalled();
+  });
+
+  it('persists a per-attempt option order only when the test shuffles options', async () => {
+    const shuffled = setup({
+      tests: {
+        findById: vi.fn().mockResolvedValue({ ...publishedTest, shuffleOptions: true }),
+      },
+    });
+    await shuffled.service.start({ id: 7, role: 'user' }, 1);
+
+    const created = shuffled.attempts.createAttempt.mock.calls[0]![0] as {
+      optionOrder: Record<number, number[]>;
+    };
+    // Every option of every question appears exactly once, whatever the shuffle.
+    expect(
+      Object.keys(created.optionOrder)
+        .map(Number)
+        .sort((a, b) => a - b),
+    ).toEqual([11, 12, 13, 14]);
+    expect([...created.optionOrder[11]!].sort((a, b) => a - b)).toEqual([101, 102]);
+    expect([...created.optionOrder[12]!].sort((a, b) => a - b)).toEqual([103, 104, 105]);
+    expect(created.optionOrder[14]).toEqual([]);
+
+    const natural = setup();
+    await natural.service.start({ id: 7, role: 'user' }, 1);
+    expect(natural.attempts.createAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ optionOrder: null }),
+    );
+  });
+
+  it('renders shuffled options and falls back when the stored order no longer fits', async () => {
+    const shuffled = setup({
+      attempts: {
+        findAttemptById: vi.fn().mockResolvedValue({
+          ...inProgressAttempt,
+          // String keys: MySQL returns JSON object keys as strings.
+          optionOrder: { '11': [102, 101], '12': [105, 103, 104] },
+        }),
+      },
+    });
+
+    const detail = await shuffled.service.get(5, { id: 7, role: 'user' });
+    const byId = new Map(detail.questions.map((question) => [question.id, question]));
+    expect(byId.get(11)?.options.map((option) => option.id)).toEqual([102, 101]);
+    expect(byId.get(12)?.options.map((option) => option.id)).toEqual([105, 103, 104]);
+    // Questions with no stored entry keep their natural option order.
+    expect(byId.get(13)?.options.map((option) => option.id)).toEqual([106, 107]);
+
+    // An author added an option mid-attempt: the stale order is discarded
+    // rather than dropping or duplicating a choice.
+    const edited = setup({
+      tests: {
+        findQuestions: vi.fn().mockResolvedValue([
+          {
+            ...questions[0]!,
+            options: [
+              ...questions[0]!.options,
+              { id: 108, questionId: 11, text: 'C', isCorrect: false },
+            ],
+          },
+          ...questions.slice(1),
+        ]),
+      },
+      attempts: {
+        findAttemptById: vi.fn().mockResolvedValue({
+          ...inProgressAttempt,
+          optionOrder: { '11': [102, 101] },
+        }),
+      },
+    });
+    const editedDetail = await edited.service.get(5, { id: 7, role: 'user' });
+    const editedQuestion = editedDetail.questions.find((question) => question.id === 11);
+    expect(editedQuestion?.options.map((option) => option.id)).toEqual([101, 102, 108]);
+  });
+
+  it('normalizes stored option order keys and rejects malformed entries', () => {
+    expect(normalizeOptionOrder({ '11': [2, 1] }).get(11)).toEqual([2, 1]);
+    expect(normalizeOptionOrder({ 11: [2, 1] }).get(11)).toEqual([2, 1]);
+    expect(normalizeOptionOrder(null).size).toBe(0);
+    expect(normalizeOptionOrder([1, 2]).size).toBe(0);
+    expect(normalizeOptionOrder('11').size).toBe(0);
+    // Non-numeric key, non-array value, and non-integer ids are all dropped.
+    expect(normalizeOptionOrder({ abc: [1] }).size).toBe(0);
+    expect(normalizeOptionOrder({ '11': 1 }).size).toBe(0);
+    expect(normalizeOptionOrder({ '11': [1.5, 2] }).size).toBe(0);
+  });
+
+  it('detects whether a stored order is a permutation of the current options', () => {
+    expect(isPermutation([2, 1], [1, 2])).toBe(true);
+    expect(isPermutation([1, 1], [1, 2])).toBe(false);
+    expect(isPermutation([1], [1, 2])).toBe(false);
+    expect(isPermutation([1, 3], [1, 2])).toBe(false);
+    expect(isPermutation([], [])).toBe(true);
   });
 
   it('returns questions in persisted order with answers redacted', async () => {

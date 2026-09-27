@@ -352,9 +352,12 @@ export function TestEditorPage() {
   const [category, setCategory] = useState<TestCategory | ''>('');
   const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
   const [timeLimit, setTimeLimit] = useState('');
+  const [maxAttempts, setMaxAttempts] = useState('');
+  const [questionCount, setQuestionCount] = useState('');
   const [availableFrom, setAvailableFrom] = useState('');
   const [availableUntil, setAvailableUntil] = useState('');
   const [shuffle, setShuffle] = useState(false);
+  const [shuffleOptions, setShuffleOptions] = useState(false);
   const [showAnswers, setShowAnswers] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
@@ -368,9 +371,18 @@ export function TestEditorPage() {
     setCategory(test.category ?? '');
     setDifficulty(test.difficulty ?? '');
     setTimeLimit(test.timeLimitMinutes === null ? '' : String(test.timeLimitMinutes));
+    setMaxAttempts(
+      test.maxAttempts === null || test.maxAttempts === undefined ? '' : String(test.maxAttempts),
+    );
+    setQuestionCount(
+      test.questionCount === null || test.questionCount === undefined
+        ? ''
+        : String(test.questionCount),
+    );
     setAvailableFrom(toDatetimeLocalValue(test.availableFrom));
     setAvailableUntil(toDatetimeLocalValue(test.availableUntil));
     setShuffle(test.shuffleQuestions);
+    setShuffleOptions(test.shuffleOptions);
     setShowAnswers(test.showAnswersAfterCompletion);
     setShowPreview(test.showQuestionsBeforeStart);
   }
@@ -403,6 +415,8 @@ export function TestEditorPage() {
   async function saveMetadata(event: React.FormEvent) {
     event.preventDefault();
     const trimmedLimit = timeLimit.trim();
+    const trimmedAttempts = maxAttempts.trim();
+    const trimmedCount = questionCount.trim();
     const result = createTestSchema.safeParse({
       title,
       description: description || null,
@@ -410,6 +424,9 @@ export function TestEditorPage() {
       category: category === '' ? null : category,
       difficulty: difficulty === '' ? null : difficulty,
       shuffleQuestions: shuffle,
+      shuffleOptions,
+      maxAttempts: trimmedAttempts === '' ? null : Number(trimmedAttempts),
+      questionCount: trimmedCount === '' ? null : Number(trimmedCount),
       timeLimitMinutes: trimmedLimit === '' ? null : Number(trimmedLimit),
       showAnswersAfterCompletion: showAnswers,
       showQuestionsBeforeStart: showPreview,
@@ -691,20 +708,53 @@ export function TestEditorPage() {
                 </select>
               </label>
             </div>
+            <div className="grid gap-[18px] sm:grid-cols-2">
+              <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
+                Time limit (minutes)
+                <input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  inputMode="numeric"
+                  placeholder="No limit"
+                  value={timeLimit}
+                  onChange={(event) => setTimeLimit(event.target.value)}
+                  className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 placeholder:text-[#a7abb2] hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+                />
+                <span className="text-[0.83rem] font-normal text-muted">
+                  Leave empty for no time limit (1–1440 minutes).
+                </span>
+              </label>
+              <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
+                Max attempts
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  inputMode="numeric"
+                  placeholder="Unlimited"
+                  value={maxAttempts}
+                  onChange={(event) => setMaxAttempts(event.target.value)}
+                  className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 placeholder:text-[#a7abb2] hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
+                />
+                <span className="text-[0.83rem] font-normal text-muted">
+                  Leave empty for unlimited attempts (1–100 per taker).
+                </span>
+              </label>
+            </div>
             <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-              Time limit (minutes)
+              Questions per attempt
               <input
                 type="number"
                 min={1}
-                max={1440}
                 inputMode="numeric"
-                placeholder="No limit"
-                value={timeLimit}
-                onChange={(event) => setTimeLimit(event.target.value)}
+                placeholder="All questions"
+                value={questionCount}
+                onChange={(event) => setQuestionCount(event.target.value)}
                 className="w-full max-w-[220px] rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 placeholder:text-[#a7abb2] hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
               />
               <span className="text-[0.83rem] font-normal text-muted">
-                Leave empty for no time limit (1–1440 minutes).
+                Empty asks all questions. Otherwise each attempt gets a random subset.
               </span>
             </label>
             <fieldset className="m-0 grid gap-[18px] rounded-xl border border-line bg-[#fafaf9] p-4">
@@ -776,6 +826,15 @@ export function TestEditorPage() {
                   className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />
                 Reveal correct answers after completion
+              </label>
+              <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={shuffleOptions}
+                  onChange={(event) => setShuffleOptions(event.target.checked)}
+                  className="h-[18px] w-[18px] shrink-0 accent-ink"
+                />
+                Shuffle answer options for each attempt
               </label>
             </fieldset>
             <button

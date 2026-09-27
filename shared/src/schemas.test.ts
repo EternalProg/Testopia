@@ -26,8 +26,33 @@ describe('shared schemas', () => {
     expect(createTestSchema.parse({ title: 'Algebra' })).toMatchObject({
       isPublished: false,
       shuffleQuestions: false,
+      shuffleOptions: false,
       showAnswersAfterCompletion: true,
     });
+    // Both nullable settings stay absent when the author leaves them empty.
+    const parsed = createTestSchema.parse({ title: 'Algebra' });
+    expect(parsed.maxAttempts).toBeUndefined();
+    expect(parsed.questionCount).toBeUndefined();
+  });
+
+  it('bounds the attempt limit and question count', () => {
+    expect(createTestSchema.safeParse({ title: 'Algebra', maxAttempts: 3 }).success).toBe(true);
+    expect(createTestSchema.safeParse({ title: 'Algebra', maxAttempts: null }).success).toBe(true);
+    expect(createTestSchema.safeParse({ title: 'Algebra', maxAttempts: 0 }).success).toBe(false);
+    expect(createTestSchema.safeParse({ title: 'Algebra', maxAttempts: 1.5 }).success).toBe(false);
+    // 100 caps how many attempts an author can mint per taker by design.
+    expect(createTestSchema.safeParse({ title: 'Algebra', maxAttempts: 100 }).success).toBe(true);
+    expect(createTestSchema.safeParse({ title: 'Algebra', maxAttempts: 101 }).success).toBe(false);
+
+    expect(createTestSchema.safeParse({ title: 'Algebra', questionCount: 10 }).success).toBe(true);
+    expect(createTestSchema.safeParse({ title: 'Algebra', questionCount: null }).success).toBe(
+      true,
+    );
+    expect(createTestSchema.safeParse({ title: 'Algebra', questionCount: 0 }).success).toBe(false);
+    // No upper bound: the service clamps to the question count.
+    expect(createTestSchema.safeParse({ title: 'Algebra', questionCount: 5000 }).success).toBe(
+      true,
+    );
   });
 
   it('requires options only for choice questions', () => {
