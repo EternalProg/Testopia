@@ -1,4 +1,4 @@
-import { submitAttemptSchema } from '@testopia/shared';
+import { gradeAttemptSchema, submitAttemptSchema } from '@testopia/shared';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { AuthError } from '../auth/errors.js';
@@ -30,6 +30,16 @@ export function createAttemptsController(service: AttemptsService) {
       reply.send(await service.getResult(id(request.params.id), actor(request))),
     listHistory: async (request: FastifyRequest<{ Params: IdParams }>, reply: FastifyReply) =>
       reply.send(await service.listHistory(actor(request), id(request.params.id))),
+    getGradeView: async (request: FastifyRequest<{ Params: IdParams }>, reply: FastifyReply) =>
+      reply.send(await service.getGradeView(id(request.params.id), actor(request))),
+    gradeAttempt: async (request: FastifyRequest<{ Params: IdParams }>, reply: FastifyReply) =>
+      reply.send(
+        await service.gradeAttempt(
+          actor(request),
+          id(request.params.id),
+          gradeAttemptSchema.parse(request.body),
+        ),
+      ),
     submitAttempt: async (request: FastifyRequest<{ Params: IdParams }>, reply: FastifyReply) => {
       try {
         return reply.send(

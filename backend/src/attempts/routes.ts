@@ -75,6 +75,31 @@ const attemptsRoutes: FastifyPluginAsync<AttemptsRouteOptions> = async (app, opt
     },
     controller.listHistory,
   );
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/attempts/:id/grades',
+    {
+      onRequest: authenticate,
+      schema: {
+        description: 'Get open-ended answers for manual grading (author-or-admin of the test).',
+        tags: ['attempts'],
+        ...bearerSecurity,
+      },
+    },
+    controller.getGradeView,
+  );
+  app.patch<{ Params: { id: string } }>(
+    '/api/v1/attempts/:id/grades',
+    {
+      onRequest: authenticate,
+      schema: {
+        description:
+          'Grade open-ended answers of a finished attempt (author-or-admin of the test).',
+        tags: ['attempts'],
+        ...bearerSecurity,
+      },
+    },
+    controller.gradeAttempt,
+  );
   app.post<{ Params: { id: string } }>(
     '/api/v1/attempts/:id/submit',
     {

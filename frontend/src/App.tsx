@@ -5,6 +5,7 @@ import { useAuthStore } from './auth/store.js';
 import { AttemptHistoryPage } from './pages/AttemptHistoryPage.js';
 import { AttemptResultPage } from './pages/AttemptResultPage.js';
 import { DashboardPage } from './pages/DashboardPage.js';
+import { GradeAttemptPage } from './pages/GradeAttemptPage.js';
 import { LoginPage } from './pages/LoginPage.js';
 import { NotFoundPage } from './pages/NotFoundPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
@@ -68,6 +69,7 @@ export function App() {
             <Route path="/tests/:id/attempts" element={<AttemptHistoryPage />} />
             <Route path="/tests/:id/statistics" element={<StatisticsPage />} />
             <Route path="/attempts/:id/result" element={<AttemptResultPage />} />
+            <Route path="/attempts/:id/grade" element={<GradeAttemptPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<NotFoundPage />} />

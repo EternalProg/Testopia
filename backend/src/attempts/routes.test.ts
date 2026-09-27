@@ -52,6 +52,14 @@ const state = vi.hoisted(() => {
         { id: 109, questionId: 14, text: 'B', isCorrect: false },
       ],
     },
+    {
+      id: 15,
+      testId: 1,
+      text: 'Explain',
+      type: 'open_ended',
+      orderIndex: 2,
+      options: [],
+    },
   ];
   return {
     users: [
@@ -226,6 +234,23 @@ vi.mock('../repositories/attempts.repository.js', () => ({
       }
       return attempt;
     }
+    async updateAnswerVerdicts(
+      id: number,
+      verdicts: Array<{ questionId: number; isCorrect: boolean }>,
+      score: number | null,
+    ) {
+      const attempt = state.attempts.find((candidate) => candidate.id === id);
+      if (!attempt) return null;
+      for (const verdict of verdicts) {
+        for (const record of state.answerRecords.filter(
+          (candidate) => candidate.attemptId === id && candidate.questionId === verdict.questionId,
+        )) {
+          record.isCorrect = verdict.isCorrect;
+        }
+      }
+      attempt.score = score;
+      return attempt;
+    }
   },
 }));
 
@@ -302,7 +327,7 @@ describe('attempt routes', () => {
       questions: Array<{ id: number; options: object[] }>;
     };
     expect(first.test).toMatchObject({ id: 1, title: 'Published', timeLimitMinutes: null });
-    expect(first.questions.map((question) => question.id)).toEqual([11, 12]);
+    expect(first.questions.map((question) => question.id)).toEqual([11, 12, 15]);
 
     const resumed = await app.inject({
       method: 'POST',
@@ -468,10 +493,11 @@ describe('attempt routes', () => {
       test: { id: 1 },
       answersRevealed: true,
     });
-    expect(body.questions.map((question) => question.id)).toEqual([11, 12]);
+    expect(body.questions.map((question) => question.id)).toEqual([11, 12, 15]);
     expect(body.answers).toEqual([
       { questionId: 11, selectedOptionIds: [101], textAnswer: null, isCorrect: true },
       { questionId: 12, selectedOptionIds: [103, 104], textAnswer: null, isCorrect: true },
+      { questionId: 15, selectedOptionIds: [], textAnswer: null, isCorrect: null },
     ]);
     expect(body.questions.find((question) => question.id === 11)?.options).toContainEqual(
       expect.objectContaining({ id: 101, isCorrect: true }),
@@ -705,6 +731,155 @@ describe('attempt routes', () => {
     } finally {
       hidden!.timeLimitMinutes = null;
     }
+  });
+
+  it('requires authentication for the grading endpoints', async () => {
+    const view = await app.inject({ method: 'GET', url: '/api/v1/attempts/1/grades' });
+    const grade = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/attempts/1/grades',
+      payload: { grades: [{ questionId: 15, isCorrect: true }] },
+    });
+
+    expect(view.statusCode).toBe(401);
+    expect(grade.statusCode).toBe(401);
+  });
+
+  // Starts an attempt as the taker with an open-ended answer, submits it, and
+  // returns the finished attempt id.
+  async function finishedAttemptWithOpenEnded() {
+    const started = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tests/1/attempts',
+      headers: authHeaders,
+    });
+    const attemptId = (started.json() as { attempt: { id: number } }).attempt.id;
+    const submitted = await app.inject({
+      method: 'POST',
+      url: `/api/v1/attempts/${attemptId}/submit`,
+      headers: authHeaders,
+      payload: {
+        answers: [
+          { questionId: 11, selectedOptionIds: [101] },
+          { questionId: 12, selectedOptionIds: [103, 104] },
+          { questionId: 15, textAnswer: 'Because.' },
+        ],
+      },
+    });
+    expect(submitted.statusCode).toBe(200);
+    return attemptId;
+  }
+
+  it('lets the author grade open-ended answers and nobody else', async () => {
+    const attemptId = await finishedAttemptWithOpenEnded();
+
+    // The taker (even the attempt owner) is not a manager.
+    const takerGrade = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/attempts/${attemptId}/grades`,
+      headers: authHeaders,
+      payload: { grades: [{ questionId: 15, isCorrect: true }] },
+    });
+    expect(takerGrade.statusCode).toBe(403);
+    expect(takerGrade.json()).toMatchObject({ error: 'FORBIDDEN' });
+
+    const takerView = await app.inject({
+      method: 'GET',
+      url: `/api/v1/attempts/${attemptId}/grades`,
+      headers: authHeaders,
+    });
+    expect(takerView.statusCode).toBe(403);
+
+    currentUser.sub = '10';
+    const view = await app.inject({
+      method: 'GET',
+      url: `/api/v1/attempts/${attemptId}/grades`,
+      headers: authHeaders,
+    });
+    expect(view.statusCode).toBe(200);
+    expect(view.json()).toMatchObject({ answersRevealed: true });
+
+    const graded = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/attempts/${attemptId}/grades`,
+      headers: authHeaders,
+      payload: { grades: [{ questionId: 15, isCorrect: true }] },
+    });
+    expect(graded.statusCode).toBe(200);
+    // Single 1 + multiple 1 + open-ended 1, averaged over 3 questions.
+    expect(graded.json()).toMatchObject({ attempt: { id: attemptId, score: 1 } });
+    expect(
+      state.answerRecords.find(
+        (record) => record.attemptId === attemptId && record.questionId === 15,
+      )?.isCorrect,
+    ).toBe(true);
+  });
+
+  it('rejects grading for missing attempts, unfinished attempts, and bad payloads', async () => {
+    currentUser.sub = '10';
+
+    const missing = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/attempts/999/grades',
+      headers: authHeaders,
+      payload: { grades: [{ questionId: 15, isCorrect: true }] },
+    });
+    expect(missing.statusCode).toBe(404);
+
+    const started = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tests/1/attempts',
+      headers: authHeaders,
+    });
+    const activeId = (started.json() as { attempt: { id: number } }).attempt.id;
+    const active = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/attempts/${activeId}/grades`,
+      headers: authHeaders,
+      payload: { grades: [{ questionId: 15, isCorrect: true }] },
+    });
+    expect(active.statusCode).toBe(409);
+
+    const attemptId = await finishedAttemptWithOpenEnded();
+
+    for (const payload of [
+      { grades: [] },
+      {
+        grades: [
+          { questionId: 15, isCorrect: true },
+          { questionId: 15, isCorrect: false },
+        ],
+      },
+      { grades: [{ questionId: 15, isCorrect: 'yes' }] },
+    ]) {
+      const rejected = await app.inject({
+        method: 'PATCH',
+        url: `/api/v1/attempts/${attemptId}/grades`,
+        headers: authHeaders,
+        payload,
+      });
+      expect(rejected.statusCode).toBe(400);
+      expect(rejected.json()).toMatchObject({ error: 'VALIDATION_ERROR' });
+    }
+
+    // Choice questions are graded automatically and cannot be graded manually.
+    const choice = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/attempts/${attemptId}/grades`,
+      headers: authHeaders,
+      payload: { grades: [{ questionId: 11, isCorrect: true }] },
+    });
+    expect(choice.statusCode).toBe(400);
+    expect(choice.json()).toMatchObject({ error: 'VALIDATION_ERROR' });
+
+    const foreign = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/attempts/${attemptId}/grades`,
+      headers: authHeaders,
+      payload: { grades: [{ questionId: 999, isCorrect: true }] },
+    });
+    expect(foreign.statusCode).toBe(400);
+    expect(foreign.json()).toMatchObject({ error: 'VALIDATION_ERROR' });
   });
 
   it('enforces the availability window on start and submit', async () => {

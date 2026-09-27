@@ -1,10 +1,11 @@
-import type { SubmitAttemptInput } from '@testopia/shared';
+import type { GradeAttemptInput, SubmitAttemptInput } from '@testopia/shared';
 
 import type {
   ApiAttemptHistoryItem,
   ApiAttemptResult,
   AttemptDetail,
   ExpiredSubmitBody,
+  GradeAttemptResult,
   SubmitAttemptResult,
 } from './types.js';
 
@@ -57,6 +58,15 @@ export const attemptsApi = {
   },
   result(attemptId: number): Promise<ApiAttemptResult> {
     return request(`/api/v1/attempts/${attemptId}/result`);
+  },
+  gradeView(attemptId: number): Promise<ApiAttemptResult> {
+    return request(`/api/v1/attempts/${attemptId}/grades`);
+  },
+  grade(attemptId: number, input: GradeAttemptInput): Promise<GradeAttemptResult> {
+    return request(`/api/v1/attempts/${attemptId}/grades`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
   },
   listByTest(testId: number): Promise<ApiAttemptHistoryItem[]> {
     return request(`/api/v1/tests/${testId}/attempts`);

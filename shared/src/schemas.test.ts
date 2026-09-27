@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createQuestionSchema,
   createTestSchema,
+  gradeAttemptSchema,
   loginSchema,
   paginationSchema,
   registerSchema,
@@ -48,6 +49,27 @@ describe('shared schemas', () => {
         orderIndex: 0,
         options: [{ text: 'Not allowed', isCorrect: false }],
       }).success,
+    ).toBe(false);
+  });
+
+  it('validates manual grading payloads', () => {
+    expect(
+      gradeAttemptSchema.safeParse({ grades: [{ questionId: 1, isCorrect: true }] }).success,
+    ).toBe(true);
+    expect(gradeAttemptSchema.safeParse({ grades: [] }).success).toBe(false);
+    expect(
+      gradeAttemptSchema.safeParse({
+        grades: [
+          { questionId: 1, isCorrect: true },
+          { questionId: 1, isCorrect: false },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      gradeAttemptSchema.safeParse({ grades: [{ questionId: 1, isCorrect: 'yes' }] }).success,
+    ).toBe(false);
+    expect(
+      gradeAttemptSchema.safeParse({ grades: [{ questionId: 0, isCorrect: true }] }).success,
     ).toBe(false);
   });
 

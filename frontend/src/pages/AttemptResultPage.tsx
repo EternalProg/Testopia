@@ -91,7 +91,7 @@ export function AttemptResultPage() {
           <h1 className={h1Class}>{result.test.title}</h1>
           {result.attempt.score === null ? (
             <p role="status" className="mb-0 mt-0 text-muted">
-              This test needs manual grading. Your answers were recorded.
+              Awaiting grading. Your answers were recorded.
             </p>
           ) : (
             <p

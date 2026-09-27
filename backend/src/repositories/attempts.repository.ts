@@ -60,6 +60,40 @@ export class AttemptsRepository {
     return this.findAttemptById(Number(result[0].insertId));
   }
 
+  /**
+   * Overwrites the verdict of every answer row for the given questions of one
+   * attempt (choice answers persist one row per selected option sharing the
+   * verdict, so the update is per question, not per row) and writes the
+   * recomputed score — atomically.
+   */
+  async updateAnswerVerdicts(
+    attemptId: number,
+    verdicts: Array<{ questionId: number; isCorrect: boolean }>,
+    score: number | null,
+  ) {
+    return withTransaction(this.db, async (transaction) => {
+      const tx = transaction as unknown as Database;
+      for (const verdict of verdicts) {
+        await tx
+          .update(answerRecords)
+          .set({ isCorrect: verdict.isCorrect })
+          .where(
+            and(
+              eq(answerRecords.attemptId, attemptId),
+              eq(answerRecords.questionId, verdict.questionId),
+            ),
+          );
+      }
+      await tx.update(testAttempts).set({ score }).where(eq(testAttempts.id, attemptId));
+      const rows = await tx
+        .select()
+        .from(testAttempts)
+        .where(eq(testAttempts.id, attemptId))
+        .limit(1);
+      return rows[0] ?? null;
+    });
+  }
+
   async completeAttempt(
     id: number,
     outcome: {

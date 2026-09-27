@@ -153,6 +153,30 @@ export const paginationSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+const gradeEntrySchema = z.object({
+  questionId: z.number().int().positive(),
+  isCorrect: z.boolean(),
+});
+
+export const gradeAttemptSchema = z
+  .object({
+    grades: z.array(gradeEntrySchema).min(1).max(500),
+  })
+  .superRefine((attempt, context) => {
+    const seen = new Set<number>();
+    for (const grade of attempt.grades) {
+      if (seen.has(grade.questionId)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['grades'],
+          message: 'Each question may be graded only once',
+        });
+        return;
+      }
+      seen.add(grade.questionId);
+    }
+  });
+
 // Taker-facing aggregate over every test the user attempted. String dates
 // keep the payload representable in OpenAPI JSON Schema
 // (z.coerce.date() breaks z.toJSONSchema).
@@ -185,6 +209,7 @@ export type CreateQuestionInput = z.infer<typeof createQuestionSchema>;
 export type UpdateQuestionInput = z.infer<typeof updateQuestionSchema>;
 export type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>;
 export type SubmitAttemptInput = z.infer<typeof submitAttemptSchema>;
+export type GradeAttemptInput = z.infer<typeof gradeAttemptSchema>;
 export type PaginationInput = z.infer<typeof paginationSchema>;
 export type MyTestStatItemInput = z.infer<typeof myTestStatItemSchema>;
 export type MyStatisticsInput = z.infer<typeof myStatisticsSchema>;

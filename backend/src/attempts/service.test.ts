@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { SubmitAttemptResult } from '@testopia/shared';
 
-import { AttemptsService } from './service.js';
+import { AttemptsService, scoreOf } from './service.js';
 
 const publishedTest = {
   id: 1,
@@ -111,6 +111,15 @@ function setup(
           completedAt: new Date(),
         }),
       ),
+    updateAnswerVerdicts: vi
+      .fn()
+      .mockImplementation(async (id: number, _verdicts: unknown, score: number | null) => ({
+        ...inProgressAttempt,
+        id,
+        status: 'completed' as const,
+        score,
+        completedAt: new Date(),
+      })),
     ...overrides.attempts,
   };
   return { tests, attempts, service: new AttemptsService(tests as never, attempts as never) };
@@ -224,7 +233,7 @@ describe('AttemptsService', () => {
     ).toEqual([103, 104]);
   });
 
-  it('marks partial and invalid selections incorrect without touching open-ended scoring', async () => {
+  it('awards partial multiple-choice credit while verdicts stay boolean', async () => {
     const { service } = setup();
 
     const result = await service.submit({ id: 7, role: 'user' } as never, 5, {
@@ -235,8 +244,39 @@ describe('AttemptsService', () => {
       ],
     } as never);
 
-    expect(result.attempt.score).toBe(0);
+    // Single-choice with two selections and the wrong true/false stay 0;
+    // one of two correct multiple-choice options with no wrong pick is 0.5.
+    // Only full credit maps to a true verdict; the score averages credits.
+    expect(result.attempt.score).toBe(0.17);
     expect(result.answers.map((answer) => answer.isCorrect)).toEqual([false, false, false, null]);
+  });
+
+  it('scores a half-correct multiple-choice attempt fractionally', async () => {
+    const { service } = setup();
+
+    const result = await service.submit({ id: 7, role: 'user' } as never, 5, {
+      answers: [
+        { questionId: 11, selectedOptionIds: [101], textAnswer: null },
+        { questionId: 12, selectedOptionIds: [103], textAnswer: null },
+        { questionId: 13, selectedOptionIds: [106], textAnswer: null },
+        { questionId: 14, selectedOptionIds: [], textAnswer: 'Because.' },
+      ],
+    } as never);
+
+    expect(result.answers.map((answer) => answer.isCorrect)).toEqual([true, false, true, null]);
+    expect(result.attempt.score).toBe(0.83);
+  });
+
+  describe('scoreOf', () => {
+    it('averages non-null credits rounded to two decimals', () => {
+      expect(scoreOf([])).toBeNull();
+      expect(scoreOf([null, null])).toBeNull();
+      expect(scoreOf([1, 1, 1])).toBe(1);
+      expect(scoreOf([1, 0.5])).toBe(0.75);
+      expect(scoreOf([0, 0.5, 0])).toBe(0.17);
+      expect(scoreOf([1, 0.5, null])).toBe(0.75);
+      expect(scoreOf([0])).toBe(0);
+    });
   });
 
   it('leaves score null when a test has only open-ended questions', async () => {
@@ -711,6 +751,154 @@ describe('AttemptsService', () => {
 
       const admin = await hiddenSetup().service.listHistory({ id: 99, role: 'admin' }, 1);
       expect(admin[0]).toMatchObject({ id: 5, score: 1, answersRevealed: true });
+    });
+  });
+
+  describe('manual grading', () => {
+    const finishedAttempt = {
+      ...inProgressAttempt,
+      status: 'completed' as const,
+      score: null,
+      timeSpentSeconds: 60,
+      completedAt: new Date(),
+    };
+    const finishedRecords = [
+      {
+        id: 1,
+        attemptId: 5,
+        questionId: 11,
+        selectedOptionId: 101,
+        textAnswer: null,
+        isCorrect: true,
+      },
+      {
+        id: 2,
+        attemptId: 5,
+        questionId: 12,
+        selectedOptionId: 103,
+        textAnswer: null,
+        isCorrect: false,
+      },
+      {
+        id: 3,
+        attemptId: 5,
+        questionId: 14,
+        selectedOptionId: null,
+        textAnswer: 'Because.',
+        isCorrect: null,
+      },
+    ];
+
+    function gradingSetup(
+      overrides: { tests?: Record<string, unknown>; attempts?: Record<string, unknown> } = {},
+    ) {
+      return setup({
+        tests: {
+          findById: vi.fn().mockResolvedValue(publishedTest),
+          findQuestions: vi.fn().mockResolvedValue(questions),
+          ...overrides.tests,
+        },
+        attempts: {
+          findAttemptById: vi.fn().mockResolvedValue(finishedAttempt),
+          findAnswerRecords: vi.fn().mockResolvedValue(finishedRecords),
+          ...overrides.attempts,
+        },
+      });
+    }
+
+    it('grades open-ended answers as the author and recomputes the score', async () => {
+      const { service, attempts } = gradingSetup();
+
+      const graded = await service.gradeAttempt({ id: 10, role: 'user' }, 5, {
+        grades: [{ questionId: 14, isCorrect: true }],
+      });
+
+      // Choice credits recomputed from stored selections (single 1,
+      // multiple 0.5, unanswered true/false 0) plus the graded open-ended 1:
+      // (1 + 0.5 + 0 + 1) / 4 = 0.63.
+      expect(attempts.updateAnswerVerdicts).toHaveBeenCalledWith(
+        5,
+        [{ questionId: 14, isCorrect: true }],
+        0.63,
+      );
+      expect(graded.attempt.score).toBe(0.63);
+    });
+
+    it('lets admins grade and keeps ungraded open-ended answers out of the score', async () => {
+      const { service, attempts } = gradingSetup();
+
+      await service.gradeAttempt({ id: 99, role: 'admin' }, 5, {
+        grades: [{ questionId: 14, isCorrect: false }],
+      });
+
+      expect(attempts.updateAnswerVerdicts).toHaveBeenCalledWith(
+        5,
+        [{ questionId: 14, isCorrect: false }],
+        0.38,
+      );
+    });
+
+    it('rejects grading by the taker, on unfinished attempts, or for missing attempts', async () => {
+      const { service } = gradingSetup();
+      await expect(
+        service.gradeAttempt({ id: 7, role: 'user' }, 5, {
+          grades: [{ questionId: 14, isCorrect: true }],
+        }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+      const active = gradingSetup({
+        attempts: { findAttemptById: vi.fn().mockResolvedValue(inProgressAttempt) },
+      });
+      await expect(
+        active.service.gradeAttempt({ id: 10, role: 'user' }, 5, {
+          grades: [{ questionId: 14, isCorrect: true }],
+        }),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      const missing = gradingSetup({
+        attempts: { findAttemptById: vi.fn().mockResolvedValue(null) },
+      });
+      await expect(
+        missing.service.gradeAttempt({ id: 10, role: 'user' }, 99, {
+          grades: [{ questionId: 14, isCorrect: true }],
+        }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('rejects grading choice questions and foreign questions', async () => {
+      const { service } = gradingSetup();
+      await expect(
+        service.gradeAttempt({ id: 10, role: 'user' }, 5, {
+          grades: [{ questionId: 11, isCorrect: true }],
+        }),
+      ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+      await expect(
+        service.gradeAttempt({ id: 10, role: 'user' }, 5, {
+          grades: [{ questionId: 999, isCorrect: true }],
+        }),
+      ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+    });
+
+    it('exposes the grade view to managers only', async () => {
+      const { service } = gradingSetup();
+
+      const view = await service.getGradeView(5, { id: 10, role: 'user' });
+      expect(view.answersRevealed).toBe(true);
+      expect(view.answers).toHaveLength(4);
+      expect(view.answers.find((answer) => answer.questionId === 14)).toMatchObject({
+        textAnswer: 'Because.',
+        isCorrect: null,
+      });
+
+      await expect(service.getGradeView(5, { id: 7, role: 'user' })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+      const active = gradingSetup({
+        attempts: { findAttemptById: vi.fn().mockResolvedValue(inProgressAttempt) },
+      });
+      await expect(active.service.getGradeView(5, { id: 10, role: 'user' })).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
     });
   });
 });

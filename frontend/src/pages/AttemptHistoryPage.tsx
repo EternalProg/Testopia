@@ -77,13 +77,20 @@ export function AttemptHistoryPage() {
                 {!item.answersRevealed
                   ? 'Hidden'
                   : item.score === null
-                    ? '—'
+                    ? 'Awaiting grading'
                     : `Score: ${Math.round(item.score * 100)}%`}{' '}
                 — {new Date(item.startedAt).toLocaleString()}
               </p>
-              <Link to={`/attempts/${item.id}/result`} className={`${textLinkClass} mt-0`}>
-                View result
-              </Link>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <Link to={`/attempts/${item.id}/result`} className={`${textLinkClass} mt-0`}>
+                  View result
+                </Link>
+                {item.score === null && (
+                  <Link to={`/attempts/${item.id}/grade`} className={`${textLinkClass} mt-0`}>
+                    Grade
+                  </Link>
+                )}
+              </div>
             </li>
           ))}
         </ul>

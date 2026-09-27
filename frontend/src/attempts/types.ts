@@ -39,6 +39,10 @@ export type ApiAttemptHistoryItem = Omit<AttemptHistoryItem, 'startedAt' | 'comp
   completedAt: string | null;
 };
 
+export interface GradeAttemptResult {
+  attempt: ApiAttempt;
+}
+
 export interface ExpiredSubmitBody {
   error?: string;
   message?: string;

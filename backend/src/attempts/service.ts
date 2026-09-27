@@ -3,6 +3,7 @@ import type {
   AttemptDetail,
   AttemptHistoryItem,
   AttemptResult,
+  GradeAttemptInput,
   PublicQuestion,
   ResultQuestion,
   SubmitAttemptInput,
@@ -22,6 +23,19 @@ import { AttemptError } from './errors.js';
 type Actor = { id: number; role: 'user' | 'admin' };
 type TestRow = Awaited<ReturnType<TestsRepository['findById']>>;
 type QuestionWithOptions = Awaited<ReturnType<TestsRepository['findQuestions']>>[number];
+
+/**
+ * Mean over all non-null per-question credits (choice fractional credits and
+ * graded open-ended 0/1), rounded to 2 decimals. Null when nothing is graded
+ * yet (e.g. an attempt with only ungraded open-ended answers).
+ */
+export function scoreOf(verdicts: Array<number | null>): number | null {
+  const credits = verdicts.filter((verdict): verdict is number => verdict !== null);
+  if (credits.length === 0) return null;
+  return (
+    Math.round((credits.reduce((sum, credit) => sum + credit, 0) / credits.length) * 100) / 100
+  );
+}
 
 export class AttemptsService {
   constructor(
@@ -142,17 +156,17 @@ export class AttemptsService {
     const submitted = new Map(input.answers.map((answer) => [answer.questionId, answer]));
     const answers: AttemptAnswer[] = [];
     const records: AnswerRecordInput[] = [];
-    let autoCorrect = 0;
-    let autoTotal = 0;
+    const credits: Array<number | null> = [];
     for (const question of questions) {
       const answer = submitted.get(question.id);
       const selectedIds = answer?.selectedOptionIds ?? [];
       const textAnswer = answer?.textAnswer ?? null;
-      const isCorrect = this.grade(question, selectedIds);
-      if (isCorrect !== null) {
-        autoTotal += 1;
-        if (isCorrect) autoCorrect += 1;
-      }
+      const credit = this.grade(question, selectedIds);
+      credits.push(credit);
+      // Persisted and exposed verdicts stay boolean (the answer_records
+      // column and the shared AttemptAnswer contract are boolean): only full
+      // credit counts as correct, while the fractional credit feeds the score.
+      const isCorrect = credit === null ? null : credit === 1;
       answers.push({
         questionId: question.id,
         selectedOptionIds: selectedIds,
@@ -180,7 +194,7 @@ export class AttemptsService {
       }
     }
 
-    const score = autoTotal === 0 ? null : Math.round((autoCorrect / autoTotal) * 100) / 100;
+    const score = scoreOf(credits);
     const completedAt = new Date();
     // Force-expire on submit past the close: grade what was submitted but
     // mark it expired, reusing the 410 EXPIRED-with-result flow.
@@ -216,6 +230,104 @@ export class AttemptsService {
       );
     }
     return result;
+  }
+
+  /**
+   * Answers for manual grading: author-or-admin of the test only (unlike
+   * result reads, the attempt owner has no access here). Always revealed —
+   * managers see real scores and verdicts.
+   */
+  async getGradeView(attemptId: number, actor: Actor): Promise<AttemptResult> {
+    const { attempt, test } = await this.requireGradeableAttempt(attemptId, actor);
+    const questions = await this.tests.findQuestions(test.id);
+    const records = await this.attempts.findAnswerRecords(attempt.id);
+    const answers = this.reconstructAnswers(questions, attempt, records);
+    return this.toResult(attempt, test, questions, answers, true);
+  }
+
+  /**
+   * Grades open-ended answers of a terminal attempt. Only open-ended
+   * questions are gradable — choice verdicts are machine truth and immutable
+   * (re-grading an already-graded open-ended answer overwrites its verdict
+   * idempotently). The score is recomputed as the mean over all non-null
+   * terminal verdicts: recomputed fractional choice credits plus the graded
+   * open-ended 0/1 credits.
+   */
+  async gradeAttempt(
+    actor: Actor,
+    attemptId: number,
+    input: GradeAttemptInput,
+  ): Promise<{ attempt: TestAttempt }> {
+    const { attempt, test } = await this.requireGradeableAttempt(attemptId, actor);
+    const questions = await this.tests.findQuestions(test.id);
+    const byId = new Map(questions.map((question) => [question.id, question]));
+    for (const entry of input.grades) {
+      const question = byId.get(entry.questionId);
+      if (!question) {
+        throw new AttemptError(
+          `Question ${entry.questionId} does not belong to this test`,
+          'VALIDATION_ERROR',
+        );
+      }
+      if (question.type !== 'open_ended') {
+        throw new AttemptError(
+          `Question ${entry.questionId} is graded automatically and cannot be graded manually`,
+          'VALIDATION_ERROR',
+        );
+      }
+    }
+    const records = await this.attempts.findAnswerRecords(attempt.id);
+    const byQuestion = new Map<number, AnswerRecordRow[]>();
+    for (const record of records) {
+      const group = byQuestion.get(record.questionId);
+      if (group) group.push(record);
+      else byQuestion.set(record.questionId, [record]);
+    }
+    const overrides = new Map(input.grades.map((entry) => [entry.questionId, entry.isCorrect]));
+    const credits: Array<number | null> = [];
+    for (const question of questions) {
+      if (question.type === 'open_ended') {
+        const override = overrides.get(question.id);
+        if (override !== undefined) {
+          credits.push(override ? 1 : 0);
+        } else {
+          const current = byQuestion.get(question.id)?.[0]?.isCorrect ?? null;
+          credits.push(current === null ? null : current ? 1 : 0);
+        }
+      } else {
+        const rows = byQuestion.get(question.id) ?? [];
+        const selectedIds = [
+          ...new Set(
+            rows.map((row) => row.selectedOptionId).filter((id): id is number => id !== null),
+          ),
+        ];
+        credits.push(this.grade(question, selectedIds));
+      }
+    }
+    const updated = await this.attempts.updateAnswerVerdicts(
+      attempt.id,
+      input.grades.map((entry) => ({ questionId: entry.questionId, isCorrect: entry.isCorrect })),
+      scoreOf(credits),
+    );
+    if (!updated) throw new AttemptError('Attempt not found', 'NOT_FOUND');
+    return { attempt: this.toAttempt(updated) };
+  }
+
+  private async requireGradeableAttempt(
+    attemptId: number,
+    actor: Actor,
+  ): Promise<{ attempt: AttemptRow; test: NonNullable<TestRow> }> {
+    const attempt = await this.attempts.findAttemptById(attemptId);
+    if (!attempt) throw new AttemptError('Attempt not found', 'NOT_FOUND');
+    const test = await this.tests.findById(attempt.testId);
+    if (!test) throw new AttemptError('Test not found', 'NOT_FOUND');
+    if (!this.canManage(test, actor)) {
+      throw new AttemptError('Insufficient permissions', 'FORBIDDEN');
+    }
+    if (attempt.status !== 'completed' && attempt.status !== 'expired') {
+      throw new AttemptError('Attempt is not finished', 'CONFLICT');
+    }
+    return { attempt, test };
   }
 
   private async requirePublishedTest(id: number): Promise<NonNullable<TestRow>> {
@@ -358,19 +470,27 @@ export class AttemptsService {
     return ids;
   }
 
-  private grade(question: QuestionWithOptions, selectedIds: number[]): boolean | null {
+  /**
+   * Per-question credit in [0, 1] (null for open-ended, graded manually).
+   * Single-choice and true/false stay all-or-nothing; multiple-choice earns
+   * proportional credit: (correctSelected − wrongSelected) / correctCount,
+   * clamped at 0. Callers map full credit (1) to a `true` verdict; anything
+   * less is stored and exposed as `false` while still contributing to the
+   * score through {@link scoreOf}.
+   */
+  private grade(question: QuestionWithOptions, selectedIds: number[]): number | null {
     if (question.type === 'open_ended') return null;
     const correctIds = question.options
       .filter((option) => option.isCorrect)
       .map((option) => option.id);
     if (question.type === 'multiple_choice') {
-      return (
-        selectedIds.length > 0 &&
-        selectedIds.length === correctIds.length &&
-        selectedIds.every((id) => correctIds.includes(id))
-      );
+      if (selectedIds.length === 0 || correctIds.length === 0) return 0;
+      const correctSelected = selectedIds.filter((id) => correctIds.includes(id)).length;
+      const wrongSelected = selectedIds.length - correctSelected;
+      const credit = (correctSelected - wrongSelected) / correctIds.length;
+      return Math.round(Math.max(0, credit) * 100) / 100;
     }
-    return selectedIds.length === 1 && correctIds.includes(selectedIds[0]!);
+    return selectedIds.length === 1 && correctIds.includes(selectedIds[0]!) ? 1 : 0;
   }
 
   private isPastDeadline(
