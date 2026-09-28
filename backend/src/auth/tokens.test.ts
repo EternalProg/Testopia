@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { RefreshTokensRepository } from '../repositories/refresh-tokens.repository.js';
@@ -18,6 +19,10 @@ function repositoryMock() {
     revoke: vi.fn(),
     rotate: vi.fn(),
   } as unknown as RefreshTokensRepository;
+}
+
+function hash(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
 }
 
 describe('TokenService', () => {
@@ -50,11 +55,8 @@ describe('TokenService', () => {
     vi.mocked(repository.findByHash).mockResolvedValue({
       id: created.id,
       userId: 5,
-      tokenHash: 'hash',
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
-      replacedByTokenId: null,
-      createdAt: new Date(),
     });
     vi.mocked(repository.rotate).mockResolvedValue(true);
 
@@ -63,29 +65,39 @@ describe('TokenService', () => {
     expect(replacement.userId).toBe(5);
     expect(repository.create).toHaveBeenCalledOnce();
     expect(repository.rotate).toHaveBeenCalledWith(
+      hash(created.token),
       created.id,
       expect.objectContaining({ userId: 5 }),
     );
   });
 
-  it.each([
-    { revokedAt: new Date(), expiresAt: new Date(Date.now() + 60_000) },
-    { revokedAt: null, expiresAt: new Date(Date.now() - 60_000) },
-  ])('rejects revoked or expired refresh tokens', async (stored) => {
+  it.each([{ expiresAt: new Date(Date.now() - 60_000) }])(
+    'rejects expired refresh tokens',
+    async (stored) => {
+      const repository = repositoryMock();
+      vi.mocked(repository.findByHash).mockResolvedValue({
+        id: 'old',
+        userId: 5,
+        revokedAt: null,
+        ...stored,
+      });
+      const service = new TokenService(config, repository);
+
+      await expect(service.rotateRefreshToken('refresh-token')).rejects.toThrow(
+        'Invalid refresh token',
+      );
+    },
+  );
+
+  it('rejects rotation of an unknown token', async () => {
     const repository = repositoryMock();
-    vi.mocked(repository.findByHash).mockResolvedValue({
-      id: 'old',
-      userId: 5,
-      tokenHash: 'hash',
-      ...stored,
-      replacedByTokenId: null,
-      createdAt: new Date(),
-    });
+    vi.mocked(repository.findByHash).mockResolvedValue(null);
     const service = new TokenService(config, repository);
 
-    await expect(service.rotateRefreshToken('refresh-token')).rejects.toThrow(
+    await expect(service.rotateRefreshToken('unknown-token')).rejects.toThrow(
       'Invalid refresh token',
     );
+    expect(repository.rotate).not.toHaveBeenCalled();
   });
 
   it('revokes an existing token and ignores an unknown token', async () => {
@@ -99,7 +111,8 @@ describe('TokenService', () => {
     await service.revokeRefreshToken('known');
     await service.revokeRefreshToken('unknown');
 
-    expect(repository.revoke).toHaveBeenCalledWith('id');
+    expect(repository.revoke).toHaveBeenCalledWith(hash('known'));
+    expect(repository.revoke).toHaveBeenCalledOnce();
   });
 
   it('accepts only one winner when two requests rotate the same token', async () => {
@@ -109,11 +122,8 @@ describe('TokenService', () => {
     vi.mocked(repository.findByHash).mockResolvedValue({
       id: created.id,
       userId: 5,
-      tokenHash: 'hash',
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
-      replacedByTokenId: null,
-      createdAt: new Date(),
     });
     vi.mocked(repository.rotate).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 

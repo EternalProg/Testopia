@@ -1,7 +1,6 @@
 import { resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
-import { eq } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/mysql2/migrator';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -12,11 +11,13 @@ import {
   answerOptions,
   answerRecords,
   questions,
-  refreshTokens,
   testAttempts,
   tests,
   users,
 } from '../db/schema.js';
+import { createRedis, type RedisClient } from '../redis/client.js';
+import { getRedisUrl } from '../redis/config.js';
+import { refreshTokenKey } from '../repositories/refresh-tokens.repository.js';
 import { createAuthServices } from './factory.js';
 
 const enabled = process.env.RUN_MYSQL_INTEGRATION === '1';
@@ -38,7 +39,19 @@ describe('authentication MySQL integration', () => {
   }
 
   const { db, pool } = createDatabase(databaseUrl);
-  const app = buildApp({ auth: createAuthServices(db) });
+  const redis: RedisClient = createRedis(getRedisUrl());
+  const app = buildApp({ auth: createAuthServices(db, redis) });
+  // Every minted refresh token, so afterAll can delete exactly the sessions
+  // this run created instead of flushing a shared database.
+  const refreshHashes: string[] = [];
+
+  function hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  function trackRefreshToken(token: string) {
+    refreshHashes.push(hashToken(token));
+  }
 
   async function cleanupDatabase() {
     await db.delete(answerRecords);
@@ -46,8 +59,10 @@ describe('authentication MySQL integration', () => {
     await db.delete(answerOptions);
     await db.delete(questions);
     await db.delete(tests);
-    await db.delete(refreshTokens);
     await db.delete(users);
+    for (const tokenHash of refreshHashes.splice(0)) {
+      await redis.del(refreshTokenKey(tokenHash));
+    }
   }
 
   beforeAll(async () => {
@@ -60,9 +75,10 @@ describe('authentication MySQL integration', () => {
     await cleanupDatabase();
     await app.close();
     await pool.end();
+    await redis.quit();
   });
 
-  it('registers, authenticates, rotates, and revokes a database-backed session', async () => {
+  it('registers, authenticates, rotates, and revokes a Redis-backed session', async () => {
     const register = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/register',
@@ -73,6 +89,7 @@ describe('authentication MySQL integration', () => {
       },
     });
     const session = register.json();
+    trackRefreshToken(session.refreshToken);
     const current = await app.inject({
       method: 'GET',
       url: '/api/v1/auth/me',
@@ -93,9 +110,10 @@ describe('authentication MySQL integration', () => {
     expect(current.statusCode).toBe(200);
     expect(refresh.statusCode).toBe(200);
     expect(replay.statusCode).toBe(401);
+    trackRefreshToken(refresh.json().refreshToken);
   });
 
-  it('allows only one concurrent refresh rotation through MySQL', async () => {
+  it('allows only one concurrent refresh rotation through Redis', async () => {
     const register = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/register',
@@ -106,6 +124,7 @@ describe('authentication MySQL integration', () => {
       },
     });
     const session = register.json();
+    trackRefreshToken(session.refreshToken);
 
     const responses = await Promise.all([
       app.inject({
@@ -120,16 +139,18 @@ describe('authentication MySQL integration', () => {
       }),
     ]);
     const statuses = responses.map((response) => response.statusCode).sort();
-    const storedTokens = await db
-      .select()
-      .from(refreshTokens)
-      .where(eq(refreshTokens.userId, session.user.id));
+    // Rotation deletes the old key: exactly one live session survives, and
+    // the replayed token resolves to nothing.
+    const winner = responses.find((response) => response.statusCode === 200)?.json() as
+      { refreshToken: string } | undefined;
+    expect(winner).toBeDefined();
+    trackRefreshToken(session.refreshToken);
+    if (winner) trackRefreshToken(winner.refreshToken);
 
     expect(register.statusCode).toBe(201);
     expect(statuses).toEqual([200, 401]);
-    expect(storedTokens).toHaveLength(2);
-    expect(storedTokens.filter((token) => token.revokedAt)).toHaveLength(1);
-    expect(storedTokens.filter((token) => !token.revokedAt)).toHaveLength(1);
+    expect(await redis.exists(refreshTokenKey(hashToken(session.refreshToken)))).toBe(0);
+    expect(await redis.exists(refreshTokenKey(hashToken(winner!.refreshToken)))).toBe(1);
   });
 
   it('creates, publishes, and reads a test without exposing answer correctness', async () => {

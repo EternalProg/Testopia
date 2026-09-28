@@ -36,26 +36,6 @@ export const users = mysqlTable(
   (table) => [uniqueIndex('users_email_unique').on(table.email)],
 );
 
-export const refreshTokens = mysqlTable(
-  'refresh_tokens',
-  {
-    id: varchar('id', { length: 36 }).primaryKey(),
-    userId: int('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
-    expiresAt: timestamp('expires_at').notNull(),
-    revokedAt: timestamp('revoked_at'),
-    replacedByTokenId: varchar('replaced_by_token_id', { length: 36 }),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-  },
-  (table) => [
-    uniqueIndex('refresh_tokens_hash_unique').on(table.tokenHash),
-    index('refresh_tokens_user_id_idx').on(table.userId),
-    index('refresh_tokens_expires_at_idx').on(table.expiresAt),
-  ],
-);
-
 export const tests = mysqlTable(
   'tests',
   {
@@ -186,5 +166,4 @@ export const schema = {
   answerOptions,
   testAttempts,
   answerRecords,
-  refreshTokens,
 };

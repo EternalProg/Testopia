@@ -4,8 +4,10 @@ import { jwtVerify, SignJWT, type JWTPayload } from 'jose';
 
 import type { UserRole } from '@testopia/shared';
 
-import type { RefreshTokensRepository } from '../repositories/refresh-tokens.repository.js';
-import type { refreshTokens } from '../db/schema.js';
+import type {
+  RefreshTokenInsert,
+  RefreshTokensRepository,
+} from '../repositories/refresh-tokens.repository.js';
 
 export interface TokenConfig {
   accessSecret: string;
@@ -64,10 +66,9 @@ export class TokenService {
 
   async createRefreshToken(
     userId: number,
-    repository = this.refreshTokens,
   ): Promise<{ token: string; id: string; expiresAt: Date }> {
     const refresh = await this.buildRefreshToken(userId);
-    await repository.create({
+    await this.refreshTokens.create({
       id: refresh.id,
       userId,
       tokenHash: hashRefreshToken(refresh.token),
@@ -104,7 +105,8 @@ export class TokenService {
     } catch {
       throw new Error('Invalid refresh token');
     }
-    const stored = await this.refreshTokens.findByHash(hashRefreshToken(token));
+    const incomingHash = hashRefreshToken(token);
+    const stored = await this.refreshTokens.findByHash(incomingHash);
     if (
       !stored ||
       stored.revokedAt ||
@@ -118,21 +120,22 @@ export class TokenService {
     }
 
     const replacement = await this.buildRefreshToken(stored.userId);
-    const rotated = await this.refreshTokens.rotate(stored.id, {
+    const rotated = await this.refreshTokens.rotate(incomingHash, stored.id, {
       id: replacement.id,
       userId: stored.userId,
       tokenHash: hashRefreshToken(replacement.token),
       expiresAt: replacement.expiresAt,
-    } satisfies typeof refreshTokens.$inferInsert);
+    } satisfies RefreshTokenInsert);
     if (!rotated) throw new Error('Invalid refresh token');
 
     return { userId: stored.userId, token: replacement.token, expiresAt: replacement.expiresAt };
   }
 
   async revokeRefreshToken(token: string): Promise<void> {
-    const stored = await this.refreshTokens.findByHash(hashRefreshToken(token));
+    const incomingHash = hashRefreshToken(token);
+    const stored = await this.refreshTokens.findByHash(incomingHash);
     if (stored && !stored.revokedAt) {
-      await this.refreshTokens.revoke(stored.id);
+      await this.refreshTokens.revoke(incomingHash);
     }
   }
 }

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
 import { eq, inArray } from 'drizzle-orm';
@@ -16,11 +16,13 @@ import {
   answerOptions,
   answerRecords,
   questions,
-  refreshTokens,
   testAttempts,
   tests,
   users,
 } from './db/schema.js';
+import { createRedis, type RedisClient } from './redis/client.js';
+import { getRedisUrl } from './redis/config.js';
+import { refreshTokenKey } from './repositories/refresh-tokens.repository.js';
 
 const enabled = process.env.RUN_MYSQL_INTEGRATION === '1';
 
@@ -41,11 +43,14 @@ describe('full lifecycle MySQL integration', () => {
   }
 
   const { db, pool } = createDatabase(databaseUrl);
-  const app = buildApp({ auth: createAuthServices(db) });
+  const redis: RedisClient = createRedis(getRedisUrl());
+  const app = buildApp({ auth: createAuthServices(db, redis) });
   const tag = randomUUID().slice(0, 8);
 
   const userIds: number[] = [];
   const testIds: number[] = [];
+  // Refresh tokens minted by register() calls, deleted exactly in afterAll.
+  const refreshHashes: string[] = [];
   const state = {
     authorToken: '',
     takerToken: '',
@@ -78,6 +83,7 @@ describe('full lifecycle MySQL integration', () => {
     expect(response.statusCode).toBe(201);
     const session = response.json();
     userIds.push(session.user.id);
+    refreshHashes.push(createHash('sha256').update(session.refreshToken).digest('hex'));
     return session as { accessToken: string; user: { id: number } };
   }
 
@@ -120,11 +126,14 @@ describe('full lifecycle MySQL integration', () => {
       await db.delete(tests).where(inArray(tests.id, testIds));
     }
     if (userIds.length) {
-      await db.delete(refreshTokens).where(inArray(refreshTokens.userId, userIds));
       await db.delete(users).where(inArray(users.id, userIds));
+    }
+    for (const tokenHash of refreshHashes.splice(0)) {
+      await redis.del(refreshTokenKey(tokenHash));
     }
     await app.close();
     await pool.end();
+    await redis.quit();
   });
 
   it('runs register -> create -> question CRUD -> publish -> answer -> result -> history -> statistics', async () => {

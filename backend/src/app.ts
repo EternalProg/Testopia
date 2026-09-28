@@ -134,9 +134,12 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         instance.register(databasePlugin);
         instance.register(redisPlugin);
         instance.register(async (withDatabase) => {
-          withDatabase.register(authRoutes, createAuthServices(withDatabase.db));
+          withDatabase.register(
+            authRoutes,
+            createAuthServices(withDatabase.db, withDatabase.redis),
+          );
           withDatabase.register(async (nested) => {
-            const auth = createAuthServices(nested.db);
+            const auth = createAuthServices(nested.db, nested.redis);
             nested.register(testsRoutes, { db: nested.db, tokens: auth.tokens });
             nested.register(attemptsRoutes, { db: nested.db, tokens: auth.tokens });
             nested.register(statisticsRoutes, { db: nested.db, tokens: auth.tokens });

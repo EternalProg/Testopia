@@ -1,52 +1,98 @@
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import type { RedisClient } from '../redis/client.js';
 
-import type { Database } from '../db/client.js';
-import { refreshTokens } from '../db/schema.js';
-import { withTransaction } from '../db/transaction.js';
+/** A live (non-revoked, non-expired) refresh session. Absent key means invalid. */
+export interface RefreshTokenRecord {
+  id: string;
+  userId: number;
+  expiresAt: Date;
+  revokedAt: null;
+}
+
+export interface RefreshTokenInsert {
+  id: string;
+  userId: number;
+  tokenHash: string;
+  expiresAt: Date;
+}
+
+const keyPrefix = 'testopia:refresh:';
+
+export function refreshTokenKey(tokenHash: string): string {
+  return `${keyPrefix}${tokenHash}`;
+}
+
+// Rotation must be a single atomic step: verify the old record still carries
+// the expected id (single-use guard), drop it, and store the replacement with
+// an absolute expiry. A concurrent rotation of the same token finds no key
+// and loses, exactly like the old conditional-update row guard did.
+const rotateScript = `
+if redis.call('HGET', KEYS[1], 'id') ~= ARGV[1] then
+  return 0
+end
+redis.call('DEL', KEYS[1])
+redis.call('HSET', KEYS[2], 'id', ARGV[2], 'userId', ARGV[3], 'expiresAt', ARGV[4])
+redis.call('PEXPIREAT', KEYS[2], ARGV[5])
+return 1
+`;
 
 export class RefreshTokensRepository {
-  constructor(private readonly db: Database) {}
+  constructor(private readonly redis: RedisClient) {}
 
-  async create(input: typeof refreshTokens.$inferInsert) {
-    await this.db.insert(refreshTokens).values(input);
+  async create(input: RefreshTokenInsert): Promise<void> {
+    const key = refreshTokenKey(input.tokenHash);
+    // MULTI, not two round trips: a crash between HSET and PEXPIREAT would
+    // otherwise leave a session key that never expires.
+    const result = await this.redis
+      .multi()
+      .hset(key, {
+        id: input.id,
+        userId: String(input.userId),
+        expiresAt: String(input.expiresAt.getTime()),
+      })
+      .pexpireat(key, input.expiresAt.getTime())
+      .exec();
+    if (!result) {
+      throw new Error('Failed to store the refresh token');
+    }
   }
 
-  async findByHash(tokenHash: string) {
-    const rows = await this.db
-      .select()
-      .from(refreshTokens)
-      .where(eq(refreshTokens.tokenHash, tokenHash))
-      .limit(1);
-    return rows[0] ?? null;
+  async findByHash(tokenHash: string): Promise<RefreshTokenRecord | null> {
+    const fields = await this.redis.hgetall(refreshTokenKey(tokenHash));
+    const id = fields['id'];
+    const userId = Number(fields['userId']);
+    const expiresAt = Number(fields['expiresAt']);
+    // Expired keys vanish on their own via PEXPIREAT; anything malformed is
+    // untrusted input and reads as absent, never as a session.
+    if (typeof id !== 'string' || id === '' || !Number.isSafeInteger(userId)) {
+      return null;
+    }
+    if (!Number.isFinite(expiresAt)) {
+      return null;
+    }
+    return { id, userId, expiresAt: new Date(expiresAt), revokedAt: null };
   }
 
-  async revoke(id: string, replacedByTokenId: string | null = null) {
-    await this.db
-      .update(refreshTokens)
-      .set({ revokedAt: new Date(), replacedByTokenId })
-      .where(eq(refreshTokens.id, id));
+  /** Logout: deleting a missing key is a no-op, matching revoke-if-present. */
+  async revoke(tokenHash: string): Promise<void> {
+    await this.redis.del(refreshTokenKey(tokenHash));
   }
 
   async rotate(
-    id: string,
-    replacement: typeof refreshTokens.$inferInsert,
-    now = new Date(),
+    oldHash: string,
+    expectedId: string,
+    replacement: RefreshTokenInsert,
   ): Promise<boolean> {
-    return withTransaction(this.db, async (transaction) => {
-      const result = await transaction
-        .update(refreshTokens)
-        .set({ revokedAt: now, replacedByTokenId: replacement.id })
-        .where(
-          and(
-            eq(refreshTokens.id, id),
-            isNull(refreshTokens.revokedAt),
-            gt(refreshTokens.expiresAt, now),
-          ),
-        );
-
-      if (result[0].affectedRows !== 1) return false;
-      await transaction.insert(refreshTokens).values(replacement);
-      return true;
-    });
+    const rotated = (await this.redis.eval(
+      rotateScript,
+      2,
+      refreshTokenKey(oldHash),
+      refreshTokenKey(replacement.tokenHash),
+      expectedId,
+      replacement.id,
+      String(replacement.userId),
+      String(replacement.expiresAt.getTime()),
+      replacement.expiresAt.getTime(),
+    )) as number;
+    return rotated === 1;
   }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Database } from '../db/client.js';
+import type { RedisClient } from '../redis/client.js';
 import { createAuthServices } from './factory.js';
 
 describe('auth service factory', () => {
@@ -10,7 +11,7 @@ describe('auth service factory', () => {
     process.env.JWT_ACCESS_SECRET = 'access-secret-that-is-long-enough';
     process.env.JWT_REFRESH_SECRET = 'refresh-secret-that-is-long-enough';
 
-    const services = createAuthServices({} as Database);
+    const services = createAuthServices({} as Database, {} as RedisClient);
 
     expect(services.service).toBeDefined();
     expect(services.tokens).toBeDefined();

@@ -1,13 +1,10 @@
 import type { LoginInput, RegisterInput, User } from '@testopia/shared';
 
-import type { Database } from '../db/client.js';
 import { isDuplicateEntryError } from '../db/errors.js';
-import { withTransaction } from '../db/transaction.js';
-import { RefreshTokensRepository } from '../repositories/refresh-tokens.repository.js';
 import { AuthError } from './errors.js';
 import { hashPassword, verifyPassword } from './password.js';
 import type { TokenService } from './tokens.js';
-import { UsersRepository } from '../repositories/users.repository.js';
+import type { UsersRepository } from '../repositories/users.repository.js';
 
 function publicUser(user: {
   id: number;
@@ -29,7 +26,6 @@ export class AuthService {
   constructor(
     private readonly users: UsersRepository,
     private readonly tokens: TokenService,
-    private readonly db?: Database,
   ) {}
 
   async register(input: RegisterInput) {
@@ -40,37 +36,25 @@ export class AuthService {
 
     const passwordHash = await hashPassword(input.password);
 
+    let user;
     try {
-      if (!this.db) {
-        const user = await this.users.create({
-          email,
-          username: input.username.trim(),
-          passwordHash,
-        });
-        return this.issueSession(user);
-      }
-
-      const session = await withTransaction(this.db, async (transaction) => {
-        const transactionDb = transaction as unknown as Database;
-        const user = await new UsersRepository(transactionDb).create({
-          email,
-          username: input.username.trim(),
-          passwordHash,
-        });
-        const refresh = await this.tokens.createRefreshToken(
-          user.id,
-          new RefreshTokensRepository(transactionDb),
-        );
-        return { user, refresh };
+      user = await this.users.create({
+        email,
+        username: input.username.trim(),
+        passwordHash,
       });
-
-      return this.sessionFromRefresh(session.user, session.refresh);
     } catch (error) {
       if (isDuplicateKeyError(error)) {
         throw new AuthError('An account with this email already exists', 'EMAIL_TAKEN');
       }
       throw error;
     }
+
+    // The account now exists; if Redis is down the session fails closed here
+    // and login recovers once Redis is back (a retry surfaces EMAIL_TAKEN,
+    // which is the honest signal: the account was created). This split-store
+    // edge replaces the old single-transaction user+token insert.
+    return this.issueSession(user);
   }
 
   async login(input: LoginInput) {

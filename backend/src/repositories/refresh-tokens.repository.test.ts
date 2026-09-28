@@ -1,76 +1,108 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Database } from '../db/client.js';
-import { RefreshTokensRepository } from './refresh-tokens.repository.js';
+import type { RedisClient } from '../redis/client.js';
+import { refreshTokenKey, RefreshTokensRepository } from './refresh-tokens.repository.js';
+
+function redisMock() {
+  const exec = vi.fn().mockResolvedValue([['OK'], ['OK']]);
+  const hset = vi.fn().mockReturnThis();
+  const pexpireat = vi.fn().mockReturnThis();
+  const multi = vi.fn(() => ({ hset, pexpireat, exec }));
+  return {
+    multi,
+    hset,
+    pexpireat,
+    exec,
+    hgetall: vi.fn().mockResolvedValue({}),
+    del: vi.fn().mockResolvedValue(1),
+    eval: vi.fn().mockResolvedValue(1),
+  };
+}
+
+type RedisMock = ReturnType<typeof redisMock>;
 
 describe('RefreshTokensRepository', () => {
-  it('creates, finds, and revokes a refresh token', async () => {
-    const token = {
+  let redis: RedisMock;
+
+  beforeEach(() => {
+    redis = redisMock();
+  });
+
+  it('stores a session hash with an absolute expiry in one round trip', async () => {
+    const repository = new RefreshTokensRepository(redis as unknown as RedisClient);
+    const expiresAt = new Date(Date.now() + 60_000);
+
+    await repository.create({ id: 'token-id', userId: 7, tokenHash: 'hash', expiresAt });
+
+    expect(redis.multi).toHaveBeenCalledOnce();
+    expect(redis.hset).toHaveBeenCalledWith(refreshTokenKey('hash'), {
       id: 'token-id',
-      userId: 1,
-      tokenHash: 'hash',
-      expiresAt: new Date(Date.now() + 60_000),
+      userId: '7',
+      expiresAt: String(expiresAt.getTime()),
+    });
+    expect(redis.pexpireat).toHaveBeenCalledWith(refreshTokenKey('hash'), expiresAt.getTime());
+    expect(redis.exec).toHaveBeenCalledOnce();
+  });
+
+  it('reads a stored session and rejects missing or malformed hashes', async () => {
+    const repository = new RefreshTokensRepository(redis as unknown as RedisClient);
+    const expiresAt = new Date(Date.now() + 60_000);
+
+    redis.hgetall.mockResolvedValueOnce({
+      id: 'token-id',
+      userId: '7',
+      expiresAt: String(expiresAt.getTime()),
+    });
+    await expect(repository.findByHash('hash')).resolves.toEqual({
+      id: 'token-id',
+      userId: 7,
+      expiresAt,
       revokedAt: null,
-      replacedByTokenId: null,
-      createdAt: new Date(),
-    };
-    const values = vi.fn().mockResolvedValue(undefined);
-    const insert = vi.fn().mockReturnValue({ values });
-    const limit = vi.fn().mockResolvedValue([token]);
-    const where = vi.fn().mockReturnValue({ limit });
-    const select = vi.fn().mockReturnValue({ from: vi.fn().mockReturnValue({ where }) });
-    const set = vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
-    const update = vi.fn().mockReturnValue({ set });
-    const repository = new RefreshTokensRepository({
-      insert,
-      select,
-      update,
-    } as unknown as Database);
+    });
 
-    await repository.create(token);
-    await expect(repository.findByHash(token.tokenHash)).resolves.toEqual(token);
-    await repository.revoke(token.id, 'replacement-id');
-
-    expect(values).toHaveBeenCalledWith(token);
-    expect(set).toHaveBeenCalledWith(
-      expect.objectContaining({ replacedByTokenId: 'replacement-id' }),
-    );
-  });
-
-  it('returns null for an unknown refresh token hash', async () => {
-    const limit = vi.fn().mockResolvedValue([]);
-    const where = vi.fn().mockReturnValue({ limit });
-    const select = vi.fn().mockReturnValue({ from: vi.fn().mockReturnValue({ where }) });
-    const repository = new RefreshTokensRepository({ select } as unknown as Database);
-
+    // Absent key, blank id, non-numeric user, and non-numeric expiry all read
+    // as invalid rather than as a session.
+    redis.hgetall.mockResolvedValueOnce({});
     await expect(repository.findByHash('unknown')).resolves.toBeNull();
+    redis.hgetall.mockResolvedValueOnce({ id: '', userId: '7', expiresAt: '1' });
+    await expect(repository.findByHash('blank')).resolves.toBeNull();
+    redis.hgetall.mockResolvedValueOnce({ id: 'x', userId: 'seven', expiresAt: '1' });
+    await expect(repository.findByHash('bad-user')).resolves.toBeNull();
+    redis.hgetall.mockResolvedValueOnce({ id: 'x', userId: '7', expiresAt: 'never' });
+    await expect(repository.findByHash('bad-expiry')).resolves.toBeNull();
   });
 
-  it('allows only one concurrent rotation and inserts the replacement atomically', async () => {
-    const updateResult = [{ affectedRows: 1 }];
-    const update = vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(updateResult) }),
-    });
-    const values = vi.fn().mockResolvedValue(undefined);
-    const transaction = { update, insert: vi.fn().mockReturnValue({ values }) };
-    const db = {
-      transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<boolean>) =>
-        callback(transaction),
-      ),
+  it('deletes the session key on revoke', async () => {
+    const repository = new RefreshTokensRepository(redis as unknown as RedisClient);
+
+    await repository.revoke('hash');
+
+    expect(redis.del).toHaveBeenCalledWith(refreshTokenKey('hash'));
+  });
+
+  it('rotates through Lua and maps the script verdict to boolean', async () => {
+    const repository = new RefreshTokensRepository(redis as unknown as RedisClient);
+    const replacement = {
+      id: 'new-id',
+      userId: 7,
+      tokenHash: 'new-hash',
+      expiresAt: new Date(Date.now() + 60_000),
     };
-    const repository = new RefreshTokensRepository(db as unknown as Database);
-    const replacement = { id: 'new-id', userId: 1, tokenHash: 'new-hash', expiresAt: new Date() };
 
-    await expect(repository.rotate('old-id', replacement)).resolves.toBe(true);
-    expect(update).toHaveBeenCalledOnce();
-    expect(values).toHaveBeenCalledWith(replacement);
-
-    update.mockReturnValue({
-      set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([{ affectedRows: 0 }]) }),
-    });
-    await expect(repository.rotate('old-id', { ...replacement, id: 'second-id' })).resolves.toBe(
-      false,
+    await expect(repository.rotate('old-hash', 'old-id', replacement)).resolves.toBe(true);
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.any(String),
+      2,
+      refreshTokenKey('old-hash'),
+      refreshTokenKey('new-hash'),
+      'old-id',
+      'new-id',
+      '7',
+      String(replacement.expiresAt.getTime()),
+      replacement.expiresAt.getTime(),
     );
-    expect(values).toHaveBeenCalledOnce();
+
+    redis.eval.mockResolvedValueOnce(0);
+    await expect(repository.rotate('old-hash', 'old-id', replacement)).resolves.toBe(false);
   });
 });
