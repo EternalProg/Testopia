@@ -83,7 +83,10 @@ describe('full lifecycle MySQL integration', () => {
     expect(response.statusCode).toBe(201);
     const session = response.json();
     userIds.push(session.user.id);
-    refreshHashes.push(createHash('sha256').update(session.refreshToken).digest('hex'));
+    const cookie = response.cookies.find((entry) => entry.name === 'testopia_refresh');
+    if (cookie) {
+      refreshHashes.push(createHash('sha256').update(cookie.value).digest('hex'));
+    }
     return session as { accessToken: string; user: { id: number } };
   }
 

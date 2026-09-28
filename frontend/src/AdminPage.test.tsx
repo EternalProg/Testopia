@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { useAuthStore } from './auth/store.js';
 import { authApi } from './auth/api.js';
-import { tokenStorage } from './auth/token-storage.js';
 import { AdminPage } from './pages/AdminPage.js';
 import { server } from './test/server.js';
 import { session, user as taker } from './test/mocks.js';
@@ -61,7 +60,6 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  sessionStorage.clear();
   authApi.clearAccessToken();
   useAuthStore.setState({ status: 'idle', user: null, error: null });
 });
@@ -182,7 +180,7 @@ describe('AdminPage', () => {
 
 describe('/admin route guard', () => {
   it('sends a non-admin back to the dashboard', async () => {
-    tokenStorage.setRefreshToken('stored-refresh-token');
+    // Bootstrap always attempts a cookie refresh now; no stored token needed.
     server.use(
       http.post('/api/v1/auth/refresh', () => HttpResponse.json(session)),
       http.get('/api/v1/auth/me', () => HttpResponse.json(taker)),
@@ -198,7 +196,6 @@ describe('/admin route guard', () => {
 
   it('shows the panel and its nav link to an admin', async () => {
     const adminSession = { ...session, user: admin };
-    tokenStorage.setRefreshToken('stored-refresh-token');
     server.use(
       http.post('/api/v1/auth/refresh', () => HttpResponse.json(adminSession)),
       http.get('/api/v1/auth/me', () => HttpResponse.json(admin)),

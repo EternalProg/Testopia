@@ -5,7 +5,6 @@ import {
   createTestSchema,
   loginSchema,
   myStatisticsSchema,
-  refreshTokenSchema,
   registerSchema,
   submitAttemptSchema,
   updateQuestionSchema,
@@ -23,7 +22,6 @@ import { z } from 'zod';
 const requestComponents = {
   RegisterRequest: registerSchema,
   LoginRequest: loginSchema,
-  RefreshTokenRequest: refreshTokenSchema,
   CreateTestRequest: createTestSchema,
   UpdateTestRequest: updateTestSchema,
   CreateQuestionRequest: createQuestionSchema,

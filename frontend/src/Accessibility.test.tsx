@@ -87,7 +87,6 @@ function mockTimedAttempt() {
 }
 
 beforeEach(() => {
-  sessionStorage.clear();
   authApi.clearAccessToken();
   useAuthStore.setState({ status: 'idle', user: null, error: null });
 });

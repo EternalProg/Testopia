@@ -1,3 +1,4 @@
+import cookie from '@fastify/cookie';
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 
@@ -17,6 +18,9 @@ export interface AuthRouteOptions {
 const bearerSecurity = { security: [{ bearerAuth: [] }] };
 
 const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (app, options) => {
+  // Cookie parsing stays scoped to the auth routes: nothing else reads or
+  // writes cookies.
+  await app.register(cookie);
   const controller = createAuthController(options.service);
   const authenticate = authenticationGuard(options.tokens);
   const authenticateAdmin = [authenticate, roleGuard('admin')];
@@ -29,7 +33,10 @@ const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (app, options) =>
     '/api/v1/auth/register',
     {
       ...rateLimit,
-      schema: { description: 'Register a new user account.', tags: ['auth'] },
+      schema: {
+        description: 'Register a new user account (sets the httpOnly refresh cookie).',
+        tags: ['auth'],
+      },
     },
     controller.register,
   );
@@ -37,7 +44,10 @@ const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (app, options) =>
     '/api/v1/auth/login',
     {
       ...rateLimit,
-      schema: { description: 'Log in with email and password.', tags: ['auth'] },
+      schema: {
+        description: 'Log in with email and password (sets the httpOnly refresh cookie).',
+        tags: ['auth'],
+      },
     },
     controller.login,
   );
@@ -45,7 +55,11 @@ const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (app, options) =>
     '/api/v1/auth/refresh',
     {
       ...rateLimit,
-      schema: { description: 'Rotate a refresh token for a new session.', tags: ['auth'] },
+      schema: {
+        description:
+          'Rotate the refresh token from the httpOnly cookie (requires the X-Requested-With header).',
+        tags: ['auth'],
+      },
     },
     controller.refresh,
   );
@@ -53,7 +67,11 @@ const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (app, options) =>
     '/api/v1/auth/logout',
     {
       ...rateLimit,
-      schema: { description: 'Revoke a refresh token (log out).', tags: ['auth'] },
+      schema: {
+        description:
+          'Revoke the refresh token from the httpOnly cookie and clear it (requires the X-Requested-With header).',
+        tags: ['auth'],
+      },
     },
     controller.logout,
   );

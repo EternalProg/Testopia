@@ -11,14 +11,17 @@ export const user = {
 export const session = {
   user,
   accessToken: 'test-access-token',
-  refreshToken: 'test-refresh-token',
   refreshTokenExpiresAt: '2026-02-01T00:00:00.000Z',
 };
 
 export const handlers = [
   http.post('/api/v1/auth/register', () => HttpResponse.json(session, { status: 201 })),
   http.post('/api/v1/auth/login', () => HttpResponse.json(session)),
-  http.post('/api/v1/auth/refresh', () => HttpResponse.json(session)),
+  // A fresh test browser holds no refresh cookie, so bootstrap refresh fails
+  // by default; tests needing a session override this handler.
+  http.post('/api/v1/auth/refresh', () =>
+    HttpResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 }),
+  ),
   http.post('/api/v1/auth/logout', () => new HttpResponse(null, { status: 204 })),
   http.get('/api/v1/auth/me', () => HttpResponse.json(user)),
   http.get('/api/v1/tests', () => HttpResponse.json([])),

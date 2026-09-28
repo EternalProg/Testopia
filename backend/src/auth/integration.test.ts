@@ -53,6 +53,16 @@ describe('authentication MySQL integration', () => {
     refreshHashes.push(hashToken(token));
   }
 
+  function csrfHeaders(): Record<string, string> {
+    return { 'x-requested-with': 'XMLHttpRequest' };
+  }
+
+  function refreshCookie(response: { cookies: Array<{ name: string; value: string }> }): string {
+    const cookie = response.cookies.find((entry) => entry.name === 'testopia_refresh');
+    if (!cookie) throw new Error('Expected a refresh cookie in the response');
+    return cookie.value;
+  }
+
   async function cleanupDatabase() {
     await db.delete(answerRecords);
     await db.delete(testAttempts);
@@ -89,7 +99,7 @@ describe('authentication MySQL integration', () => {
       },
     });
     const session = register.json();
-    trackRefreshToken(session.refreshToken);
+    trackRefreshToken(refreshCookie(register));
     const current = await app.inject({
       method: 'GET',
       url: '/api/v1/auth/me',
@@ -98,19 +108,21 @@ describe('authentication MySQL integration', () => {
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      payload: { refreshToken: session.refreshToken },
+      headers: csrfHeaders(),
+      cookies: { testopia_refresh: refreshCookie(register) },
     });
     const replay = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      payload: { refreshToken: session.refreshToken },
+      headers: csrfHeaders(),
+      cookies: { testopia_refresh: refreshCookie(register) },
     });
 
     expect(register.statusCode).toBe(201);
     expect(current.statusCode).toBe(200);
     expect(refresh.statusCode).toBe(200);
     expect(replay.statusCode).toBe(401);
-    trackRefreshToken(refresh.json().refreshToken);
+    trackRefreshToken(refreshCookie(refresh));
   });
 
   it('allows only one concurrent refresh rotation through Redis', async () => {
@@ -124,33 +136,35 @@ describe('authentication MySQL integration', () => {
       },
     });
     const session = register.json();
-    trackRefreshToken(session.refreshToken);
+    expect(session.user.email).toContain('@');
+    trackRefreshToken(refreshCookie(register));
 
     const responses = await Promise.all([
       app.inject({
         method: 'POST',
         url: '/api/v1/auth/refresh',
-        payload: { refreshToken: session.refreshToken },
+        headers: csrfHeaders(),
+        cookies: { testopia_refresh: refreshCookie(register) },
       }),
       app.inject({
         method: 'POST',
         url: '/api/v1/auth/refresh',
-        payload: { refreshToken: session.refreshToken },
+        headers: csrfHeaders(),
+        cookies: { testopia_refresh: refreshCookie(register) },
       }),
     ]);
     const statuses = responses.map((response) => response.statusCode).sort();
     // Rotation deletes the old key: exactly one live session survives, and
     // the replayed token resolves to nothing.
-    const winner = responses.find((response) => response.statusCode === 200)?.json() as
-      { refreshToken: string } | undefined;
+    const winner = responses.find((response) => response.statusCode === 200);
     expect(winner).toBeDefined();
-    trackRefreshToken(session.refreshToken);
-    if (winner) trackRefreshToken(winner.refreshToken);
+    const winnerCookie = refreshCookie(winner!);
+    trackRefreshToken(winnerCookie);
 
     expect(register.statusCode).toBe(201);
     expect(statuses).toEqual([200, 401]);
-    expect(await redis.exists(refreshTokenKey(hashToken(session.refreshToken)))).toBe(0);
-    expect(await redis.exists(refreshTokenKey(hashToken(winner!.refreshToken)))).toBe(1);
+    expect(await redis.exists(refreshTokenKey(hashToken(refreshCookie(register))))).toBe(0);
+    expect(await redis.exists(refreshTokenKey(hashToken(winnerCookie)))).toBe(1);
   });
 
   it('creates, publishes, and reads a test without exposing answer correctness', async () => {

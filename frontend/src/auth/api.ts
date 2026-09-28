@@ -1,7 +1,6 @@
 import type { LoginInput, RegisterInput, User } from '@testopia/shared';
 
 import type { ApiErrorPayload, Session } from './types.js';
-import { tokenStorage } from './token-storage.js';
 import { adminApi } from '../admin/api.js';
 import { attemptsApi } from '../attempts/api.js';
 import { statisticsApi } from '../statistics/api.js';
@@ -35,7 +34,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body !== undefined) headers.set('Content-Type', 'application/json');
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers });
+  // The refresh session rides an httpOnly cookie: include credentials so the
+  // browser sends it (same-origin in production, cross-origin in local dev).
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  });
   if (!response.ok) {
     let payload: ApiErrorPayload = {};
     try {
@@ -55,8 +60,13 @@ function storeSession(session: Session): Session {
   attemptsApi.setAccessToken(session.accessToken);
   statisticsApi.setAccessToken(session.accessToken);
   adminApi.setAccessToken(session.accessToken);
-  tokenStorage.setRefreshToken(session.refreshToken);
   return session;
+}
+
+// Cookie-authenticated endpoints require a client-set header that cross-site
+// simple requests cannot forge; the server rejects refresh/logout without it.
+function csrfHeaders(): Record<string, string> {
+  return { 'X-Requested-With': 'XMLHttpRequest' };
 }
 
 export const authApi = {
@@ -81,33 +91,27 @@ export const authApi = {
     );
   },
   async refresh(): Promise<Session> {
-    const refreshToken = tokenStorage.getRefreshToken();
-    if (!refreshToken) throw new ApiError(401, { error: 'UNAUTHORIZED' });
     return storeSession(
       toSession(
         await request('/api/v1/auth/refresh', {
           method: 'POST',
-          body: JSON.stringify({ refreshToken }),
+          headers: csrfHeaders(),
         }),
       ),
     );
   },
   async logout(): Promise<void> {
-    const refreshToken = tokenStorage.getRefreshToken();
     try {
-      if (refreshToken) {
-        await request('/api/v1/auth/logout', {
-          method: 'POST',
-          body: JSON.stringify({ refreshToken }),
-        });
-      }
+      await request('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: csrfHeaders(),
+      });
     } finally {
       accessToken = null;
       testsApi.setAccessToken(null);
       attemptsApi.setAccessToken(null);
       statisticsApi.setAccessToken(null);
       adminApi.setAccessToken(null);
-      tokenStorage.clear();
     }
   },
   async me(): Promise<User> {

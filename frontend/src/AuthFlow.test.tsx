@@ -16,7 +16,6 @@ function renderAt(path: string) {
 }
 
 beforeEach(() => {
-  sessionStorage.clear();
   authApi.clearAccessToken();
   useAuthStore.setState({ status: 'idle', user: null, error: null });
 });
@@ -27,7 +26,7 @@ describe('authentication flows', () => {
     const user = userEvent.setup();
     renderAt('/register');
 
-    await user.type(screen.getByLabelText('Username'), 'test-user');
+    await user.type(await screen.findByLabelText('Username'), 'test-user');
     await user.type(screen.getByLabelText('Email'), 'user@example.com');
     await user.type(screen.getByLabelText('Password'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Create account' }));
@@ -40,7 +39,7 @@ describe('authentication flows', () => {
     const user = userEvent.setup();
     renderAt('/login');
 
-    await user.type(screen.getByLabelText('Email'), 'user@example.com');
+    await user.type(await screen.findByLabelText('Email'), 'user@example.com');
     await user.type(screen.getByLabelText('Password'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
@@ -50,7 +49,7 @@ describe('authentication flows', () => {
   it('shows validation errors without making a request', async () => {
     renderAt('/login');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Log in' }));
 
     expect(await screen.findByText('Invalid email address')).toBeInTheDocument();
     expect(
@@ -75,7 +74,7 @@ describe('authentication flows', () => {
     const user = userEvent.setup();
     renderAt('/login');
 
-    await user.type(screen.getByLabelText('Email'), 'user@example.com');
+    await user.type(await screen.findByLabelText('Email'), 'user@example.com');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
@@ -91,7 +90,6 @@ describe('authentication flows', () => {
         return HttpResponse.json(session);
       }),
     );
-    sessionStorage.setItem('testopia.refresh-token', session.refreshToken);
     renderAt('/dashboard');
 
     expect(screen.getByRole('status', { name: 'Loading your session...' })).toBeInTheDocument();
@@ -105,13 +103,18 @@ describe('authentication flows', () => {
   });
 
   it('refreshes an existing session and loads the current user', async () => {
-    sessionStorage.setItem('testopia.refresh-token', session.refreshToken);
+    let refreshCsrfHeader: string | null = null;
+    server.use(
+      http.post('/api/v1/auth/refresh', ({ request }) => {
+        refreshCsrfHeader = request.headers.get('x-requested-with');
+        return HttpResponse.json(session);
+      }),
+    );
     renderAt('/dashboard');
 
     expect(await screen.findByText('Welcome, test-user.')).toBeInTheDocument();
-    await waitFor(() =>
-      expect(sessionStorage.getItem('testopia.refresh-token')).toBe(session.refreshToken),
-    );
+    // Cookie-authenticated calls carry the CSRF header the server requires.
+    await waitFor(() => expect(refreshCsrfHeader).toBe('XMLHttpRequest'));
   });
 
   it('performs only one refresh during StrictMode session bootstrap', async () => {
@@ -123,7 +126,6 @@ describe('authentication flows', () => {
         return HttpResponse.json(session);
       }),
     );
-    sessionStorage.setItem('testopia.refresh-token', session.refreshToken);
     window.history.pushState({}, '', '/dashboard');
     render(
       <StrictMode>
@@ -135,16 +137,26 @@ describe('authentication flows', () => {
     expect(refreshRequests).toBe(1);
   });
 
-  it('logs out and clears the refresh session', async () => {
+  it('logs out through the server and clears local auth', async () => {
+    let logoutRequests = 0;
+    let logoutCsrfHeader: string | null = null;
+    server.use(
+      http.post('/api/v1/auth/logout', ({ request }) => {
+        logoutRequests += 1;
+        logoutCsrfHeader = request.headers.get('x-requested-with');
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
     const user = userEvent.setup();
     renderAt('/login');
-    await user.type(screen.getByLabelText('Email'), 'user@example.com');
+    await user.type(await screen.findByLabelText('Email'), 'user@example.com');
     await user.type(screen.getByLabelText('Password'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
     await user.click(await screen.findByRole('button', { name: 'Log out' }));
 
     expect(await screen.findByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
-    expect(sessionStorage.getItem('testopia.refresh-token')).toBeNull();
+    expect(logoutRequests).toBe(1);
+    expect(logoutCsrfHeader).toBe('XMLHttpRequest');
   });
 
   it('clears local auth and redirects when logout fails on the server', async () => {
@@ -158,13 +170,12 @@ describe('authentication flows', () => {
     );
     const user = userEvent.setup();
     renderAt('/login');
-    await user.type(screen.getByLabelText('Email'), 'user@example.com');
+    await user.type(await screen.findByLabelText('Email'), 'user@example.com');
     await user.type(screen.getByLabelText('Password'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Log in' }));
     await user.click(await screen.findByRole('button', { name: 'Log out' }));
 
     expect(await screen.findByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
-    expect(sessionStorage.getItem('testopia.refresh-token')).toBeNull();
     expect(screen.queryByText('Welcome, test-user.')).not.toBeInTheDocument();
   });
 });

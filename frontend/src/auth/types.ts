@@ -3,7 +3,6 @@ import type { User } from '@testopia/shared';
 export interface Session {
   user: User;
   accessToken: string;
-  refreshToken: string;
   refreshTokenExpiresAt: string;
 }
 

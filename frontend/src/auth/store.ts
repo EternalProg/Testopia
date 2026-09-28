@@ -3,7 +3,6 @@ import { create } from 'zustand';
 
 import { ApiError, authApi } from './api.js';
 import type { AuthStatus } from './types.js';
-import { tokenStorage } from './token-storage.js';
 
 interface AuthState {
   status: AuthStatus;
@@ -30,12 +29,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
   initialize: async () => {
     if (initializePromise) return initializePromise;
-    if (!tokenStorage.getRefreshToken()) {
-      set({ status: 'unauthenticated', user: null });
-      return;
-    }
     if (get().status === 'authenticated') return;
 
+    // No stored-token gate: the refresh session lives in an httpOnly cookie
+    // the page cannot read, so bootstrap always attempts a refresh and treats
+    // 401 as "no session".
     initializePromise = (async () => {
       set({ status: 'loading', error: null });
       try {
@@ -44,7 +42,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ status: 'authenticated', user, error: null });
       } catch {
         authApi.clearAccessToken();
-        tokenStorage.clear();
         set({ status: 'unauthenticated', user: null });
       }
     })();

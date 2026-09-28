@@ -25,10 +25,6 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(1),
-});
-
 const baseTestSchema = z.object({
   title: z.string().trim().min(1).max(255),
   description: z.string().trim().max(10_000).nullable().optional(),

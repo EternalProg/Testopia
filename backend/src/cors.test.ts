@@ -5,7 +5,7 @@ import { getCorsOptions } from './cors.js';
 
 describe('CORS configuration', () => {
   it('defaults to same-origin behavior without an allowlist', () => {
-    expect(getCorsOptions('')).toMatchObject({ origin: false, credentials: false });
+    expect(getCorsOptions('')).toMatchObject({ origin: false, credentials: true });
   });
 
   it('rejects wildcard configuration', () => {

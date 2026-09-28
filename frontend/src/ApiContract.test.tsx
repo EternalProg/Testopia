@@ -176,7 +176,7 @@ describe('API contract (frontend clients vs shared schemas)', () => {
     expect(contentTypes.start).toBeNull();
   });
 
-  it('keeps MSW auth fixtures aligned with the Api* mirrors', () => {
+  it('keeps MSW auth fixtures aligned with the Api* mirrors', async () => {
     const sessionMirror: Session = {
       ...session,
       user: { ...session.user, createdAt: new Date(session.user.createdAt) },
@@ -188,10 +188,17 @@ describe('API contract (frontend clients vs shared schemas)', () => {
 
     expect(sessionMirror).toMatchObject({
       accessToken: expect.any(String),
-      refreshToken: expect.any(String),
       user: { id: expect.any(Number), email: expect.any(String), role: 'user' },
     });
     expect(userMirror.email).toContain('@');
     expect(handlers.length).toBeGreaterThanOrEqual(6);
+
+    // The refresh token travels in the httpOnly cookie only: session payloads
+    // from login and refresh must not carry it where scripts could read it.
+    const loggedIn = await authApi.login({ email: 'user@example.com', password: 'password123' });
+    expect(loggedIn).not.toHaveProperty('refreshToken');
+    server.use(http.post('/api/v1/auth/refresh', () => HttpResponse.json(session)));
+    const refreshed = await authApi.refresh();
+    expect(refreshed).not.toHaveProperty('refreshToken');
   });
 });
