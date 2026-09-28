@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ping = vi.fn().mockResolvedValue('PONG');
 const quit = vi.fn().mockResolvedValue('OK');
-const createRedis = vi.fn(() => ({ ping, quit }));
+const on = vi.fn();
+const createRedis = vi.fn(() => ({ ping, quit, on }));
 const pingError = new Error('redis unreachable');
 
 vi.mock('../redis/client.js', () => ({
@@ -19,6 +20,7 @@ describe('redis plugin', () => {
   beforeEach(() => {
     ping.mockClear();
     quit.mockClear();
+    on.mockClear();
     createRedis.mockClear();
     ping.mockResolvedValue('PONG');
   });
@@ -31,6 +33,8 @@ describe('redis plugin', () => {
     expect(createRedis).toHaveBeenCalledWith('redis://localhost:6379');
     expect(ping).toHaveBeenCalledOnce();
     expect(app.redis).toBeDefined();
+    // Connection failures stay visible even though dependents fail open/closed.
+    expect(on).toHaveBeenCalledWith('error', expect.any(Function));
 
     await app.close();
     expect(quit).toHaveBeenCalledOnce();

@@ -1,3 +1,4 @@
+import Fastify from 'fastify';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { buildApp } from '../app.js';
@@ -5,11 +6,38 @@ import type { AuthService } from '../auth/service.js';
 import type { TokenService } from '../auth/tokens.js';
 import { getCorsOptions } from '../cors.js';
 import type { Database } from '../db/client.js';
+import type { RedisClient } from '../redis/client.js';
+import securityPlugin from './security.js';
 
 function stubTokens() {
   return {
     verifyAccessToken: vi.fn().mockResolvedValue({ sub: '1', role: 'user', type: 'access' }),
   } as unknown as TokenService;
+}
+
+type RateLimitCallback = (error: Error | null, result?: [number, number]) => void;
+
+// Minimal stand-in for the Redis client surface the bundled RedisStore uses:
+// defineCommand registration plus the Lua-backed rateLimit command, backed by
+// a Map so the test pins our wiring (store selection, key scoping, fail-open)
+// without re-testing upstream Lua.
+function countingRedis() {
+  const counts = new Map<string, number>();
+  return {
+    defineCommand: vi.fn(),
+    rateLimit(
+      key: string,
+      _timeWindow: number,
+      _max: number,
+      _continueExceeding: boolean,
+      _exponentialBackoff: boolean,
+      callback: RateLimitCallback,
+    ) {
+      const current = (counts.get(key) ?? 0) + 1;
+      counts.set(key, current);
+      callback(null, [current, 60_000]);
+    },
+  };
 }
 
 describe('security plugin', () => {
@@ -168,6 +196,70 @@ describe('security plugin', () => {
       await burglar.close();
       if (previous === undefined) delete process.env.RATE_LIMIT_AUTH_MAX;
       else process.env.RATE_LIMIT_AUTH_MAX = previous;
+    }
+  });
+
+  it('shares the rate-limit budget across instances through Redis', async () => {
+    const previous = process.env.RATE_LIMIT_MAX;
+    process.env.RATE_LIMIT_MAX = '2';
+    const redis = countingRedis();
+    // Routes must be added after the security plugin loads: the limiter
+    // wires itself through an onRoute hook, so earlier routes stay unlimited.
+    const first = Fastify();
+    await first.register(securityPlugin, { redis: redis as unknown as RedisClient });
+    first.get('/ping', async () => ({ ok: true }));
+    const second = Fastify();
+    await second.register(securityPlugin, { redis: redis as unknown as RedisClient });
+    second.get('/ping', async () => ({ ok: true }));
+    await first.ready();
+    await second.ready();
+    try {
+      // Two requests through the first instance consume the shared budget...
+      expect((await first.inject({ method: 'GET', url: '/ping' })).statusCode).toBe(200);
+      expect((await first.inject({ method: 'GET', url: '/ping' })).statusCode).toBe(200);
+      // ...so the second instance, never seen before, is already throttled.
+      // (The RATE_LIMITED error shape is pinned by the buildApp tests above;
+      // this bare instance lacks the app error handler.)
+      const throttled = await second.inject({ method: 'GET', url: '/ping' });
+
+      expect(throttled.statusCode).toBe(429);
+    } finally {
+      await first.close();
+      await second.close();
+      if (previous === undefined) delete process.env.RATE_LIMIT_MAX;
+      else process.env.RATE_LIMIT_MAX = previous;
+    }
+  });
+
+  it('allows traffic when the Redis store errors', async () => {
+    const previous = process.env.RATE_LIMIT_MAX;
+    process.env.RATE_LIMIT_MAX = '1';
+    const failing = {
+      defineCommand: vi.fn(),
+      rateLimit(
+        _key: string,
+        _timeWindow: number,
+        _max: number,
+        _continueExceeding: boolean,
+        _exponentialBackoff: boolean,
+        callback: RateLimitCallback,
+      ) {
+        callback(new Error('redis down'));
+      },
+    };
+    const app = Fastify();
+    await app.register(securityPlugin, { redis: failing as unknown as RedisClient });
+    app.get('/ping', async () => ({ ok: true }));
+    await app.ready();
+    try {
+      // A Redis outage must not become an outage: every request passes.
+      for (let index = 0; index < 3; index += 1) {
+        expect((await app.inject({ method: 'GET', url: '/ping' })).statusCode).toBe(200);
+      }
+    } finally {
+      await app.close();
+      if (previous === undefined) delete process.env.RATE_LIMIT_MAX;
+      else process.env.RATE_LIMIT_MAX = previous;
     }
   });
 });

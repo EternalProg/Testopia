@@ -17,6 +17,8 @@ import type { TokenService } from './auth/tokens.js';
 import { getCorsOptions } from './cors.js';
 import databasePlugin from './plugins/database.js';
 import openapiPlugin from './plugins/openapi.js';
+import { createRedis } from './redis/client.js';
+import { getRedisUrl } from './redis/config.js';
 import redisPlugin from './plugins/redis.js';
 import securityPlugin from './plugins/security.js';
 import attemptsRoutes from './attempts/routes.js';
@@ -53,10 +55,15 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     trustProxy: process.env.TRUST_PROXY === '1',
   });
   app.register(cors, getCorsOptions(options.corsOrigin));
+  // The Redis client is built once here so the rate limiter (registered
+  // below for every branch) and the redis plugin (production branch) share
+  // it. Lazy connection means nothing dials until first use; unit-test
+  // branches never create one.
+  const redisClient = options.database ? createRedis(getRedisUrl()) : undefined;
   // Security headers + rate limits and OpenAPI docs apply to every branch
   // below (test auth branch, database branch, and bare instances), so they
   // are registered once at the root instead of per branch.
-  app.register(securityPlugin);
+  app.register(securityPlugin, { redis: redisClient });
   app.register(openapiPlugin);
 
   // NOTE: routes live in a child plugin registered AFTER the security and
@@ -132,7 +139,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         }
       } else if (options.database) {
         instance.register(databasePlugin);
-        instance.register(redisPlugin);
+        instance.register(redisPlugin, { client: redisClient });
         instance.register(async (withDatabase) => {
           withDatabase.register(
             authRoutes,

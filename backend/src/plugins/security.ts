@@ -3,6 +3,8 @@ import rateLimit from '@fastify/rate-limit';
 import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 
+import type { RedisClient } from '../redis/client.js';
+
 const DEFAULT_GLOBAL_MAX = 300;
 const DEFAULT_AUTH_MAX = 60;
 const TIME_WINDOW = '1 minute';
@@ -28,7 +30,17 @@ export function authRateLimitConfig() {
   return { rateLimit: { max: authRateLimitMax(), timeWindow: TIME_WINDOW } };
 }
 
-const securityPlugin: FastifyPluginAsync = async (app) => {
+export interface SecurityPluginOptions {
+  /** Shared rate-limit counters. Explicitly absent (unit-test branches)
+   * keeps the previous in-memory store. */
+  redis?: RedisClient | undefined;
+}
+
+/** Key prefix for every rate-limit counter, keeping them out of the way of
+ * session keys. */
+export const rateLimitNamespace = 'testopia:ratelimit:';
+
+const securityPlugin: FastifyPluginAsync<SecurityPluginOptions> = async (app, options) => {
   await app.register(helmet, {
     // This is a public API server by CORS design (CORS_ORIGIN allowlist), so
     // cross-origin API consumers must be readable: helmet's default
@@ -38,6 +50,12 @@ const securityPlugin: FastifyPluginAsync = async (app) => {
   await app.register(rateLimit, {
     max: globalRateLimitMax(),
     timeWindow: TIME_WINDOW,
+    // Shared counters across replicas. A Redis outage allows traffic instead
+    // of failing requests (connection errors surface through the redis
+    // plugin's error listener).
+    ...(options.redis
+      ? { redis: options.redis, nameSpace: rateLimitNamespace, skipOnError: true }
+      : {}),
   });
 };
 

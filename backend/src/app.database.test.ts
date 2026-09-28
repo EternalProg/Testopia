@@ -12,7 +12,12 @@ vi.mock('./db/config.js', () => ({
   getDatabaseUrl: vi.fn(() => 'mysql://test:test@localhost:3306/test_testopia'),
 }));
 vi.mock('./redis/client.js', () => ({
-  createRedis: vi.fn(() => ({ ping: vi.fn().mockResolvedValue('PONG'), quit: redisQuit })),
+  createRedis: vi.fn(() => ({
+    ping: vi.fn().mockResolvedValue('PONG'),
+    quit: redisQuit,
+    on: vi.fn(),
+    defineCommand: vi.fn(),
+  })),
 }));
 vi.mock('./redis/config.js', () => ({
   getRedisUrl: vi.fn(() => 'redis://localhost:6379'),
