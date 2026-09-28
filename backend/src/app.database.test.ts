@@ -3,12 +3,19 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const poolEnd = vi.fn();
+const redisQuit = vi.fn().mockResolvedValue('OK');
 
 vi.mock('./db/client.js', () => ({
   createDatabase: vi.fn(() => ({ db: {}, pool: { end: poolEnd } })),
 }));
 vi.mock('./db/config.js', () => ({
   getDatabaseUrl: vi.fn(() => 'mysql://test:test@localhost:3306/test_testopia'),
+}));
+vi.mock('./redis/client.js', () => ({
+  createRedis: vi.fn(() => ({ ping: vi.fn().mockResolvedValue('PONG'), quit: redisQuit })),
+}));
+vi.mock('./redis/config.js', () => ({
+  getRedisUrl: vi.fn(() => 'redis://localhost:6379'),
 }));
 vi.mock('drizzle-orm/mysql2/migrator', () => ({ migrate: vi.fn() }));
 
@@ -29,10 +36,12 @@ describe('database plugin integration', () => {
   afterAll(async () => {
     await app.close();
     expect(poolEnd).toHaveBeenCalledOnce();
+    expect(redisQuit).toHaveBeenCalledOnce();
   });
 
   it('registers the database and auth routes through Fastify plugins', async () => {
     expect(app.db).toBeDefined();
+    expect(app.redis).toBeDefined();
     const response = await app.inject({ method: 'GET', url: '/health' });
 
     expect(response.statusCode).toBe(200);

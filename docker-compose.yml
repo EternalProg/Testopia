@@ -21,6 +21,9 @@ services:
 
   redis:
     image: redis:7-alpine
+    # Sessions live in Redis, so restarts must not wipe them: persist the
+    # append-only log on the data volume.
+    command: ['redis-server', '--appendonly', 'yes']
     ports:
       - '6379:6379'
     volumes:

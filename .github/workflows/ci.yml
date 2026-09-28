@@ -7,6 +7,16 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +32,12 @@ jobs:
       - name: Backend tests
         run: npx vitest run --dir src
         working-directory: backend
+      - name: Redis integration tests
+        run: npx vitest run src/redis/integration
+        working-directory: backend
+        env:
+          RUN_REDIS_INTEGRATION: '1'
+          REDIS_URL: redis://localhost:6379
       - name: Frontend tests
         run: npm test -- --run
         working-directory: frontend

@@ -29,6 +29,7 @@
     "drizzle-orm": "latest",
     "fastify": "latest",
     "fastify-plugin": "latest",
+    "ioredis": "6.0.0",
     "jose": "^6.2.12",
     "mysql2": "latest",
     "openapi-types": "^12.1.3",

@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { sql } from 'drizzle-orm';
 import fp from 'fastify-plugin';
+import type { Redis } from 'ioredis';
 import { randomUUID } from 'node:crypto';
 import { ZodError } from 'zod';
 
@@ -16,6 +17,7 @@ import type { TokenService } from './auth/tokens.js';
 import { getCorsOptions } from './cors.js';
 import databasePlugin from './plugins/database.js';
 import openapiPlugin from './plugins/openapi.js';
+import redisPlugin from './plugins/redis.js';
 import securityPlugin from './plugins/security.js';
 import attemptsRoutes from './attempts/routes.js';
 import { AttemptError } from './attempts/errors.js';
@@ -81,7 +83,8 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         '/ready',
         {
           schema: {
-            description: 'Readiness probe: 200 when the database answers, else 503.',
+            description:
+              'Readiness probe: 200 when the database (and Redis, when configured) answers, else 503.',
             tags: ['ops'],
           },
         },
@@ -96,6 +99,10 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
           }
           try {
             await database.execute(sql`SELECT 1`);
+            // Redis is only decorated in the production branch; when present
+            // it must answer too, since sessions fail closed without it.
+            const redis = (instance as unknown as { redis?: Redis }).redis;
+            if (redis) await redis.ping();
             return reply.send({ status: 'ready' });
           } catch {
             return reply.code(503).send({ error: 'NOT_READY' });
@@ -125,6 +132,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         }
       } else if (options.database) {
         instance.register(databasePlugin);
+        instance.register(redisPlugin);
         instance.register(async (withDatabase) => {
           withDatabase.register(authRoutes, createAuthServices(withDatabase.db));
           withDatabase.register(async (nested) => {
