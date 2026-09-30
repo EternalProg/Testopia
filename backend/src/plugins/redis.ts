@@ -42,8 +42,12 @@ const redisPlugin: FastifyPluginAsync<RedisPluginOptions> = async (app, options)
 
   try {
     // Fail fast when Redis never answers: refresh sessions, rotation, and
-    // (from later commits) rate limits all require it. The client keeps
-    // retrying with backoff, so a slow-starting Redis only delays startup.
+    // (from later commits) rate limits all require it. The shared client is
+    // lazy (nothing dials until first use) and its offline queue is off, so
+    // the first command would fail instantly instead of waiting: connect
+    // explicitly, then ping. The client keeps retrying with backoff, so a
+    // slow-starting Redis only delays startup.
+    await redis.connect();
     await redis.ping();
   } catch (error) {
     try {

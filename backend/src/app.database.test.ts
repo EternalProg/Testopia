@@ -13,6 +13,7 @@ vi.mock('./db/config.js', () => ({
 }));
 vi.mock('./redis/client.js', () => ({
   createRedis: vi.fn(() => ({
+    connect: vi.fn().mockResolvedValue('OK'),
     ping: vi.fn().mockResolvedValue('PONG'),
     quit: redisQuit,
     on: vi.fn(),

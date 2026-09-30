@@ -16,6 +16,10 @@ describe('redis integration', () => {
 
   beforeAll(async () => {
     redis = createRedis(getRedisUrl());
+    // The shared client is lazy with the offline queue off: connect
+    // explicitly, otherwise the first command fails instantly (see
+    // plugins/redis, which does the same at startup).
+    await redis.connect();
     expect(await redis.ping()).toBe('PONG');
   });
 

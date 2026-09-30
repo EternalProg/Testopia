@@ -1,3 +1,10 @@
+-- 0008 starts by dropping its own tables: MySQL DDL implicit-commits, so
+-- a boot that dies mid-migration leaves these tables behind while the
+-- journal still lists 0008 as pending. Rebuilding from the JSON columns,
+-- which are only dropped at the very end, is deterministic and loses
+-- nothing, and makes every statement below safe to run again.
+DROP TABLE IF EXISTS `attempt_question_options`, `attempt_questions`;
+--> statement-breakpoint
 CREATE TABLE `attempt_question_options` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`attempt_id` int NOT NULL,
@@ -46,20 +53,22 @@ FROM (
 ) AS `deduped`
 GROUP BY `attempt_id`, `question_id`;--> statement-breakpoint
 -- option_order is an object keyed by question id, so its keys are enumerated
--- first and each member array is unnested through a chained JSON_TABLE (each
+-- first and each member array is unnested through a chained JSON_TABLE. Each
 -- table function sees the range variables bound earlier in the FROM clause,
--- and the second one is LATERAL because it references `k`.`qkey`).
+-- so the second one references `k`.`qkey` with no extra keyword: LATERAL is
+-- only valid before derived tables and is a syntax error before JSON_TABLE.
 INSERT INTO `attempt_question_options` (`attempt_id`, `question_id`, `option_id`, `position`)
 SELECT `attempt_id`, `question_id`, `option_id`, MIN(`position`)
 FROM (
   SELECT `a`.`id` AS `attempt_id`, CAST(`k`.`qkey` AS UNSIGNED) AS `question_id`, CAST(`j`.`oid` AS UNSIGNED) AS `option_id`, `j`.`pos` - 1 AS `position`
   FROM `test_attempts` AS `a`,
     JSON_TABLE(JSON_KEYS(`a`.`option_order`), '$[*]' COLUMNS (`qkey` VARCHAR(64) PATH '$')) AS `k`,
-    LATERAL JSON_TABLE(JSON_EXTRACT(`a`.`option_order`, CONCAT('$."', `k`.`qkey`, '"')), '$[*]' COLUMNS (`pos` FOR ORDINALITY, `oid` VARCHAR(64) PATH '$')) AS `j`
+    JSON_TABLE(JSON_EXTRACT(`a`.`option_order`, CONCAT('$."', `k`.`qkey`, '"')), '$[*]' COLUMNS (`pos` FOR ORDINALITY, `oid` VARCHAR(64) PATH '$')) AS `j`
   WHERE `a`.`option_order` IS NOT NULL AND `k`.`qkey` REGEXP '^[0-9]+$' AND `j`.`oid` REGEXP '^[0-9]+$'
     AND EXISTS (SELECT 1 FROM `questions` AS `q` WHERE `q`.`id` = CAST(`k`.`qkey` AS UNSIGNED))
     AND EXISTS (SELECT 1 FROM `answer_options` AS `o` WHERE `o`.`id` = CAST(`j`.`oid` AS UNSIGNED))
 ) AS `deduped`
 GROUP BY `attempt_id`, `question_id`, `option_id`;--> statement-breakpoint
-ALTER TABLE `test_attempts` DROP COLUMN `question_order`;--> statement-breakpoint
-ALTER TABLE `test_attempts` DROP COLUMN `option_order`;
+-- Both columns go in one statement so a crash between two DROPs cannot leave
+-- a half-migrated table behind on the next run.
+ALTER TABLE `test_attempts` DROP COLUMN `question_order`, DROP COLUMN `option_order`;

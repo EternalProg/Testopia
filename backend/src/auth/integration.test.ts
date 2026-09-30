@@ -76,6 +76,10 @@ describe('authentication MySQL integration', () => {
   }
 
   beforeAll(async () => {
+    // The shared client is lazy with the offline queue off: connect
+    // explicitly, otherwise the first command fails instantly (see
+    // plugins/redis, which does the same at startup).
+    await redis.connect();
     await migrate(db, { migrationsFolder: resolve(import.meta.dirname, '../db/migrations') });
     await cleanupDatabase();
     await app.ready();
