@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { SubmitAttemptResult } from '@testopia/shared';
 
-import { AttemptsService, isPermutation, normalizeOptionOrder, scoreOf } from './service.js';
+import { AttemptsService, isPermutation, scoreOf } from './service.js';
 
 const publishedTest = {
   id: 1,
@@ -77,8 +77,6 @@ const inProgressAttempt = {
   completedAt: null,
   score: null,
   timeSpentSeconds: null,
-  questionOrder: [11, 12, 13, 14] as number[] | null,
-  optionOrder: null as Record<number, number[]> | null,
 };
 
 function setup(
@@ -89,28 +87,45 @@ function setup(
     findQuestions: vi.fn().mockResolvedValue(questions),
     ...overrides.tests,
   };
+  // Orders live in their own tables now: what start() stores is what later
+  // reads serve, unless a test overrides findAttemptOrders outright.
+  const storedOrders = new Map<
+    number,
+    { questionIds: number[] | null; optionOrders: Map<number, number[]> }
+  >();
+  const fullOrders = () => ({
+    questionIds: [11, 12, 13, 14],
+    optionOrders: new Map() as Map<number, number[]>,
+  });
   const attempts = {
     findActiveAttempt: vi.fn().mockResolvedValue(null),
     findAttemptById: vi.fn().mockResolvedValue(inProgressAttempt),
     findAnswerRecords: vi.fn().mockResolvedValue([]),
     listAttemptsByTest: vi.fn().mockResolvedValue([]),
     countTerminalByUser: vi.fn().mockResolvedValue(0),
+    findAttemptOrders: vi
+      .fn()
+      .mockImplementation(async (id: number) => storedOrders.get(id) ?? fullOrders()),
+    findAttemptOrdersMany: vi
+      .fn()
+      .mockImplementation(async (ids: number[]) => new Map(ids.map((id) => [id, fullOrders()]))),
     createAttempt: vi
       .fn()
       .mockImplementation(
         async (input: {
           userId: number;
           testId: number;
-          questionOrder: number[] | null;
-          optionOrder: Record<number, number[]> | null;
-        }) => ({
-          ...inProgressAttempt,
-          id: 6,
-          userId: input.userId,
-          testId: input.testId,
-          questionOrder: input.questionOrder,
-          optionOrder: input.optionOrder,
-        }),
+          questionIds: number[];
+          optionOrders: Record<number, number[]> | null;
+        }) => {
+          storedOrders.set(6, {
+            questionIds: input.questionIds,
+            optionOrders: new Map(
+              Object.entries(input.optionOrders ?? {}).map(([key, value]) => [Number(key), value]),
+            ),
+          });
+          return { ...inProgressAttempt, id: 6, userId: input.userId, testId: input.testId };
+        },
       ),
     completeAttempt: vi
       .fn()
@@ -178,15 +193,15 @@ describe('AttemptsService', () => {
     });
     await shuffled.service.start({ id: 7, role: 'user' }, 1);
     const shuffledOrder = (
-      shuffled.attempts.createAttempt.mock.calls[0]![0] as { questionOrder: number[] }
-    ).questionOrder;
+      shuffled.attempts.createAttempt.mock.calls[0]![0] as { questionIds: number[] }
+    ).questionIds;
     expect([...shuffledOrder].sort((a, b) => a - b)).toEqual([11, 12, 13, 14]);
     expect(shuffledOrder).not.toEqual([11, 12, 13, 14]);
 
     const natural = setup();
     await natural.service.start({ id: 7, role: 'user' }, 1);
     expect(natural.attempts.createAttempt).toHaveBeenCalledWith(
-      expect.objectContaining({ questionOrder: [11, 12, 13, 14] }),
+      expect.objectContaining({ questionIds: [11, 12, 13, 14] }),
     );
   });
 
@@ -238,32 +253,59 @@ describe('AttemptsService', () => {
     await shuffled.service.start({ id: 7, role: 'user' }, 1);
 
     const created = shuffled.attempts.createAttempt.mock.calls[0]![0] as {
-      optionOrder: Record<number, number[]>;
+      optionOrders: Record<number, number[]>;
     };
     // Every option of every question appears exactly once, whatever the shuffle.
     expect(
-      Object.keys(created.optionOrder)
+      Object.keys(created.optionOrders)
         .map(Number)
         .sort((a, b) => a - b),
     ).toEqual([11, 12, 13, 14]);
-    expect([...created.optionOrder[11]!].sort((a, b) => a - b)).toEqual([101, 102]);
-    expect([...created.optionOrder[12]!].sort((a, b) => a - b)).toEqual([103, 104, 105]);
-    expect(created.optionOrder[14]).toEqual([]);
+    expect([...created.optionOrders[11]!].sort((a, b) => a - b)).toEqual([101, 102]);
+    expect([...created.optionOrders[12]!].sort((a, b) => a - b)).toEqual([103, 104, 105]);
+    expect(created.optionOrders[14]).toEqual([]);
 
     const natural = setup();
     await natural.service.start({ id: 7, role: 'user' }, 1);
     expect(natural.attempts.createAttempt).toHaveBeenCalledWith(
-      expect.objectContaining({ optionOrder: null }),
+      expect.objectContaining({ optionOrders: null }),
     );
+  });
+
+  it('stores option orders only for the sampled questions', async () => {
+    const sampled = setup({
+      tests: {
+        findById: vi.fn().mockResolvedValue({
+          ...publishedTest,
+          shuffleOptions: true,
+          questionCount: 2,
+        }),
+      },
+    });
+    await sampled.service.start({ id: 7, role: 'user' }, 1);
+
+    const created = sampled.attempts.createAttempt.mock.calls[0]![0] as {
+      questionIds: number[];
+      optionOrders: Record<number, number[]>;
+    };
+    expect(created.questionIds).toHaveLength(2);
+    // Sampled-out questions get no rows: the key set is exactly the asked set.
+    expect(
+      Object.keys(created.optionOrders)
+        .map(Number)
+        .sort((a, b) => a - b),
+    ).toEqual([...created.questionIds].sort((a, b) => a - b));
   });
 
   it('renders shuffled options and falls back when the stored order no longer fits', async () => {
     const shuffled = setup({
       attempts: {
-        findAttemptById: vi.fn().mockResolvedValue({
-          ...inProgressAttempt,
-          // String keys: MySQL returns JSON object keys as strings.
-          optionOrder: { '11': [102, 101], '12': [105, 103, 104] },
+        findAttemptOrders: vi.fn().mockResolvedValue({
+          questionIds: [11, 12, 13, 14],
+          optionOrders: new Map([
+            [11, [102, 101]],
+            [12, [105, 103, 104]],
+          ]),
         }),
       },
     });
@@ -291,27 +333,15 @@ describe('AttemptsService', () => {
         ]),
       },
       attempts: {
-        findAttemptById: vi.fn().mockResolvedValue({
-          ...inProgressAttempt,
-          optionOrder: { '11': [102, 101] },
+        findAttemptOrders: vi.fn().mockResolvedValue({
+          questionIds: [11, 12, 13, 14],
+          optionOrders: new Map([[11, [102, 101]]]),
         }),
       },
     });
     const editedDetail = await edited.service.get(5, { id: 7, role: 'user' });
     const editedQuestion = editedDetail.questions.find((question) => question.id === 11);
     expect(editedQuestion?.options.map((option) => option.id)).toEqual([101, 102, 108]);
-  });
-
-  it('normalizes stored option order keys and rejects malformed entries', () => {
-    expect(normalizeOptionOrder({ '11': [2, 1] }).get(11)).toEqual([2, 1]);
-    expect(normalizeOptionOrder({ 11: [2, 1] }).get(11)).toEqual([2, 1]);
-    expect(normalizeOptionOrder(null).size).toBe(0);
-    expect(normalizeOptionOrder([1, 2]).size).toBe(0);
-    expect(normalizeOptionOrder('11').size).toBe(0);
-    // Non-numeric key, non-array value, and non-integer ids are all dropped.
-    expect(normalizeOptionOrder({ abc: [1] }).size).toBe(0);
-    expect(normalizeOptionOrder({ '11': 1 }).size).toBe(0);
-    expect(normalizeOptionOrder({ '11': [1.5, 2] }).size).toBe(0);
   });
 
   it('detects whether a stored order is a permutation of the current options', () => {
@@ -325,17 +355,17 @@ describe('AttemptsService', () => {
   it('returns questions in persisted order with answers redacted', async () => {
     const { service } = setup({
       attempts: {
-        findAttemptById: vi
+        findAttemptOrders: vi
           .fn()
-          .mockResolvedValue({ ...inProgressAttempt, questionOrder: [14, 11] }),
+          .mockResolvedValue({ questionIds: [14, 11], optionOrders: new Map() }),
       },
     });
 
     const detail = await service.get(5, { id: 7, role: 'user' });
 
     expect(detail.test).toMatchObject({ id: 1, title: 'Basics', timeLimitMinutes: null });
-    // A stored questionOrder is the exact asked set: 12 and 13 were not part
-    // of it, so they stay out of the attempt even though the test owns them.
+    // A stored order is the exact asked set: 12 and 13 were not part of it,
+    // so they stay out of the attempt even though the test owns them.
     expect(detail.questions.map((question) => question.id)).toEqual([14, 11]);
     const choice = detail.questions.find((question) => question.id === 11);
     expect(choice?.options[0]).not.toHaveProperty('isCorrect');
@@ -352,8 +382,8 @@ describe('AttemptsService', () => {
 
     for (let run = 0; run < 40; run += 1) {
       await service.start({ id: 7, role: 'user' }, 1);
-      const order = (attempts.createAttempt.mock.calls.at(-1)![0] as { questionOrder: number[] })
-        .questionOrder;
+      const order = (attempts.createAttempt.mock.calls.at(-1)![0] as { questionIds: number[] })
+        .questionIds;
       // Property, not order: exactly N distinct ids, all from the bank.
       expect(order).toHaveLength(2);
       expect(new Set(order).size).toBe(2);
@@ -374,8 +404,8 @@ describe('AttemptsService', () => {
     });
     for (let run = 0; run < 20; run += 1) {
       await service.start({ id: 7, role: 'user' }, 1);
-      const order = (attempts.createAttempt.mock.calls.at(-1)![0] as { questionOrder: number[] })
-        .questionOrder;
+      const order = (attempts.createAttempt.mock.calls.at(-1)![0] as { questionIds: number[] })
+        .questionIds;
       // A fixed-order test still varies which questions are asked, but the
       // asked ones keep their orderIndex sequence.
       expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -391,17 +421,16 @@ describe('AttemptsService', () => {
       });
       await service.start({ id: 7, role: 'user' }, 1);
       expect(attempts.createAttempt, `questionCount ${questionCount}`).toHaveBeenCalledWith(
-        expect.objectContaining({ questionOrder: [11, 12, 13, 14] }),
+        expect.objectContaining({ questionIds: [11, 12, 13, 14] }),
       );
     }
   });
 
   it('excludes unasked questions from the score, records, and result', async () => {
+    const sampledOrders = { questionIds: [11, 12], optionOrders: new Map() };
     const sampled = setup({
       attempts: {
-        findAttemptById: vi
-          .fn()
-          .mockResolvedValue({ ...inProgressAttempt, questionOrder: [11, 12] }),
+        findAttemptOrders: vi.fn().mockResolvedValue(sampledOrders),
         completeAttempt: vi.fn().mockImplementation(async (id: number, outcome: object) => ({
           ...inProgressAttempt,
           id,
@@ -429,11 +458,8 @@ describe('AttemptsService', () => {
     // The result view shows the same two questions, never the whole bank.
     const graded = setup({
       attempts: {
-        findAttemptById: vi.fn().mockResolvedValue({
-          ...inProgressAttempt,
-          status: 'completed',
-          questionOrder: [11, 12],
-        }),
+        findAttemptById: vi.fn().mockResolvedValue({ ...inProgressAttempt, status: 'completed' }),
+        findAttemptOrders: vi.fn().mockResolvedValue(sampledOrders),
         findAnswerRecords: vi.fn().mockResolvedValue([]),
       },
     });
@@ -445,9 +471,9 @@ describe('AttemptsService', () => {
   it('rejects answers and grades for questions the attempt never asked', async () => {
     const sampled = setup({
       attempts: {
-        findAttemptById: vi
+        findAttemptOrders: vi
           .fn()
-          .mockResolvedValue({ ...inProgressAttempt, questionOrder: [11, 12] }),
+          .mockResolvedValue({ questionIds: [11, 12], optionOrders: new Map() }),
       },
     });
 
@@ -459,11 +485,10 @@ describe('AttemptsService', () => {
 
     const gradable = setup({
       attempts: {
-        findAttemptById: vi.fn().mockResolvedValue({
-          ...inProgressAttempt,
-          status: 'completed',
-          questionOrder: [11, 12],
-        }),
+        findAttemptById: vi.fn().mockResolvedValue({ ...inProgressAttempt, status: 'completed' }),
+        findAttemptOrders: vi
+          .fn()
+          .mockResolvedValue({ questionIds: [11, 12], optionOrders: new Map() }),
         findAnswerRecords: vi.fn().mockResolvedValue([]),
       },
     });
@@ -478,13 +503,15 @@ describe('AttemptsService', () => {
   it('falls back to every question when no order was stored', async () => {
     const { service } = setup({
       attempts: {
-        findAttemptById: vi.fn().mockResolvedValue({ ...inProgressAttempt, questionOrder: null }),
+        findAttemptOrders: vi
+          .fn()
+          .mockResolvedValue({ questionIds: null, optionOrders: new Map() }),
       },
     });
 
     const detail = await service.get(5, { id: 7, role: 'user' });
 
-    // Legacy rows (and pre-sampling attempts) have no order: all questions
+    // Attempts without order rows predate the normalized tables: all questions
     // by orderIndex, which is today's behavior.
     expect(detail.questions.map((question) => question.id)).toEqual([11, 12, 13, 14]);
   });

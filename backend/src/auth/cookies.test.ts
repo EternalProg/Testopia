@@ -25,9 +25,10 @@ function csrfHeaders(): Record<string, string> {
 
 describe('refresh cookies', () => {
   it('scopes the cookie to auth endpoints with httpOnly and lax same-site', () => {
-    const expiresAt = new Date(Date.now() + 60_000);
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const expiresAt = new Date(now.getTime() + 60_000);
 
-    expect(refreshCookieOptions(expiresAt)).toMatchObject({
+    expect(refreshCookieOptions(expiresAt, now)).toMatchObject({
       httpOnly: true,
       sameSite: 'lax',
       secure: false,
@@ -57,7 +58,36 @@ describe('refresh cookies', () => {
     );
 
     clearRefreshCookie(reply);
-    expect(clearCookie).toHaveBeenCalledWith(refreshCookieName, { path: '/api/v1/auth' });
+    expect(clearCookie).toHaveBeenCalledWith(
+      refreshCookieName,
+      expect.objectContaining({ path: '/api/v1/auth' }),
+    );
+  });
+
+  it('clears the cookie with the same path, same-site, and secure attributes', () => {
+    const clearCookie = vi.fn();
+    const reply = { clearCookie } as unknown as FastifyReply;
+    const original = process.env.COOKIE_SECURE;
+    try {
+      delete process.env.COOKIE_SECURE;
+      clearRefreshCookie(reply);
+      expect(clearCookie).toHaveBeenCalledWith(refreshCookieName, {
+        path: '/api/v1/auth',
+        secure: false,
+        sameSite: 'lax',
+      });
+
+      process.env.COOKIE_SECURE = '1';
+      clearRefreshCookie(reply);
+      expect(clearCookie).toHaveBeenCalledWith(refreshCookieName, {
+        path: '/api/v1/auth',
+        secure: true,
+        sameSite: 'lax',
+      });
+    } finally {
+      if (original === undefined) delete process.env.COOKIE_SECURE;
+      else process.env.COOKIE_SECURE = original;
+    }
   });
 
   it('reads the refresh cookie only with the CSRF header present', () => {

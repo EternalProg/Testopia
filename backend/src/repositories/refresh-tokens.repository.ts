@@ -51,8 +51,17 @@ export class RefreshTokensRepository {
       })
       .pexpireat(key, input.expiresAt.getTime())
       .exec();
+    // ioredis exec() resolves null when the MULTI was discarded, otherwise
+    // one [error, value] tuple per queued command. A truthy result alone
+    // proves nothing: any failed command must surface instead of leaving
+    // behind a session key with no expiry (an immortal session).
     if (!result) {
       throw new Error('Failed to store the refresh token');
+    }
+    for (const [error] of result) {
+      if (error) {
+        throw new Error('Failed to store the refresh token');
+      }
     }
   }
 
@@ -91,7 +100,7 @@ export class RefreshTokensRepository {
       replacement.id,
       String(replacement.userId),
       String(replacement.expiresAt.getTime()),
-      replacement.expiresAt.getTime(),
+      String(replacement.expiresAt.getTime()),
     )) as number;
     return rotated === 1;
   }

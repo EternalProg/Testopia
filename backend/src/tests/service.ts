@@ -13,7 +13,7 @@ import type {
 } from '@testopia/shared';
 
 import type { tests } from '../db/schema.js';
-import { isDuplicateEntryError } from '../db/errors.js';
+import { isDuplicateEntryError, isRowReferencedError } from '../db/errors.js';
 import { AuthError } from '../auth/errors.js';
 import type { ListTestsInput, TestsRepository } from '../repositories/tests.repository.js';
 import { TestError } from './errors.js';
@@ -230,7 +230,11 @@ export class TestsService {
     if (!(await this.repository.findQuestion(testId, questionId))) {
       throw new TestError('Question not found', 'NOT_FOUND');
     }
-    await this.repository.deleteQuestion(testId, questionId);
+    try {
+      await this.repository.deleteQuestion(testId, questionId);
+    } catch (error) {
+      throw this.mapPersistenceError(error);
+    }
     if (test.isPublished) await this.repository.update(testId, { isPublished: false });
   }
 
@@ -339,6 +343,12 @@ export class TestsService {
   private mapPersistenceError(error: unknown) {
     if (isDuplicateEntryError(error)) {
       return new TestError('Question order must be unique within a test', 'CONFLICT');
+    }
+    if (isRowReferencedError(error)) {
+      return new TestError(
+        'Question is referenced by attempt data and cannot be deleted',
+        'CONFLICT',
+      );
     }
     return error;
   }

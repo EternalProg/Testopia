@@ -251,6 +251,37 @@ describe('TestsService', () => {
     ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 
+  it('translates referenced-row failures when deleting a question into conflicts', async () => {
+    const plain = repository({
+      deleteQuestion: vi.fn().mockRejectedValue({ code: 'ER_ROW_IS_REFERENCED_2', errno: 1451 }),
+    });
+    const plainService = new TestsService(plain as never);
+    await expect(plainService.deleteQuestion({ id: 10, role: 'user' }, 1, 2)).rejects.toMatchObject(
+      {
+        code: 'CONFLICT',
+        message: 'Question is referenced by attempt data and cannot be deleted',
+      },
+    );
+
+    const driverError = Object.assign(
+      new Error(
+        "Cannot delete or update a parent row: a foreign key constraint fails ('attempt_questions')",
+      ),
+      { code: 'ER_ROW_IS_REFERENCED_2', errno: 1451 },
+    );
+    const wrapped = Object.assign(new Error('Failed query: delete from `questions`'), {
+      name: 'DrizzleQueryError',
+      cause: driverError,
+    });
+    const wrappedRepo = repository({
+      deleteQuestion: vi.fn().mockRejectedValue(wrapped),
+    });
+    const wrappedService = new TestsService(wrappedRepo as never);
+    await expect(
+      wrappedService.deleteQuestion({ id: 10, role: 'user' }, 1, 2),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
   it('translates Drizzle-wrapped duplicate order failures into conflicts', async () => {
     const driverError = Object.assign(
       new Error("Duplicate entry '1-0' for key 'questions.questions_test_order_unique'"),

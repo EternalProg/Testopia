@@ -8,6 +8,11 @@ describe('redis configuration', () => {
     expect(getRedisUrl({ REDIS_URL: 'redis://cache:6379/2' })).toBe('redis://cache:6379/2');
   });
 
+  it('accepts TLS Redis URLs', () => {
+    expect(getRedisUrl({ REDIS_URL: 'rediss://cache:6379' })).toBe('rediss://cache:6379');
+    expect(getRedisUrl({ REDIS_URL: 'rediss://cache:6379/2' })).toBe('rediss://cache:6379/2');
+  });
+
   it('rejects a missing or non-Redis URL', () => {
     expect(() => getRedisUrl({})).toThrow();
     expect(() => getRedisUrl({ REDIS_URL: 'mysql://localhost/app' })).toThrow();

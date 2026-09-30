@@ -4,8 +4,8 @@ const redisUrlSchema = z
   .string()
   .trim()
   .url()
-  .refine((value) => value.startsWith('redis://'), {
-    message: 'REDIS_URL must use the redis:// protocol',
+  .refine((value) => /^rediss?:\/\//.test(value), {
+    message: 'REDIS_URL must use the redis:// or rediss:// protocol',
   });
 
 export function getRedisUrl(environment: NodeJS.ProcessEnv = process.env): string {

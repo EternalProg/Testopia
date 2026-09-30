@@ -14,6 +14,7 @@ import type {
 import type {
   AnswerRecordInput,
   AnswerRecordRow,
+  AttemptOrders,
   AttemptRow,
   AttemptsRepository,
 } from '../repositories/attempts.repository.js';
@@ -38,26 +39,12 @@ export function scoreOf(verdicts: Array<number | null>): number | null {
 }
 
 /**
- * Turns the stored `option_order` JSON into a `Map<number, number[]>`. MySQL
- * returns JSON object keys as strings, so a stored `{ "11": [3, 4] }` becomes
- * `Map<11, [3, 4]>`; the caller then decides whether the entry is usable.
- * Malformed values (non-object, non-numeric key, non-integer-id array) are
- * dropped rather than trusted — the question falls back to natural order.
+ * True when `order` lists exactly the given option ids, once each.
+ *
+ * Stored option rows are honored only on an exact match: an option deleted
+ * mid-attempt cascades its row away (and an added option has no row), so a
+ * stale set would otherwise drop or duplicate choices.
  */
-export function normalizeOptionOrder(value: unknown): Map<number, number[]> {
-  const normalized = new Map<number, number[]>();
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return normalized;
-  for (const [key, order] of Object.entries(value)) {
-    const questionId = Number(key);
-    if (!Number.isSafeInteger(questionId) || questionId <= 0) continue;
-    if (!Array.isArray(order)) continue;
-    if (!order.every((id) => typeof id === 'number' && Number.isSafeInteger(id))) continue;
-    normalized.set(questionId, order as number[]);
-  }
-  return normalized;
-}
-
-/** True when `order` lists exactly the given option ids, once each. */
 export function isPermutation(order: number[], ids: number[]): boolean {
   if (order.length !== ids.length) return false;
   const remaining = new Set(ids);
@@ -111,11 +98,12 @@ export class AttemptsService {
     }
     await this.assertWithinAttemptLimit(actor, test);
     const questions = await this.tests.findQuestions(testId);
+    const questionIds = this.buildAttemptQuestionIds(test, questions);
     const created = await this.attempts.createAttempt({
       userId: actor.id,
       testId,
-      questionOrder: this.buildAttemptQuestionIds(test, questions),
-      optionOrder: this.buildOptionOrder(test, questions),
+      questionIds,
+      optionOrders: this.buildOptionOrder(test, questions, questionIds),
     });
     if (!created) throw new Error('Created attempt could not be loaded');
     return this.detail(created);
@@ -134,9 +122,10 @@ export class AttemptsService {
     const test = await this.tests.findById(attempt.testId);
     if (!test) throw new AttemptError('Test not found', 'NOT_FOUND');
     const questions = await this.tests.findQuestions(test.id);
+    const orders = await this.attempts.findAttemptOrders(attempt.id);
     const records = await this.attempts.findAnswerRecords(attempt.id);
-    const answers = this.reconstructAnswers(questions, attempt, records);
-    return this.toResult(attempt, test, questions, answers, this.isRevealed(test, actor));
+    const answers = this.reconstructAnswers(questions, orders, records);
+    return this.toResult(attempt, orders, test, questions, answers, this.isRevealed(test, actor));
   }
 
   async listHistory(actor: Actor, testId: number): Promise<AttemptHistoryItem[]> {
@@ -146,9 +135,10 @@ export class AttemptsService {
     const rows = this.canManage(test, actor)
       ? await this.attempts.listAttemptsByTest(testId)
       : await this.attempts.listAttemptsByTest(testId, { userId: actor.id });
+    const orders = await this.attempts.findAttemptOrdersMany(rows.map((row) => row.id));
     // Redaction is mapping-time only: persisted rows keep their real scores.
     return rows.map((row) => {
-      const attempt = this.toAttempt(row);
+      const attempt = this.toAttempt(row, orders.get(row.id)?.questionIds ?? null);
       if (!revealed) attempt.score = null;
       return { ...attempt, username: row.username, answersRevealed: revealed };
     });
@@ -166,9 +156,10 @@ export class AttemptsService {
     const test = await this.tests.findById(attempt.testId);
     if (!test) throw new AttemptError('Test not found', 'NOT_FOUND');
     const questions = await this.tests.findQuestions(test.id);
+    const orders = await this.attempts.findAttemptOrders(attempt.id);
     // Only the asked set is graded: a sampled-out question produces no record
     // and contributes nothing to the score.
-    const asked = this.orderedQuestions(questions, attempt);
+    const asked = this.orderedQuestions(questions, orders);
     const byId = new Map(asked.map((question) => [question.id, question]));
     for (const answer of input.answers) {
       const question = byId.get(answer.questionId);
@@ -248,7 +239,7 @@ export class AttemptsService {
       throw new AttemptError('Attempt has already been submitted', 'CONFLICT');
     }
     const result: SubmitAttemptResult = {
-      attempt: this.toAttempt(completed),
+      attempt: this.toAttempt(completed, orders.questionIds),
       answers,
       answersRevealed: this.isRevealed(test, actor),
     };
@@ -276,9 +267,10 @@ export class AttemptsService {
   async getGradeView(attemptId: number, actor: Actor): Promise<AttemptResult> {
     const { attempt, test } = await this.requireGradeableAttempt(attemptId, actor);
     const questions = await this.tests.findQuestions(test.id);
+    const orders = await this.attempts.findAttemptOrders(attempt.id);
     const records = await this.attempts.findAnswerRecords(attempt.id);
-    const answers = this.reconstructAnswers(questions, attempt, records);
-    return this.toResult(attempt, test, questions, answers, true);
+    const answers = this.reconstructAnswers(questions, orders, records);
+    return this.toResult(attempt, orders, test, questions, answers, true);
   }
 
   /**
@@ -296,9 +288,10 @@ export class AttemptsService {
   ): Promise<{ attempt: TestAttempt }> {
     const { attempt, test } = await this.requireGradeableAttempt(attemptId, actor);
     const questions = await this.tests.findQuestions(test.id);
+    const orders = await this.attempts.findAttemptOrders(attempt.id);
     // Grading is restricted to the asked set, so a sampled-out question can
     // neither receive a verdict nor change the recomputed score.
-    const asked = this.orderedQuestions(questions, attempt);
+    const asked = this.orderedQuestions(questions, orders);
     const byId = new Map(asked.map((question) => [question.id, question]));
     for (const entry of input.grades) {
       const question = byId.get(entry.questionId);
@@ -349,7 +342,7 @@ export class AttemptsService {
       scoreOf(credits),
     );
     if (!updated) throw new AttemptError('Attempt not found', 'NOT_FOUND');
-    return { attempt: this.toAttempt(updated) };
+    return { attempt: this.toAttempt(updated, orders.questionIds) };
   }
 
   private async requireGradeableAttempt(
@@ -409,18 +402,19 @@ export class AttemptsService {
     const test = await this.tests.findById(attempt.testId);
     if (!test) throw new AttemptError('Test not found', 'NOT_FOUND');
     const questions = await this.tests.findQuestions(attempt.testId);
+    const orders = await this.attempts.findAttemptOrders(attempt.id);
     return {
-      attempt: this.toAttempt(attempt),
+      attempt: this.toAttempt(attempt, orders.questionIds),
       test: { id: test.id, title: test.title, timeLimitMinutes: test.timeLimitMinutes },
-      questions: this.orderedPublicQuestions(questions, attempt),
+      questions: this.orderedPublicQuestions(questions, orders),
     };
   }
 
   private orderedPublicQuestions(
     questions: QuestionWithOptions[],
-    attempt: AttemptRow,
+    orders: AttemptOrders,
   ): PublicQuestion[] {
-    return this.orderedQuestions(questions, attempt).map((question) => ({
+    return this.orderedQuestions(questions, orders).map((question) => ({
       ...question,
       options: question.options.map(({ isCorrect: _isCorrect, ...option }) => option),
     }));
@@ -428,18 +422,18 @@ export class AttemptsService {
 
   private orderedQuestions(
     questions: QuestionWithOptions[],
-    attempt: AttemptRow,
+    orders: AttemptOrders,
   ): QuestionWithOptions[] {
-    const order = attempt.questionOrder;
-    // A non-empty questionOrder is the exact asked set: with sampling on,
+    const order = orders.questionIds;
+    // A non-empty stored set is the exact asked set: with sampling on,
     // unasked questions are excluded from the taking page, the result, the
-    // answers, and grading. The empty case covers legacy rows and attempts
-    // created before sampling existed, which still mean "all questions".
+    // answers, and grading. A null set covers attempts without order rows,
+    // which still mean "all questions by orderIndex".
     const ordered =
       !order || !order.length
         ? [...questions].sort((a, b) => a.orderIndex - b.orderIndex)
         : this.askedQuestions(questions, order);
-    return this.withOptionOrder(ordered, normalizeOptionOrder(attempt.optionOrder));
+    return this.withOptionOrder(ordered, orders.optionOrders);
   }
 
   private askedQuestions(questions: QuestionWithOptions[], order: number[]): QuestionWithOptions[] {
@@ -451,10 +445,10 @@ export class AttemptsService {
 
   /**
    * Applies the attempt's stored option order. An entry is honored only when
-   * it is an exact permutation of the question's current option ids: authors
-   * can add or remove options mid-attempt, and a stale order would otherwise
-   * drop or duplicate choices. Open-ended questions (no options) fall out
-   * naturally because their stored array is empty.
+   * it is an exact permutation of the question's current option ids: an
+   * option deleted mid-attempt cascades its row away (and an added option has
+   * no row), so a stale set would otherwise drop or duplicate choices.
+   * Questions without rows keep their natural order.
    */
   private withOptionOrder(
     questions: QuestionWithOptions[],
@@ -479,7 +473,7 @@ export class AttemptsService {
 
   private reconstructAnswers(
     questions: QuestionWithOptions[],
-    attempt: AttemptRow,
+    orders: AttemptOrders,
     records: AnswerRecordRow[],
   ): AttemptAnswer[] {
     const byQuestion = new Map<number, AnswerRecordRow[]>();
@@ -491,7 +485,7 @@ export class AttemptsService {
     // Choice answers persist one row per selected option id, each carrying the
     // same question-level verdict; open-ended and unanswered questions persist
     // a single row. Questions without rows default to empty/null.
-    return this.orderedQuestions(questions, attempt).map((question) => {
+    return this.orderedQuestions(questions, orders).map((question) => {
       const rows = byQuestion.get(question.id) ?? [];
       const selectedOptionIds = [
         ...new Set(
@@ -509,12 +503,13 @@ export class AttemptsService {
 
   private toResult(
     attempt: AttemptRow,
+    orders: AttemptOrders,
     test: NonNullable<TestRow>,
     questions: QuestionWithOptions[],
     answers: AttemptAnswer[],
     revealed: boolean,
   ): AttemptResult {
-    const ordered = this.orderedQuestions(questions, attempt);
+    const ordered = this.orderedQuestions(questions, orders);
     const resultQuestions: ResultQuestion[] = revealed
       ? ordered.map((question) => ({ ...question }))
       : ordered.map((question) => ({
@@ -522,7 +517,7 @@ export class AttemptsService {
           options: question.options.map(({ isCorrect: _isCorrect, ...option }) => option),
         }));
     // Redaction is mapping-time only: the persisted attempt keeps its real score.
-    const resultAttempt = this.toAttempt(attempt);
+    const resultAttempt = this.toAttempt(attempt, orders.questionIds);
     const resultAnswers = revealed
       ? answers
       : answers.map((answer) => ({ ...answer, isCorrect: null }));
@@ -586,17 +581,21 @@ export class AttemptsService {
 
   /**
    * Per-attempt option display order, or null when the test does not shuffle
-   * options. Open-ended questions get an entry too (an empty array): keeping
-   * the key set stable means a later type change still round-trips through
-   * the same normalization path.
+   * options. Only asked questions get rows (a sampled-out question has no
+   * display order to store). Open-ended questions get an entry too (an empty
+   * array): keeping the key set stable means a later type change still
+   * round-trips through the same normalization path.
    */
   private buildOptionOrder(
     test: NonNullable<TestRow>,
     questions: QuestionWithOptions[],
+    questionIds: number[],
   ): Record<number, number[]> | null {
     if (!test.shuffleOptions) return null;
+    const asked = new Set(questionIds);
     const order: Record<number, number[]> = {};
     for (const question of questions) {
+      if (!asked.has(question.id)) continue;
       const ids = question.options.map((option) => option.id);
       for (let i = ids.length - 1; i > 0; i -= 1) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -652,7 +651,9 @@ export class AttemptsService {
     return Math.max(0, Math.floor((now.getTime() - new Date(attempt.startedAt).getTime()) / 1000));
   }
 
-  private toAttempt(attempt: AttemptRow): TestAttempt {
+  // The public contract keeps questionOrder even though storage moved to
+  // tables: readers that never see the JSON still get the same payload.
+  private toAttempt(attempt: AttemptRow, questionOrder: number[] | null): TestAttempt {
     return {
       id: attempt.id,
       userId: attempt.userId,
@@ -662,7 +663,7 @@ export class AttemptsService {
       completedAt: attempt.completedAt,
       score: attempt.score,
       timeSpentSeconds: attempt.timeSpentSeconds,
-      questionOrder: attempt.questionOrder ?? null,
+      questionOrder,
     };
   }
 }

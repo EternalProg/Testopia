@@ -4,7 +4,10 @@ import type { RedisClient } from '../redis/client.js';
 import { refreshTokenKey, RefreshTokensRepository } from './refresh-tokens.repository.js';
 
 function redisMock() {
-  const exec = vi.fn().mockResolvedValue([['OK'], ['OK']]);
+  const exec = vi.fn().mockResolvedValue([
+    [null, 'OK'],
+    [null, 'OK'],
+  ]);
   const hset = vi.fn().mockReturnThis();
   const pexpireat = vi.fn().mockReturnThis();
   const multi = vi.fn(() => ({ hset, pexpireat, exec }));
@@ -42,6 +45,27 @@ describe('RefreshTokensRepository', () => {
     });
     expect(redis.pexpireat).toHaveBeenCalledWith(refreshTokenKey('hash'), expiresAt.getTime());
     expect(redis.exec).toHaveBeenCalledOnce();
+  });
+
+  it('throws when the store pipeline is discarded or any command fails', async () => {
+    const repository = new RefreshTokensRepository(redis as unknown as RedisClient);
+    const input = {
+      id: 'token-id',
+      userId: 7,
+      tokenHash: 'hash',
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+
+    redis.exec.mockResolvedValueOnce(null);
+    await expect(repository.create(input)).rejects.toThrow('Failed to store the refresh token');
+
+    // A truthy exec result with a failed PEXPIREAT tuple must still throw:
+    // otherwise the session key survives without an expiry.
+    redis.exec.mockResolvedValueOnce([
+      [null, 1],
+      [new Error('NOSCRIPT'), null],
+    ]);
+    await expect(repository.create(input)).rejects.toThrow('Failed to store the refresh token');
   });
 
   it('reads a stored session and rejects missing or malformed hashes', async () => {
@@ -99,7 +123,7 @@ describe('RefreshTokensRepository', () => {
       'new-id',
       '7',
       String(replacement.expiresAt.getTime()),
-      replacement.expiresAt.getTime(),
+      String(replacement.expiresAt.getTime()),
     );
 
     redis.eval.mockResolvedValueOnce(0);

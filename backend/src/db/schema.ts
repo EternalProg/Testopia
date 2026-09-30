@@ -3,7 +3,6 @@ import {
   decimal,
   index,
   int,
-  json,
   mysqlEnum,
   mysqlTable,
   text,
@@ -115,19 +114,69 @@ export const testAttempts = mysqlTable(
     completedAt: timestamp('completed_at'),
     score: decimal('score', { precision: 5, scale: 2, mode: 'number' }),
     timeSpentSeconds: int('time_spent_seconds'),
-    // Persisted display order of question ids for this attempt. Shuffled when
-    // tests.shuffle_questions is true, otherwise natural orderIndex order.
-    // Older rows may be null; readers fall back to orderIndex order.
-    questionOrder: json('question_order').$type<number[]>(),
-    // Maps questionId to the ordered optionIds shown for this attempt. MySQL
-    // returns the object keys as strings, so readers normalize them (see
-    // normalizeOptionOrder); null means natural option order.
-    optionOrder: json('option_order').$type<Record<number, number[]> | null>(),
   },
   (table) => [
     index('test_attempts_user_id_idx').on(table.userId),
     index('test_attempts_test_id_idx').on(table.testId),
     index('test_attempts_status_idx').on(table.status),
+  ],
+);
+
+// Per-attempt display order, normalized out of the old question_order JSON
+// column. Exactly the asked set in display order (see buildAttemptQuestionIds);
+// attempts without rows predate the normalization and still mean "all
+// questions by orderIndex".
+export const attemptQuestions = mysqlTable(
+  'attempt_questions',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    attemptId: int('attempt_id')
+      .notNull()
+      .references(() => testAttempts.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    questionId: int('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    position: int('position').notNull(),
+  },
+  (table) => [
+    uniqueIndex('attempt_questions_attempt_question_unique').on(table.attemptId, table.questionId),
+    uniqueIndex('attempt_questions_attempt_position_unique').on(table.attemptId, table.position),
+    index('attempt_questions_attempt_id_idx').on(table.attemptId),
+  ],
+);
+
+// Per-attempt option display order, normalized out of the old option_order
+// JSON column. Only questions with options get rows; only asked questions get
+// rows at all. An option deleted mid-attempt cascades its row away, and the
+// reader falls back to natural order whenever the surviving rows are no
+// longer an exact permutation of the question's current options.
+export const attemptQuestionOptions = mysqlTable(
+  'attempt_question_options',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    attemptId: int('attempt_id')
+      .notNull()
+      .references(() => testAttempts.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    questionId: int('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'restrict', onUpdate: 'cascade' }),
+    optionId: int('option_id')
+      .notNull()
+      .references(() => answerOptions.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    position: int('position').notNull(),
+  },
+  (table) => [
+    uniqueIndex('attempt_question_options_attempt_question_option_unique').on(
+      table.attemptId,
+      table.questionId,
+      table.optionId,
+    ),
+    uniqueIndex('attempt_question_options_attempt_question_position_unique').on(
+      table.attemptId,
+      table.questionId,
+      table.position,
+    ),
+    index('attempt_question_options_attempt_id_idx').on(table.attemptId),
   ],
 );
 
@@ -165,5 +214,7 @@ export const schema = {
   questions,
   answerOptions,
   testAttempts,
+  attemptQuestions,
+  attemptQuestionOptions,
   answerRecords,
 };

@@ -142,9 +142,11 @@ const state = vi.hoisted(() => {
       completedAt: Date | null;
       score: number | null;
       timeSpentSeconds: number | null;
-      questionOrder: number[] | null;
-      optionOrder: Record<number, number[]> | null;
     }>,
+    orders: new Map<
+      number,
+      { questionIds: number[] | null; optionOrders: Map<number, number[]> }
+    >(),
     nextAttemptId: 1,
     answerRecords: [] as Array<{
       id: number;
@@ -207,11 +209,22 @@ vi.mock('../repositories/attempts.repository.js', () => ({
           (attempt.status === 'completed' || attempt.status === 'expired'),
       ).length;
     }
+    async findAttemptOrders(attemptId: number) {
+      return state.orders.get(attemptId) ?? { questionIds: null, optionOrders: new Map() };
+    }
+    async findAttemptOrdersMany(attemptIds: number[]) {
+      return new Map(
+        attemptIds.map((attemptId) => [
+          attemptId,
+          state.orders.get(attemptId) ?? { questionIds: null, optionOrders: new Map() },
+        ]),
+      );
+    }
     async createAttempt(input: {
       userId: number;
       testId: number;
-      questionOrder: number[] | null;
-      optionOrder: Record<number, number[]> | null;
+      questionIds: number[];
+      optionOrders: Record<number, number[]> | null;
     }) {
       const attempt = {
         id: state.nextAttemptId,
@@ -220,10 +233,17 @@ vi.mock('../repositories/attempts.repository.js', () => ({
         completedAt: null,
         score: null,
         timeSpentSeconds: null,
-        ...input,
+        userId: input.userId,
+        testId: input.testId,
       };
       state.nextAttemptId += 1;
       state.attempts.push(attempt);
+      state.orders.set(attempt.id, {
+        questionIds: input.questionIds,
+        optionOrders: new Map(
+          Object.entries(input.optionOrders ?? {}).map(([key, value]) => [Number(key), value]),
+        ),
+      });
       return attempt;
     }
     async completeAttempt(
@@ -293,6 +313,7 @@ describe('attempt routes', () => {
     state.nextAttemptId = 1;
     state.answerRecords.length = 0;
     state.nextRecordId = 1;
+    state.orders.clear();
     currentUser.sub = '7';
     currentUser.role = 'user';
   });

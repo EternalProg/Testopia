@@ -29,18 +29,29 @@ function toSession(
   return { ...session, user: toUser(session.user) };
 }
 
+/**
+ * Whether a request sends cookies. Auth paths always do (refresh/logout ride
+ * the httpOnly session cookie); other paths only when same-origin, i.e. no
+ * cross-origin API base is configured. Exported for tests; `baseUrl`
+ * defaults to the configured API base.
+ */
+export function shouldIncludeCredentials(path: string, baseUrl: string = apiBaseUrl): boolean {
+  return path.startsWith('/api/v1/auth/') || baseUrl === '';
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body !== undefined) headers.set('Content-Type', 'application/json');
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
-  // The refresh session rides an httpOnly cookie: include credentials so the
-  // browser sends it (same-origin in production, cross-origin in local dev).
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers,
-    credentials: 'include',
-  });
+  // The refresh session rides an httpOnly cookie: send it on the
+  // cookie-authenticated auth paths, and on every same-origin request (local
+  // dev through the Vite proxy). Cross-origin non-auth calls carry the
+  // bearer token instead, so they omit credentials.
+  const initWithCredentials: RequestInit = shouldIncludeCredentials(path)
+    ? { ...init, headers, credentials: 'include' }
+    : { ...init, headers };
+  const response = await fetch(`${apiBaseUrl}${path}`, initWithCredentials);
   if (!response.ok) {
     let payload: ApiErrorPayload = {};
     try {

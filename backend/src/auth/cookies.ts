@@ -20,7 +20,7 @@ export function refreshCookieMaxAgeSeconds(expiresAt: Date, now = new Date()): n
   return Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
 }
 
-export function refreshCookieOptions(expiresAt: Date) {
+export function refreshCookieOptions(expiresAt: Date, now = new Date()) {
   return {
     httpOnly: true,
     sameSite: 'lax' as const,
@@ -28,7 +28,7 @@ export function refreshCookieOptions(expiresAt: Date) {
     // COOKIE_SECURE=1 wherever browsers reach the API over https.
     secure: process.env.COOKIE_SECURE === '1',
     path: '/api/v1/auth',
-    maxAge: refreshCookieMaxAgeSeconds(expiresAt),
+    maxAge: refreshCookieMaxAgeSeconds(expiresAt, now),
   };
 }
 
@@ -38,8 +38,13 @@ export function setRefreshCookie(reply: FastifyReply, token: string, expiresAt: 
 
 export function clearRefreshCookie(reply: FastifyReply): void {
   // Clearing must repeat the cookie path, otherwise the browser keeps the
-  // scoped cookie and keeps sending it.
-  reply.clearCookie(refreshCookieName, { path: '/api/v1/auth' });
+  // scoped cookie and keeps sending it. Secure and same-site are repeated
+  // too: a clear whose attributes do not match the set-cookie never applies.
+  reply.clearCookie(refreshCookieName, {
+    path: '/api/v1/auth',
+    secure: process.env.COOKIE_SECURE === '1',
+    sameSite: 'lax',
+  });
 }
 
 function requireCsrfHeader(request: FastifyRequest): void {

@@ -1,12 +1,35 @@
-import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
 
 import type { Database } from '../db/client.js';
-import { answerRecords, testAttempts, users } from '../db/schema.js';
+import {
+  answerRecords,
+  attemptQuestionOptions,
+  attemptQuestions,
+  testAttempts,
+  users,
+} from '../db/schema.js';
 import { withTransaction } from '../db/transaction.js';
 
 export type AttemptRow = typeof testAttempts.$inferSelect;
 export type AnswerRecordRow = typeof answerRecords.$inferSelect;
 export type AnswerRecordInput = typeof answerRecords.$inferInsert;
+
+export interface CreateAttemptInput {
+  userId: number;
+  testId: number;
+  /** Asked question ids in display order. */
+  questionIds: number[];
+  /** Per-question option display order; null when options are not shuffled. */
+  optionOrders: Record<number, number[]> | null;
+}
+
+export interface AttemptOrders {
+  /** Asked question ids in display order; null when the attempt predates the
+   * normalized order tables and still means "all questions by orderIndex". */
+  questionIds: number[] | null;
+  /** Per-question option display order, empty when options are not shuffled. */
+  optionOrders: Map<number, number[]>;
+}
 
 export class AttemptCompletionRaceError extends Error {
   constructor() {
@@ -74,14 +97,105 @@ export class AttemptsRepository {
     return Number(rows[0]?.value ?? 0);
   }
 
-  async createAttempt(input: {
-    userId: number;
-    testId: number;
-    questionOrder: number[] | null;
-    optionOrder: Record<number, number[]> | null;
-  }) {
-    const result = await this.db.insert(testAttempts).values(input);
-    return this.findAttemptById(Number(result[0].insertId));
+  async createAttempt(input: CreateAttemptInput) {
+    return withTransaction(this.db, async (transaction) => {
+      const tx = transaction as unknown as Database;
+      const result = await tx.insert(testAttempts).values({
+        userId: input.userId,
+        testId: input.testId,
+      });
+      const attemptId = Number(result[0].insertId);
+      if (input.questionIds.length > 0) {
+        await tx.insert(attemptQuestions).values(
+          input.questionIds.map((questionId, position) => ({
+            attemptId,
+            questionId,
+            position,
+          })),
+        );
+      }
+      const optionRows: Array<typeof attemptQuestionOptions.$inferInsert> = [];
+      if (input.optionOrders) {
+        for (const [questionId, optionIds] of Object.entries(input.optionOrders)) {
+          optionIds.forEach((optionId, position) => {
+            optionRows.push({ attemptId, questionId: Number(questionId), optionId, position });
+          });
+        }
+      }
+      if (optionRows.length > 0) {
+        await tx.insert(attemptQuestionOptions).values(optionRows);
+      }
+      const rows = await tx
+        .select()
+        .from(testAttempts)
+        .where(eq(testAttempts.id, attemptId))
+        .limit(1);
+      return rows[0] ?? null;
+    });
+  }
+
+  /**
+   * The stored display order for one attempt. Two indexed lookups; callers
+   * load once per operation and thread the result through the ordering
+   * helpers instead of re-querying per question.
+   */
+  async findAttemptOrders(attemptId: number): Promise<AttemptOrders> {
+    const found = await this.findAttemptOrdersMany([attemptId]);
+    return found.get(attemptId) ?? { questionIds: null, optionOrders: new Map() };
+  }
+
+  /** Batched variant for history listings: two queries for any number of attempts. */
+  async findAttemptOrdersMany(attemptIds: number[]): Promise<Map<number, AttemptOrders>> {
+    const orders = new Map<number, AttemptOrders>();
+    if (attemptIds.length === 0) return orders;
+    const questionRows = await this.db
+      .select({
+        attemptId: attemptQuestions.attemptId,
+        questionId: attemptQuestions.questionId,
+      })
+      .from(attemptQuestions)
+      .where(inArray(attemptQuestions.attemptId, attemptIds))
+      .orderBy(asc(attemptQuestions.attemptId), asc(attemptQuestions.position));
+    const optionRows = await this.db
+      .select({
+        attemptId: attemptQuestionOptions.attemptId,
+        questionId: attemptQuestionOptions.questionId,
+        optionId: attemptQuestionOptions.optionId,
+      })
+      .from(attemptQuestionOptions)
+      .where(inArray(attemptQuestionOptions.attemptId, attemptIds))
+      .orderBy(
+        asc(attemptQuestionOptions.attemptId),
+        asc(attemptQuestionOptions.questionId),
+        asc(attemptQuestionOptions.position),
+      );
+    const questionIdsByAttempt = new Map<number, number[]>();
+    for (const row of questionRows) {
+      const ids = questionIdsByAttempt.get(row.attemptId);
+      if (ids) ids.push(row.questionId);
+      else questionIdsByAttempt.set(row.attemptId, [row.questionId]);
+    }
+    const optionOrdersByAttempt = new Map<number, Map<number, number[]>>();
+    for (const row of optionRows) {
+      let optionOrders = optionOrdersByAttempt.get(row.attemptId);
+      if (!optionOrders) {
+        optionOrders = new Map();
+        optionOrdersByAttempt.set(row.attemptId, optionOrders);
+      }
+      const ids = optionOrders.get(row.questionId);
+      if (ids) ids.push(row.optionId);
+      else optionOrders.set(row.questionId, [row.optionId]);
+    }
+    for (const attemptId of attemptIds) {
+      const questionIds = questionIdsByAttempt.get(attemptId);
+      orders.set(attemptId, {
+        // Attempts without rows predate the normalized order tables; like
+        // the single lookup, they read as "all questions by orderIndex".
+        questionIds: questionIds && questionIds.length > 0 ? questionIds : null,
+        optionOrders: optionOrdersByAttempt.get(attemptId) ?? new Map(),
+      });
+    }
+    return orders;
   }
 
   /**
