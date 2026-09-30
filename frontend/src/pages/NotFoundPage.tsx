@@ -6,15 +6,15 @@ import { Eyebrow, btnPrimaryClass, h1Class, ledeClass, textLinkClass } from '../
 export function NotFoundPage() {
   return (
     <TestLayout>
-      <Eyebrow>Not found</Eyebrow>
-      <h1 className={h1Class}>Page not found</h1>
-      <p className={ledeClass}>The page you are looking for does not exist.</p>
+      <Eyebrow>Не знайдено</Eyebrow>
+      <h1 className={h1Class}>Сторінку не знайдено</h1>
+      <p className={ledeClass}>Сторінка, яку ви шукаєте, не існує.</p>
       <div className="my-7 flex flex-wrap items-center gap-3">
         <Link to="/tests" className={btnPrimaryClass}>
-          Back to browse
+          Назад до огляду
         </Link>
         <Link to="/login" className={`${textLinkClass} mt-0`}>
-          Log in
+          Увійти
         </Link>
       </div>
     </TestLayout>

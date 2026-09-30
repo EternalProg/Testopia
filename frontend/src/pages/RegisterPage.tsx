@@ -7,14 +7,14 @@ export function RegisterPage() {
   const navigate = useNavigate();
   return (
     <AuthShell
-      eyebrow="Get started"
-      title="Create your Testopia account"
-      sub="Author tests, run attempts, and track results in one place."
+      eyebrow="Початок роботи"
+      title="Створіть акаунт Testopia"
+      sub="Створюйте тести, проходьте спроби та відстежуйте результати в одному місці."
       switchText={
         <>
-          Already registered?{' '}
+          Вже зареєстровані?{' '}
           <Link to="/login" className="font-bold text-ink underline-offset-[3px] hover:underline">
-            Log in
+            Увійти
           </Link>
         </>
       }

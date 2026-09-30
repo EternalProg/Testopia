@@ -9,11 +9,10 @@ import { TestLayout } from '../components/TestLayout.js';
 import { Eyebrow, h1Class, h2Class, textLinkClass } from '../components/ui.js';
 
 function errorMessage(status: number | undefined): string {
-  if (status === 404) return 'This result does not exist.';
-  if (status === 403) return 'You do not have access to this result.';
-  if (status === 409)
-    return 'This attempt is still in progress. Finish it first to see the result.';
-  return 'This result could not be loaded.';
+  if (status === 404) return 'Такого результату не існує.';
+  if (status === 403) return 'У вас немає доступу до цього результату.';
+  if (status === 409) return 'Ця спроба ще триває. Завершіть її, щоб побачити результат.';
+  return 'Не вдалося завантажити результат.';
 }
 
 export function AttemptResultPage() {
@@ -46,7 +45,7 @@ export function AttemptResultPage() {
   if (state === 'loading') {
     return (
       <TestLayout>
-        <LoadingState text="Loading result..." />
+        <LoadingState text="Завантаження результату..." />
       </TestLayout>
     );
   }
@@ -54,9 +53,9 @@ export function AttemptResultPage() {
   if (state === 'error' || !result) {
     return (
       <TestLayout>
-        <Alert variant="error">{loadError ?? 'This result could not be loaded.'}</Alert>
+        <Alert variant="error">{loadError ?? 'Не вдалося завантажити результат.'}</Alert>
         <Link to="/tests" className={textLinkClass}>
-          Back to browse
+          Назад до огляду
         </Link>
       </TestLayout>
     );
@@ -65,14 +64,14 @@ export function AttemptResultPage() {
   if (!result.answersRevealed) {
     return (
       <TestLayout>
-        <article aria-label="Attempt result">
-          <Eyebrow>Result #{result.attempt.id}</Eyebrow>
+        <article aria-label="Результат спроби">
+          <Eyebrow>Результат №{result.attempt.id}</Eyebrow>
           <h1 className={h1Class}>{result.test.title}</h1>
           <p role="status" className="mt-0 text-muted">
-            The author has hidden the answers for this test. Your answers were recorded.
+            Автор приховав відповіді цього тесту. Ваші відповіді записано.
           </p>
           <Link to="/tests" className={textLinkClass}>
-            Back to browse
+            Назад до огляду
           </Link>
         </article>
       </TestLayout>
@@ -85,21 +84,21 @@ export function AttemptResultPage() {
 
   return (
     <TestLayout>
-      <article aria-label="Attempt result">
+      <article aria-label="Результат спроби">
         <div className="mb-2 rounded-2xl border border-line bg-card p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <Eyebrow>Result #{result.attempt.id}</Eyebrow>
+          <Eyebrow>Результат №{result.attempt.id}</Eyebrow>
           <h1 className={h1Class}>{result.test.title}</h1>
           {result.attempt.score === null ? (
             <p role="status" className="mb-0 mt-0 text-muted">
-              Awaiting grading. Your answers were recorded.
+              Очікує перевірки. Ваші відповіді записано.
             </p>
           ) : (
             <p
               role="status"
               className="mb-0 mt-3 inline-flex items-center rounded-full bg-ink px-4 py-2 text-[0.92rem] font-bold text-white"
             >
-              Your score: {Math.round(result.attempt.score * 100)}% ({correct} of {graded.length}{' '}
-              auto-graded correct)
+              Ваш бал: {Math.round(result.attempt.score * 100)}% ({correct} з {graded.length}{' '}
+              автоперевірених правильно)
             </p>
           )}
         </div>
@@ -111,10 +110,10 @@ export function AttemptResultPage() {
             const correctOptions = question.options.filter((option) => option.isCorrect === true);
             const verdict =
               answer?.isCorrect === true
-                ? 'Correct'
+                ? 'Правильно'
                 : answer?.isCorrect === false
-                  ? 'Incorrect'
-                  : 'Needs manual grading';
+                  ? 'Неправильно'
+                  : 'Потребує ручної перевірки';
             const verdictClass =
               answer?.isCorrect === true
                 ? 'border-ink bg-ink text-white'
@@ -127,7 +126,7 @@ export function AttemptResultPage() {
                 className="rounded-xl border border-line bg-white px-5 py-[18px]"
               >
                 <h2 className={`${h2Class} inline text-[1.02rem]`}>
-                  Question {index + 1}: {question.text}
+                  Питання {index + 1}: {question.text}
                 </h2>
                 <p className="my-2">
                   <span
@@ -137,20 +136,20 @@ export function AttemptResultPage() {
                   </span>
                 </p>
                 <p className="my-1 text-[0.94rem] text-ink">
-                  Your answer:{' '}
+                  Ваша відповідь:{' '}
                   {selectedOptions.length > 0
                     ? selectedOptions.map((option) => option.text).join(', ')
                     : (answer?.textAnswer ?? '').trim().length > 0
                       ? (answer?.textAnswer ?? '')
-                      : 'No answer given'}
+                      : 'Відповіді немає'}
                 </p>
                 {question.type === 'open_ended' ? (
                   <p className="my-1 text-[0.9rem] text-muted">
-                    Open-ended question — graded manually.
+                    Відкрите питання — перевіряється вручну.
                   </p>
                 ) : (
                   <p className="my-1 text-[0.9rem] text-muted">
-                    Correct answer: {correctOptions.map((option) => option.text).join(', ')}
+                    Правильна відповідь: {correctOptions.map((option) => option.text).join(', ')}
                   </p>
                 )}
               </li>
@@ -158,7 +157,7 @@ export function AttemptResultPage() {
           })}
         </ol>
         <Link to="/tests" className={textLinkClass}>
-          Back to browse
+          Назад до огляду
         </Link>
       </article>
     </TestLayout>

@@ -8,6 +8,7 @@ import { EmptyState } from '../components/EmptyState.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { Alert } from '../components/Alert.js';
 import { TestLayout } from '../components/TestLayout.js';
+import { serverErrorMessage } from '../i18n/uk.js';
 
 interface DraftAnswer {
   selectedOptionIds: number[];
@@ -34,16 +35,16 @@ function formatRemaining(totalSeconds: number): string {
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof AttemptApiError) {
     if (error.payload.error === 'TEST_CLOSED') {
-      return 'This test is closed. New attempts can no longer be started.';
+      return 'Тест закрито. Нові спроби більше не приймаються.';
     }
     if (error.payload.error === 'TEST_NOT_OPEN') {
-      return "This test hasn't opened yet. Please come back later.";
+      return 'Тест ще не відкрито. Завітайте пізніше.';
     }
     if (error.payload.error === 'ATTEMPT_LIMIT') {
       // The server reports how many of the allowed attempts were used.
-      return error.payload.message ?? 'Attempt limit reached.';
+      return error.payload.message ?? 'Вичерпано ліміт спроб.';
     }
-    return error.payload.message ?? error.payload.error ?? fallback;
+    return serverErrorMessage(error.payload.error, error.payload.message ?? fallback);
   }
   return fallback;
 }
@@ -60,7 +61,7 @@ function QuestionControl({
   if (question.type === 'open_ended') {
     return (
       <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-        Your answer
+        Ваша відповідь
         <textarea
           value={draft.textAnswer}
           rows={4}
@@ -74,7 +75,7 @@ function QuestionControl({
     return (
       <fieldset className="m-0 mt-[18px] grid max-w-[720px] gap-2.5 rounded-xl border border-line bg-white p-[18px]">
         <legend className="px-2 text-[0.88rem] font-bold text-ink">
-          Select all correct options
+          Оберіть усі правильні варіанти
         </legend>
         {question.options.map((option) => (
           <label
@@ -103,7 +104,7 @@ function QuestionControl({
   return (
     <fieldset className="m-0 mt-[18px] grid max-w-[720px] gap-2.5 rounded-xl border border-line bg-white p-[18px]">
       <legend className="px-2 text-[0.88rem] font-bold text-ink">
-        {question.type === 'true_false' ? 'Select one' : 'Select one option'}
+        {question.type === 'true_false' ? 'Оберіть один варіант' : 'Оберіть один варіант'}
       </legend>
       {question.options.map((option) => (
         <label
@@ -154,19 +155,19 @@ export function TakeTestPage() {
         if (!active) return;
         const status = (reason as { status?: number })?.status;
         if (status === 404) {
-          setLoadError('This test does not exist or is not published.');
+          setLoadError('Цього тесту не існує або його не опубліковано.');
         } else if (
           reason instanceof AttemptApiError &&
           (reason.payload.error === 'TEST_CLOSED' ||
             reason.payload.error === 'TEST_NOT_OPEN' ||
             reason.payload.error === 'ATTEMPT_LIMIT')
         ) {
-          setLoadError(errorMessage(reason, 'Your attempt could not be started.'));
+          setLoadError(errorMessage(reason, 'Не вдалося розпочати спробу.'));
         } else {
           setLoadError(
             reason instanceof AttemptApiError
-              ? (reason.payload.message ?? 'Your attempt could not be started.')
-              : 'Your attempt could not be started.',
+              ? (reason.payload.message ?? 'Не вдалося розпочати спробу.')
+              : 'Не вдалося розпочати спробу.',
           );
         }
         setState('error');
@@ -216,7 +217,7 @@ export function TakeTestPage() {
         });
         setConfirming(false);
       } else {
-        setSubmitError(errorMessage(error, 'Your answers could not be submitted.'));
+        setSubmitError(errorMessage(error, 'Не вдалося надіслати відповіді.'));
       }
     } finally {
       setSubmitting(false);
@@ -241,7 +242,7 @@ export function TakeTestPage() {
   if (state === 'loading') {
     return (
       <TestLayout>
-        <LoadingState text="Starting your attempt..." />
+        <LoadingState text="Розпочинаємо вашу спробу..." />
       </TestLayout>
     );
   }
@@ -249,14 +250,14 @@ export function TakeTestPage() {
   if (state === 'error' || !detail) {
     return (
       <TestLayout>
-        <Alert variant="error">{loadError ?? 'Your attempt could not be started.'}</Alert>
+        <Alert variant="error">{loadError ?? 'Не вдалося розпочати спробу.'}</Alert>
         <div className="flex flex-wrap gap-x-6">
           {id && (
             <Link
               to={`/tests/${id}/attempts`}
               className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
             >
-              View attempt history
+              Історія спроб
             </Link>
           )}
           {id && (
@@ -264,14 +265,14 @@ export function TakeTestPage() {
               to={`/tests/${id}`}
               className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
             >
-              Back to test
+              Назад до тесту
             </Link>
           )}
           <Link
             to="/tests"
             className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
           >
-            Back to browse
+            Назад до огляду
           </Link>
         </div>
       </TestLayout>
@@ -285,28 +286,26 @@ export function TakeTestPage() {
     if (!result.answersRevealed) {
       return (
         <TestLayout>
-          <article aria-label="Attempt result">
+          <article aria-label="Результат спроби">
             <p className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.13em] text-faint before:inline-block before:h-0.5 before:w-4 before:rounded-full before:bg-ink before:content-['']">
-              {expired ? 'Time expired' : 'Test submitted'}
+              {expired ? 'Час вийшов' : 'Тест надіслано'}
             </p>
             <h1
               id="submit-result-heading"
               tabIndex={-1}
               className="mb-2.5 text-balance break-words text-[clamp(1.6rem,1.25rem+1.4vw,2.1rem)] font-bold leading-[1.15] tracking-[-0.025em] text-ink"
             >
-              {expired ? 'Your time ran out' : 'Your answers were submitted'}
+              {expired ? 'Ваш час вийшов' : 'Ваші відповіді надіслано'}
             </h1>
             <p role="status" className="mt-0 text-muted">
-              The author has hidden the answers for this test. Your answers were recorded.
+              Автор приховав відповіді цього тесту. Ваші відповіді записано.
             </p>
-            {expired && (
-              <p className="text-muted">Your answers were recorded with the expired status.</p>
-            )}
+            {expired && <p className="text-muted">Відповіді записано зі статусом прострочення.</p>}
             <Link
               to={`/attempts/${result.attempt.id}/result`}
               className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
             >
-              View detailed result
+              Детальний результат
             </Link>{' '}
             <Link
               to="/tests"
@@ -322,39 +321,37 @@ export function TakeTestPage() {
     const correct = graded.filter((answer) => answer.isCorrect).length;
     return (
       <TestLayout>
-        <article aria-label="Attempt result">
+        <article aria-label="Результат спроби">
           <p className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.13em] text-faint before:inline-block before:h-0.5 before:w-4 before:rounded-full before:bg-ink before:content-['']">
-            {expired ? 'Time expired' : 'Test submitted'}
+            {expired ? 'Час вийшов' : 'Тест надіслано'}
           </p>
           <h1
             id="submit-result-heading"
             tabIndex={-1}
             className="mb-2.5 text-balance break-words text-[clamp(1.6rem,1.25rem+1.4vw,2.1rem)] font-bold leading-[1.15] tracking-[-0.025em] text-ink"
           >
-            {expired ? 'Your time ran out' : 'Your answers were submitted'}
+            {expired ? 'Ваш час вийшов' : 'Ваші відповіді надіслано'}
           </h1>
           {result.attempt.score === null ? (
             <p role="status" className="mt-0 text-muted">
-              This test needs manual grading. Your answers were recorded.
+              Цей тест потребує ручної перевірки. Ваші відповіді записано.
             </p>
           ) : (
             <p
               role="status"
               className="mt-3 inline-flex items-center rounded-full bg-ink px-4 py-2 text-[0.92rem] font-bold text-white"
             >
-              Your score: {Math.round(result.attempt.score * 100)}% ({correct} of {graded.length}{' '}
-              auto-graded correct)
+              Ваш бал: {Math.round(result.attempt.score * 100)}% ({correct} з {graded.length}{' '}
+              автоперевірених правильно)
             </p>
           )}
-          {expired && (
-            <p className="text-muted">Your answers were recorded with the expired status.</p>
-          )}
+          {expired && <p className="text-muted">Відповіді записано зі статусом прострочення.</p>}
           <div className="flex flex-wrap gap-x-6">
             <Link
               to={`/attempts/${result.attempt.id}/result`}
               className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
             >
-              View detailed result
+              Детальний результат
             </Link>
             <Link
               to="/tests"
@@ -371,7 +368,7 @@ export function TakeTestPage() {
   if (!detail.questions.length) {
     return (
       <TestLayout>
-        <EmptyState text="This test has no questions yet." role="status" />
+        <EmptyState text="У цьому тесті поки немає питань." role="status" />
         <Link
           to="/tests"
           className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
@@ -392,10 +389,10 @@ export function TakeTestPage() {
       modal={
         confirming ? (
           <ConfirmDialog
-            title="Confirm submission"
-            description="Submit your answers? You cannot change them afterwards."
-            confirmLabel={submitting ? 'Submitting...' : 'Confirm submit'}
-            cancelLabel="Keep working"
+            title="Підтвердження надсилання"
+            description="Надіслати відповіді? Після цього їх не можна буде змінити."
+            confirmLabel={submitting ? 'Надсилання...' : 'Підтвердити'}
+            cancelLabel="Продовжити"
             onConfirm={() => void submit()}
             onCancel={cancelConfirm}
             busy={submitting}
@@ -406,7 +403,7 @@ export function TakeTestPage() {
       <div className="mb-7 flex items-start justify-between gap-5 max-sm:flex-col">
         <div>
           <p className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.13em] text-faint before:inline-block before:h-0.5 before:w-4 before:rounded-full before:bg-ink before:content-['']">
-            Attempt #{detail.attempt.id}
+            Спроба №{detail.attempt.id}
           </p>
           <h1 className="mb-2.5 text-balance break-words text-[clamp(1.6rem,1.25rem+1.4vw,2.1rem)] font-bold leading-[1.15] tracking-[-0.025em] text-ink">
             {detail.test.title}
@@ -415,15 +412,15 @@ export function TakeTestPage() {
         {remainingSeconds !== null && (
           <p
             role="timer"
-            aria-label="Time remaining"
+            aria-label="Залишок часу"
             className="m-0 inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-ink px-4 py-[9px] text-[0.9rem] font-bold tabular-nums text-white before:inline-block before:h-2 before:w-2 before:rounded-full before:bg-white before:content-[''] before:[animation:pulse-soft_1.6s_ease-in-out_infinite] max-sm:self-start"
           >
-            Time left: {formatRemaining(remainingSeconds)}
+            Залишилось: {formatRemaining(remainingSeconds)}
           </p>
         )}
       </div>
 
-      <nav aria-label="Questions">
+      <nav aria-label="Питання">
         <ol className="my-5 flex flex-wrap gap-2 rounded-xl border border-line bg-white p-4">
           {detail.questions.map((question, index) => {
             const answered = isAnswered(drafts[question.id]);
@@ -433,7 +430,7 @@ export function TakeTestPage() {
                 <button
                   type="button"
                   aria-current={isCurrent ? 'true' : undefined}
-                  aria-label={`Question ${index + 1}${answered ? ' (answered)' : ''}`}
+                  aria-label={`Питання ${index + 1}${answered ? ' (є відповідь)' : ''}`}
                   onClick={() => setCurrentIndex(index)}
                   className={`h-10 min-w-10 rounded-[9px] border px-2.5 py-2 text-[0.88rem] font-semibold transition-all duration-150 ${
                     isCurrent
@@ -451,9 +448,9 @@ export function TakeTestPage() {
         </ol>
       </nav>
 
-      <article aria-label={`Question ${currentIndex + 1} of ${detail.questions.length}`}>
+      <article aria-label={`Питання ${currentIndex + 1} з ${detail.questions.length}`}>
         <p className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.13em] text-faint before:inline-block before:h-0.5 before:w-4 before:rounded-full before:bg-ink before:content-['']">
-          Question {currentIndex + 1} of {detail.questions.length}
+          Питання {currentIndex + 1} з {detail.questions.length}
         </p>
         <h2 className="mb-2 text-balance break-words text-[1.15rem] font-bold leading-snug tracking-[-0.015em] text-ink">
           {current.text}
@@ -472,7 +469,7 @@ export function TakeTestPage() {
           onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))}
           className="rounded-[10px] border border-line-dark bg-white px-4 py-2.5 text-[0.92rem] font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-colors duration-150 hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Previous
+          Назад
         </button>
         <button
           type="button"
@@ -482,14 +479,14 @@ export function TakeTestPage() {
           }
           className="rounded-[10px] border border-line-dark bg-white px-4 py-2.5 text-[0.92rem] font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-colors duration-150 hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Next
+          Далі
         </button>
         <button
           type="button"
           onClick={() => setConfirming(true)}
           className="rounded-[10px] border border-line-dark bg-white px-4 py-2.5 text-[0.92rem] font-semibold text-ink shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-colors duration-150 hover:border-ink"
         >
-          Submit test ({answeredCount}/{detail.questions.length} answered)
+          Завершити тест ({answeredCount}/{detail.questions.length} з відповіддю)
         </button>
       </div>
 

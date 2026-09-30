@@ -92,14 +92,16 @@ describe('AdminPage', () => {
 
     expect(await screen.findByText('user@example.com')).toBeInTheDocument();
     // The signed-in admin's own row is locked against self-demotion.
-    expect(screen.getByLabelText('Role for root')).toBeDisabled();
-    expect(screen.getByLabelText('Role for test-user')).toBeEnabled();
+    expect(screen.getByLabelText('Роль користувача root')).toBeDisabled();
+    expect(screen.getByLabelText('Роль користувача test-user')).toBeEnabled();
 
-    await user.selectOptions(screen.getByLabelText('Role for test-user'), 'admin');
+    await user.selectOptions(screen.getByLabelText('Роль користувача test-user'), 'admin');
 
     await waitFor(() => expect(patches).toEqual([{ id: '2', body: { role: 'admin' } }]));
     // A successful change refetches, so the table shows the persisted role.
-    await waitFor(() => expect(screen.getByLabelText('Role for test-user')).toHaveValue('admin'));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Роль користувача test-user')).toHaveValue('admin'),
+    );
   });
 
   it('surfaces a rejected role change without dropping the table', async () => {
@@ -118,9 +120,9 @@ describe('AdminPage', () => {
     renderPage();
 
     await screen.findByText('user@example.com');
-    await user.selectOptions(screen.getByLabelText('Role for test-user'), 'admin');
+    await user.selectOptions(screen.getByLabelText('Роль користувача test-user'), 'admin');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Cannot change your own role');
+    expect(await screen.findByRole('alert')).toHaveTextContent('У вас немає дозволу на цю дію');
     expect(screen.getByText('user@example.com')).toBeInTheDocument();
   });
 
@@ -139,10 +141,10 @@ describe('AdminPage', () => {
     renderPage();
 
     await screen.findByRole('link', { name: 'Algebra basics' });
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: 'Видалити' }));
 
     const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete test' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Видалити тест' }));
 
     await waitFor(() => expect(deleted).toBe('5'));
     await waitFor(() =>
@@ -166,12 +168,12 @@ describe('AdminPage', () => {
     renderPage();
 
     await screen.findByRole('link', { name: 'Algebra basics' });
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: 'Видалити' }));
     const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete test' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Видалити тест' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Cannot delete a test with attempts.',
+      'Не можна видалити тест, у якого є спроби.',
     );
     // The row survives a refused delete.
     expect(screen.getByRole('link', { name: 'Algebra basics' })).toBeInTheDocument();
@@ -190,8 +192,8 @@ describe('/admin route guard', () => {
     window.history.pushState({}, '', '/admin');
     render(<App />);
 
-    expect(await screen.findByText(`Welcome, ${taker.username}.`)).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Admin' })).not.toBeInTheDocument();
+    expect(await screen.findByText(`Вітаємо, ${taker.username}.`)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Адмін' })).not.toBeInTheDocument();
   });
 
   it('shows the panel and its nav link to an admin', async () => {
@@ -205,7 +207,7 @@ describe('/admin route guard', () => {
     window.history.pushState({}, '', '/admin');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Admin' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/admin');
+    expect(await screen.findByRole('heading', { name: 'Адмін' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Адмін' })).toHaveAttribute('href', '/admin');
   });
 });

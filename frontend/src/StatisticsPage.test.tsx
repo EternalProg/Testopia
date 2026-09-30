@@ -60,31 +60,29 @@ describe('StatisticsPage', () => {
   it('shows a loading state while fetching statistics', () => {
     server.use(http.get('/api/v1/tests/:id/statistics', () => HttpResponse.json(stats)));
     renderStatisticsPage();
-    expect(screen.getByRole('status')).toHaveTextContent('Loading statistics...');
+    expect(screen.getByRole('status')).toHaveTextContent('Завантаження статистики...');
   });
 
   it('renders summary cards with score and time', async () => {
     server.use(http.get('/api/v1/tests/:id/statistics', () => HttpResponse.json(stats)));
     renderStatisticsPage();
-    const summary = await screen.findByRole('region', { name: 'Summary' });
-    expect(summary).toHaveTextContent('Attempts');
-    expect(summary).toHaveTextContent('Completed');
-    expect(summary).toHaveTextContent('Unique takers');
-    expect(summary).toHaveTextContent('Completion rate');
-    expect(summary).toHaveTextContent('Average score');
-    expect(summary).toHaveTextContent('Average time');
+    const summary = await screen.findByRole('region', { name: 'Підсумок' });
+    expect(summary).toHaveTextContent('Спроби');
+    expect(summary).toHaveTextContent('Завершено');
+    expect(summary).toHaveTextContent('Унікальних учнів');
+    expect(summary).toHaveTextContent('Відсоток завершення');
+    expect(summary).toHaveTextContent('Середній бал');
+    expect(summary).toHaveTextContent('Середній час');
     expect(summary).toHaveTextContent('85.67%');
     expect(summary).toHaveTextContent('75.0%');
-    expect(summary).toHaveTextContent('3m 12s');
+    expect(summary).toHaveTextContent('3 хв 12 с');
   });
 
   it('renders score distribution bars with accessible labels', async () => {
     server.use(http.get('/api/v1/tests/:id/statistics', () => HttpResponse.json(stats)));
     renderStatisticsPage();
-    expect(
-      await screen.findByRole('img', { name: 'Scores 0 to 10: 1 attempts' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Scores 90 to 100: 2 attempts' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Бали 0–10: спроб 1' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Бали 90–100: спроб 2' })).toBeInTheDocument();
     expect(screen.getByText('0–10')).toBeInTheDocument();
     expect(screen.getByText('90–100')).toBeInTheDocument();
   });
@@ -92,10 +90,10 @@ describe('StatisticsPage', () => {
   it('renders the per-question table with correctness rates', async () => {
     server.use(http.get('/api/v1/tests/:id/statistics', () => HttpResponse.json(stats)));
     renderStatisticsPage();
-    expect(await screen.findByRole('columnheader', { name: 'Question' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Attempts' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Correct' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Rate' })).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: 'Питання' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Спроби' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Правильно' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Відсоток' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'What is 2 + 2?' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'Capital of France?' })).toBeInTheDocument();
     expect(screen.getByText('66.7%')).toBeInTheDocument();
@@ -119,8 +117,8 @@ describe('StatisticsPage', () => {
       ),
     );
     renderStatisticsPage();
-    expect(await screen.findByRole('heading', { name: 'No attempts yet' })).toBeInTheDocument();
-    expect(screen.getByText('No attempts yet for this test.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Спроб поки немає' })).toBeInTheDocument();
+    expect(screen.getByText('У цього тесту поки немає спроб.')).toBeInTheDocument();
   });
 
   it('shows an author-only message on 403', async () => {
@@ -134,7 +132,7 @@ describe('StatisticsPage', () => {
     );
     renderStatisticsPage();
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Only the test author can view statistics.',
+      'Статистику може переглядати лише автор тесту.',
     );
   });
 
@@ -145,6 +143,8 @@ describe('StatisticsPage', () => {
       ),
     );
     renderStatisticsPage();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Statistics could not be loaded.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Не вдалося завантажити статистику.',
+    );
   });
 });

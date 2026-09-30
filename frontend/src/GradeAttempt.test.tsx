@@ -126,17 +126,17 @@ describe('GradeAttemptPage', () => {
     );
     renderGradePage();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Loading attempt for grading');
+    expect(screen.getByRole('status')).toHaveTextContent('Завантаження спроби для оцінювання');
     const fieldset = await screen.findByRole('group', { name: /Explain your reasoning/ });
     const scope = within(fieldset);
     expect(scope.getByText(/Because it is\./)).toBeInTheDocument();
     // Only the open-ended question is gradable; the choice question is absent.
     expect(screen.queryByText('What is 2 + 2?')).not.toBeInTheDocument();
 
-    const save = screen.getByRole('button', { name: 'Save grades' });
+    const save = screen.getByRole('button', { name: 'Зберегти оцінки' });
     expect(save).toBeDisabled();
 
-    await user.click(scope.getByRole('radio', { name: 'Correct' }));
+    await user.click(scope.getByRole('radio', { name: 'Правильно' }));
     expect(save).toBeEnabled();
 
     await user.click(save);
@@ -159,7 +159,7 @@ describe('GradeAttemptPage', () => {
     renderGradePage('/attempts/9/grade');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'You do not have access to grade this attempt.',
+      'У вас немає доступу до оцінювання цієї спроби.',
     );
   });
 
@@ -172,7 +172,7 @@ describe('GradeAttemptPage', () => {
     );
     renderGradePage('/attempts/9/grade');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('This attempt does not exist.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Такої спроби не існує.');
   });
 });
 
@@ -210,10 +210,10 @@ describe('grading links and awaiting copy', () => {
       </MemoryRouter>,
     );
 
-    const gradeLinks = await screen.findAllByRole('link', { name: 'Grade' });
+    const gradeLinks = await screen.findAllByRole('link', { name: 'Оцінити' });
     expect(gradeLinks).toHaveLength(1);
     expect(gradeLinks[0]).toHaveAttribute('href', '/attempts/5/grade');
-    expect(await screen.findByText(/Awaiting grading/)).toBeInTheDocument();
+    expect(await screen.findByText(/Очікує перевірки/)).toBeInTheDocument();
   });
 
   it('reads Awaiting grading on revealed null-score results', async () => {
@@ -227,7 +227,7 @@ describe('grading links and awaiting copy', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Algebra basics' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Awaiting grading');
-    expect(screen.queryByText(/Your score/)).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Очікує перевірки');
+    expect(screen.queryByText(/Ваш бал/)).not.toBeInTheDocument();
   });
 });

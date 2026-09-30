@@ -19,17 +19,17 @@ import { testsApi } from '../tests/api.js';
 import type { TestListItem } from '../tests/types.js';
 
 function loadErrorMessage(status: number | undefined): string {
-  if (status === 404) return 'This attempt does not exist.';
-  if (status === 403) return 'You do not have access to grade this attempt.';
-  if (status === 409) return 'This attempt is still in progress. Finish it first to grade it.';
-  return 'This attempt could not be loaded.';
+  if (status === 404) return 'Такої спроби не існує.';
+  if (status === 403) return 'У вас немає доступу до оцінювання цієї спроби.';
+  if (status === 409) return 'Ця спроба ще триває. Завершіть її, щоб оцінити.';
+  return 'Не вдалося завантажити спробу.';
 }
 
 function saveErrorMessage(status: number | undefined): string {
-  if (status === 403) return 'You do not have access to grade this attempt.';
-  if (status === 404) return 'This attempt does not exist.';
-  if (status === 409) return 'This attempt is still in progress. Finish it first to grade it.';
-  return 'Grades could not be saved. Try again.';
+  if (status === 403) return 'У вас немає доступу до оцінювання цієї спроби.';
+  if (status === 404) return 'Такої спроби не існує.';
+  if (status === 409) return 'Ця спроба ще триває. Завершіть її, щоб оцінити.';
+  return 'Не вдалося зберегти оцінки. Спробуйте ще раз.';
 }
 
 export function GradeAttemptPage() {
@@ -81,7 +81,7 @@ export function GradeAttemptPage() {
   if (state === 'loading') {
     return (
       <TestLayout>
-        <LoadingState text="Loading attempt for grading..." />
+        <LoadingState text="Завантаження спроби для оцінювання..." />
       </TestLayout>
     );
   }
@@ -89,9 +89,9 @@ export function GradeAttemptPage() {
   if (state === 'error' || !result || !test) {
     return (
       <TestLayout>
-        <Alert variant="error">{loadError ?? 'This attempt could not be loaded.'}</Alert>
+        <Alert variant="error">{loadError ?? 'Не вдалося завантажити спробу.'}</Alert>
         <Link to="/tests" className={textLinkClass}>
-          Back to browse
+          Назад до огляду
         </Link>
       </TestLayout>
     );
@@ -101,9 +101,9 @@ export function GradeAttemptPage() {
   if (!canManage) {
     return (
       <TestLayout>
-        <Alert variant="error">You do not have access to grade this attempt.</Alert>
+        <Alert variant="error">У вас немає доступу до оцінювання цієї спроби.</Alert>
         <Link to="/tests" className={textLinkClass}>
-          Back to browse
+          Назад до огляду
         </Link>
       </TestLayout>
     );
@@ -138,10 +138,10 @@ export function GradeAttemptPage() {
 
   return (
     <TestLayout>
-      <Eyebrow>Grading attempt #{result.attempt.id}</Eyebrow>
+      <Eyebrow>Оцінювання спроби №{result.attempt.id}</Eyebrow>
       <h1 className={h1Class}>{result.test.title}</h1>
       {openEnded.length === 0 ? (
-        <Alert variant="info">There are no open-ended answers to grade.</Alert>
+        <Alert variant="info">Немає відкритих відповідей для оцінювання.</Alert>
       ) : (
         <form onSubmit={(event) => void saveGrades(event)}>
           <ol className="my-7 grid list-none gap-5 p-0">
@@ -156,10 +156,10 @@ export function GradeAttemptPage() {
                 >
                   <fieldset className="m-0 border-0 p-0">
                     <legend className={`${h2Class} inline text-[1.02rem]`}>
-                      Question {index + 1}: {question.text}
+                      Питання {index + 1}: {question.text}
                     </legend>
                     <p className="my-1 text-[0.94rem] text-ink">
-                      Taker answer: {text.length > 0 ? text : 'No answer given'}
+                      Відповідь учня: {text.length > 0 ? text : 'Відповіді немає'}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-5">
                       <label className={fieldClass}>
@@ -170,7 +170,7 @@ export function GradeAttemptPage() {
                             checked={verdict === true}
                             onChange={() => setVerdict(question.id, true)}
                           />
-                          Correct
+                          Правильно
                         </span>
                       </label>
                       <label className={fieldClass}>
@@ -181,7 +181,7 @@ export function GradeAttemptPage() {
                             checked={verdict === false}
                             onChange={() => setVerdict(question.id, false)}
                           />
-                          Incorrect
+                          Неправильно
                         </span>
                       </label>
                     </div>
@@ -192,17 +192,17 @@ export function GradeAttemptPage() {
           </ol>
           {saveError && <Alert variant="error">{saveError}</Alert>}
           <button type="submit" className={btnPrimaryClass} disabled={!allGraded || saving}>
-            {saving ? 'Saving...' : 'Save grades'}
+            {saving ? 'Збереження...' : 'Зберегти оцінки'}
           </button>
           {!allGraded && (
             <p role="note" className="mb-0 mt-3 text-[0.88rem] text-muted">
-              Grade every open-ended answer to save.
+              Оцініть кожну відкриту відповідь, щоб зберегти.
             </p>
           )}
         </form>
       )}
       <Link to={`/attempts/${result.attempt.id}/result`} className={textLinkClass}>
-        Back to result
+        Назад до результату
       </Link>
     </TestLayout>
   );

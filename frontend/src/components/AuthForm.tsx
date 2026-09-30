@@ -3,7 +3,14 @@ import type { LoginInput, RegisterInput } from '@testopia/shared';
 import { loginSchema, registerSchema } from '@testopia/shared';
 
 import { useAuthStore } from '../auth/store.js';
+import { formIssueMessage } from '../i18n/uk.js';
 import { btnPrimaryClass, fieldClass, fieldErrorClass, inputClass } from './ui.js';
+
+const fieldLabels: Record<string, string> = {
+  email: 'Електронна пошта',
+  username: 'Імʼя користувача',
+  password: 'Пароль',
+};
 
 type AuthMode = 'login' | 'register';
 
@@ -41,7 +48,9 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
       const nextErrors: Record<string, string> = {};
       for (const issue of result.error.issues) {
         const field = issue.path[0];
-        if (typeof field === 'string' && !nextErrors[field]) nextErrors[field] = issue.message;
+        if (typeof field === 'string' && !nextErrors[field]) {
+          nextErrors[field] = formIssueMessage(fieldLabels[field] ?? field, issue);
+        }
       }
       setErrors(nextErrors);
       return;
@@ -59,11 +68,11 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
     <form className="mt-6 grid gap-4" onSubmit={submit} noValidate>
       {mode === 'register' && (
         <label className={fieldClass}>
-          Username
+          Імʼя користувача
           <input
             name="username"
             autoComplete="username"
-            placeholder="e.g. ada_lovelace"
+            placeholder="напр. ada_lovelace"
             value={values.username}
             onChange={(event) => update('username', event.target.value)}
             aria-invalid={Boolean(errors.username)}
@@ -78,7 +87,7 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
         </label>
       )}
       <label className={fieldClass}>
-        Email
+        Електронна пошта
         <input
           name="email"
           type="email"
@@ -97,7 +106,7 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
         )}
       </label>
       <label className={fieldClass}>
-        Password
+        Пароль
         <input
           name="password"
           type="password"
@@ -121,7 +130,7 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
         </p>
       )}
       <button className={`${btnPrimaryClass} w-full`} type="submit" disabled={status === 'loading'}>
-        {status === 'loading' ? 'Please wait...' : mode === 'login' ? 'Log in' : 'Create account'}
+        {status === 'loading' ? 'Зачекайте...' : mode === 'login' ? 'Увійти' : 'Створити акаунт'}
       </button>
     </form>
   );

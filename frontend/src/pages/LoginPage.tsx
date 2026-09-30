@@ -7,17 +7,17 @@ export function LoginPage() {
   const navigate = useNavigate();
   return (
     <AuthShell
-      eyebrow="Welcome back"
-      title="Log in to Testopia"
-      sub="Pick up where you left off — your tests are waiting."
+      eyebrow="З поверненням"
+      title="Вхід до Testopia"
+      sub="Продовжуйте з того місця, де зупинилися, — ваші тести чекають."
       switchText={
         <>
-          Need an account?{' '}
+          Немає акаунту?{' '}
           <Link
             to="/register"
             className="font-bold text-ink underline-offset-[3px] hover:underline"
           >
-            Register
+            Зареєструватися
           </Link>
         </>
       }

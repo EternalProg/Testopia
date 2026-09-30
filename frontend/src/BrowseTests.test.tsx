@@ -88,7 +88,7 @@ describe('browse search and filters', () => {
     expect(article).not.toBeNull();
     const cardContent = within(article as HTMLElement);
     expect(cardContent.getByText('C++')).toBeInTheDocument();
-    expect(cardContent.getByText('Easy')).toBeInTheDocument();
+    expect(cardContent.getByText('Легко')).toBeInTheDocument();
   });
 
   it('searches tests by title and description', async () => {
@@ -99,7 +99,7 @@ describe('browse search and filters', () => {
     await screen.findByRole('heading', { name: 'C++ basics' });
     expect(screen.getByRole('heading', { name: 'Python basics' })).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Search tests'), 'pointers');
+    await user.type(screen.getByLabelText('Пошук тестів'), 'pointers');
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: 'Python basics' })).not.toBeInTheDocument(),
     );
@@ -112,13 +112,13 @@ describe('browse search and filters', () => {
     renderBrowse();
 
     await screen.findByRole('heading', { name: 'C++ basics' });
-    await user.selectOptions(screen.getByLabelText('Category'), 'cpp');
+    await user.selectOptions(screen.getByLabelText('Категорія'), 'cpp');
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: 'Python basics' })).not.toBeInTheDocument(),
     );
 
-    await user.selectOptions(screen.getByLabelText('Difficulty'), 'medium');
-    expect(await screen.findByText('No tests match your search.')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Складність'), 'medium');
+    expect(await screen.findByText('За вашим пошуком нічого не знайдено.')).toBeInTheDocument();
   });
 
   it('reads initial filters from the URL', async () => {
@@ -127,7 +127,7 @@ describe('browse search and filters', () => {
 
     expect(await screen.findByRole('heading', { name: 'Python basics' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'C++ basics' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Category')).toHaveValue('python');
+    expect(screen.getByLabelText('Категорія')).toHaveValue('python');
   });
 
   it('clears filters from the empty state', async () => {
@@ -136,10 +136,10 @@ describe('browse search and filters', () => {
     renderBrowse();
 
     await screen.findByRole('heading', { name: 'C++ basics' });
-    await user.type(screen.getByLabelText('Search tests'), 'no-such-test');
-    expect(await screen.findByText('No tests match your search.')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Пошук тестів'), 'no-such-test');
+    expect(await screen.findByText('За вашим пошуком нічого не знайдено.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await user.click(screen.getByRole('button', { name: 'Очистити фільтри' }));
     expect(await screen.findByRole('heading', { name: 'C++ basics' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Python basics' })).toBeInTheDocument();
   });
@@ -149,10 +149,10 @@ describe('browse search and filters', () => {
     renderBrowseWithProbe();
 
     expect(await screen.findByRole('heading', { name: 'C++ basics' })).toBeInTheDocument();
-    expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
+    expect(screen.getByText('Сторінка 1 з 1')).toBeInTheDocument();
     // A bare array carries no envelope: a single page, both bounds disabled.
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Назад' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Далі' })).toBeDisabled();
   });
 });
 
@@ -188,18 +188,18 @@ describe('browse pagination and sorting', () => {
 
     expect(await screen.findByRole('heading', { name: 'Python basics' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'C++ basics' })).not.toBeInTheDocument();
-    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled();
+    expect(screen.getByText('Сторінка 2 з 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Далі' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Назад' })).toBeEnabled();
 
-    await user.click(screen.getByRole('button', { name: 'Previous' }));
+    await user.click(screen.getByRole('button', { name: 'Назад' }));
     expect(await screen.findByRole('heading', { name: 'C++ basics' })).toBeInTheDocument();
-    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+    expect(screen.getByText('Сторінка 1 з 2')).toBeInTheDocument();
     // Back on the first page the URL drops the page param again.
     expect(screen.getByTestId('search-probe')).toHaveTextContent('');
     expect(new URL(seenUrls[seenUrls.length - 1]!).searchParams.get('page')).toBe('1');
 
-    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Далі' }));
     expect(await screen.findByRole('heading', { name: 'Python basics' })).toBeInTheDocument();
     expect(screen.getByTestId('search-probe')).toHaveTextContent('page=2');
   });
@@ -214,16 +214,16 @@ describe('browse pagination and sorting', () => {
     expect(await screen.findByRole('heading', { name: 'Python basics' })).toBeInTheDocument();
     expect(screen.getByTestId('search-probe')).toHaveTextContent('page=2');
 
-    await user.selectOptions(screen.getByLabelText('Sort by'), 'popular');
+    await user.selectOptions(screen.getByLabelText('Сортувати за'), 'popular');
     // Popular reverses the catalogue and the page resets to 1 (the page
     // param drops from the URL while sort stays mirrored).
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument();
+    expect(await screen.findByText('Сторінка 1 з 2')).toBeInTheDocument();
     expect(screen.getByTestId('search-probe')).toHaveTextContent('sort=popular');
     const sortedUrl = new URL(seenUrls[seenUrls.length - 1]!);
     expect(sortedUrl.searchParams.get('sort')).toBe('popular');
     expect(sortedUrl.searchParams.get('page')).toBe('1');
 
-    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Далі' }));
     expect(await screen.findByRole('heading', { name: 'C++ basics' })).toBeInTheDocument();
     expect(screen.getByTestId('search-probe')).toHaveTextContent('sort=popular&page=2');
   });
@@ -237,8 +237,8 @@ describe('browse pagination and sorting', () => {
     );
     renderBrowseWithProbe('/tests?page=3');
 
-    expect(await screen.findByText('No tests on this page.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Go to first page' }));
+    expect(await screen.findByText('На цій сторінці тестів немає.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'На першу сторінку' }));
     expect(screen.getByTestId('search-probe')).toHaveTextContent('');
   });
 });

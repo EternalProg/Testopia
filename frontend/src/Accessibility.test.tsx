@@ -97,7 +97,7 @@ describe('layout accessibility', () => {
     const user = userEvent.setup();
     renderLayoutAt('/tests');
 
-    const skipLink = screen.getByRole('link', { name: 'Skip to content' });
+    const skipLink = screen.getByRole('link', { name: 'Перейти до вмісту' });
     expect(skipLink).toHaveAttribute('href', '#main-content');
     const main = document.getElementById('main-content');
     expect(main).not.toBeNull();
@@ -110,7 +110,26 @@ describe('layout accessibility', () => {
   it('marks the current nav page with aria-current', () => {
     renderLayoutAt('/tests');
 
-    expect(screen.getByRole('link', { name: 'Browse' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Огляд' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('shows the Browse link to signed-in users too', () => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      user: {
+        id: 7,
+        email: 'taker@example.com',
+        username: 'taker',
+        role: 'user',
+        createdAt: new Date('2026-01-02T00:00:00.000Z'),
+      },
+      error: null,
+    });
+    renderLayoutAt('/dashboard');
+
+    const browse = screen.getByRole('link', { name: 'Огляд' });
+    expect(browse).toHaveAttribute('href', '/tests');
+    expect(screen.getByRole('link', { name: 'Панель' })).toHaveAttribute('aria-current', 'page');
   });
 });
 
@@ -175,8 +194,8 @@ describe('take-test live-region discipline', () => {
       </MemoryRouter>,
     );
 
-    const timer = await screen.findByRole('timer', { name: 'Time remaining' });
-    expect(timer).toHaveTextContent(/Time left/);
+    const timer = await screen.findByRole('timer', { name: 'Залишок часу' });
+    expect(timer).toHaveTextContent(/Залишилось/);
     expect(timer).not.toHaveAttribute('aria-live');
   });
 });
@@ -184,12 +203,12 @@ describe('take-test live-region discipline', () => {
 describe('shared primitives', () => {
   it('LoadingState defaults to a status announcement', () => {
     render(<LoadingState />);
-    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
+    expect(screen.getByRole('status')).toHaveTextContent('Завантаження…');
   });
 
   it('LoadingState renders custom copy as a status', () => {
-    render(<LoadingState text="Loading tests..." />);
-    expect(screen.getByRole('status')).toHaveTextContent('Loading tests...');
+    render(<LoadingState text="Завантаження тестів..." />);
+    expect(screen.getByRole('status')).toHaveTextContent('Завантаження тестів...');
   });
 
   it('Alert error exposes an alert with the error styling', () => {
@@ -216,11 +235,16 @@ describe('not-found route', () => {
     window.history.pushState({}, '', '/no-such-page');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Сторінку не знайдено' }),
+    ).toBeInTheDocument();
     const main = document.getElementById('main-content');
     expect(main).not.toBeNull();
     const content = within(main as HTMLElement);
-    expect(content.getByRole('link', { name: 'Back to browse' })).toHaveAttribute('href', '/tests');
-    expect(content.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
+    expect(content.getByRole('link', { name: 'Назад до огляду' })).toHaveAttribute(
+      'href',
+      '/tests',
+    );
+    expect(content.getByRole('link', { name: 'Увійти' })).toHaveAttribute('href', '/login');
   });
 });

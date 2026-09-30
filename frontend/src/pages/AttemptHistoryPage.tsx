@@ -8,6 +8,7 @@ import { EmptyState } from '../components/EmptyState.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
 import { Eyebrow, h1Class, textLinkClass } from '../components/ui.js';
+import { attemptStatusLabel, serverErrorMessage } from '../i18n/uk.js';
 
 export function AttemptHistoryPage() {
   const { id } = useParams();
@@ -30,8 +31,13 @@ export function AttemptHistoryPage() {
         if (!active) return;
         setLoadError(
           reason instanceof AttemptApiError && reason.status === 404
-            ? 'This test does not exist.'
-            : 'Attempts could not be loaded.',
+            ? 'Цього тесту не існує.'
+            : reason instanceof AttemptApiError
+              ? serverErrorMessage(
+                  reason.payload.error,
+                  reason.payload.message ?? 'Не вдалося завантажити спроби.',
+                )
+              : 'Не вдалося завантажити спроби.',
         );
         setState('error');
       });
@@ -43,7 +49,7 @@ export function AttemptHistoryPage() {
   if (state === 'loading') {
     return (
       <TestLayout>
-        <LoadingState text="Loading attempts..." />
+        <LoadingState text="Завантаження спроб..." />
       </TestLayout>
     );
   }
@@ -51,9 +57,9 @@ export function AttemptHistoryPage() {
   if (state === 'error') {
     return (
       <TestLayout>
-        <Alert variant="error">{loadError ?? 'Attempts could not be loaded.'}</Alert>
+        <Alert variant="error">{loadError ?? 'Не вдалося завантажити спроби.'}</Alert>
         <Link to="/tests" className={textLinkClass}>
-          Back to browse
+          Назад до огляду
         </Link>
       </TestLayout>
     );
@@ -61,10 +67,10 @@ export function AttemptHistoryPage() {
 
   return (
     <TestLayout>
-      <Eyebrow>Attempt history</Eyebrow>
-      <h1 className={h1Class}>Test #{id} attempts</h1>
+      <Eyebrow>Історія спроб</Eyebrow>
+      <h1 className={h1Class}>Спроби тесту №{id}</h1>
       {items.length === 0 ? (
-        <EmptyState text="No attempts yet." role="status" />
+        <EmptyState text="Спроб поки немає." role="status" />
       ) : (
         <ul className="m-0 my-6 grid list-none gap-3 p-0">
           {items.map((item) => (
@@ -73,21 +79,21 @@ export function AttemptHistoryPage() {
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-card px-5 py-[18px]"
             >
               <p className="m-0 text-[0.92rem] text-ink">
-                {item.username} — {item.status} —{' '}
+                {item.username} — {attemptStatusLabel(item.status)} —{' '}
                 {!item.answersRevealed
-                  ? 'Hidden'
+                  ? 'Приховано'
                   : item.score === null
-                    ? 'Awaiting grading'
-                    : `Score: ${Math.round(item.score * 100)}%`}{' '}
-                — {new Date(item.startedAt).toLocaleString()}
+                    ? 'Очікує перевірки'
+                    : `Бал: ${Math.round(item.score * 100)}%`}{' '}
+                — {new Date(item.startedAt).toLocaleString('uk-UA')}
               </p>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                 <Link to={`/attempts/${item.id}/result`} className={`${textLinkClass} mt-0`}>
-                  View result
+                  Переглянути результат
                 </Link>
                 {item.score === null && (
                   <Link to={`/attempts/${item.id}/grade`} className={`${textLinkClass} mt-0`}>
-                    Grade
+                    Оцінити
                   </Link>
                 )}
               </div>
@@ -96,7 +102,7 @@ export function AttemptHistoryPage() {
         </ul>
       )}
       <Link to={`/tests/${id}`} className={textLinkClass}>
-        Back to test
+        Назад до тесту
       </Link>
     </TestLayout>
   );

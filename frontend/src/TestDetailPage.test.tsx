@@ -59,7 +59,7 @@ describe('TestDetailPage statistics entry', () => {
     });
     renderDetailPage();
 
-    const button = await screen.findByRole('link', { name: 'Show Statistic' });
+    const button = await screen.findByRole('link', { name: 'Показати статистику' });
     expect(button).toHaveAttribute('href', '/tests/1/statistics');
   });
 
@@ -78,8 +78,8 @@ describe('TestDetailPage statistics entry', () => {
     renderDetailPage();
 
     await screen.findByRole('heading', { name: 'Algebra basics' });
-    expect(screen.queryByRole('link', { name: 'Show Statistic' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View attempt history' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Показати статистику' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Історія спроб' })).toBeInTheDocument();
   });
 
   it('shows category and difficulty in the test meta line', async () => {
@@ -98,6 +98,6 @@ describe('TestDetailPage statistics entry', () => {
 
     await screen.findByRole('heading', { name: 'Algebra basics' });
     expect(screen.getByText(/C\+\+/)).toBeInTheDocument();
-    expect(screen.getByText(/Medium/)).toBeInTheDocument();
+    expect(screen.getByText(/Середньо/)).toBeInTheDocument();
   });
 });

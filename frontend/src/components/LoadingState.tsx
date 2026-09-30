@@ -1,4 +1,4 @@
-export function LoadingState({ text = 'Loading…' }: { text?: string }) {
+export function LoadingState({ text = 'Завантаження…' }: { text?: string }) {
   return (
     <p role="status" className="text-muted">
       <span

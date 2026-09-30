@@ -30,8 +30,8 @@ function ProtectedRoute() {
   const status = useAuthStore((state) => state.status);
   if (status === 'idle' || status === 'loading') {
     return (
-      <p role="status" aria-live="polite" aria-label="Loading your session...">
-        Loading your session...
+      <p role="status" aria-live="polite" aria-label="Завантаження вашої сесії...">
+        Завантаження вашої сесії...
       </p>
     );
   }
@@ -42,8 +42,8 @@ function PublicRoute() {
   const status = useAuthStore((state) => state.status);
   if (status === 'idle' || status === 'loading') {
     return (
-      <p role="status" aria-live="polite" aria-label="Loading your session...">
-        Loading your session...
+      <p role="status" aria-live="polite" aria-label="Завантаження вашої сесії...">
+        Завантаження вашої сесії...
       </p>
     );
   }
@@ -59,8 +59,8 @@ function AdminRoute() {
   const user = useAuthStore((state) => state.user);
   if (status === 'idle' || status === 'loading') {
     return (
-      <p role="status" aria-live="polite" aria-label="Loading your session...">
-        Loading your session...
+      <p role="status" aria-live="polite" aria-label="Завантаження вашої сесії...">
+        Завантаження вашої сесії...
       </p>
     );
   }

@@ -117,13 +117,13 @@ describe('AttemptResultPage', () => {
     mockResultFlow();
     renderResultPage();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Loading result');
+    expect(screen.getByRole('status')).toHaveTextContent('Завантаження результату');
     expect(await screen.findByRole('heading', { name: 'Algebra basics' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('100%');
-    expect(screen.getByText('Correct')).toBeInTheDocument();
-    expect(screen.getByText('Your answer: 4')).toBeInTheDocument();
-    expect(screen.getByText('Correct answer: 4')).toBeInTheDocument();
-    expect(screen.getByText(/graded manually/)).toBeInTheDocument();
+    expect(screen.getByText('Правильно')).toBeInTheDocument();
+    expect(screen.getByText('Ваша відповідь: 4')).toBeInTheDocument();
+    expect(screen.getByText('Правильна відповідь: 4')).toBeInTheDocument();
+    expect(screen.getByText(/перевіряється вручну/)).toBeInTheDocument();
   });
 
   it('renders the hidden state when the author hides answers', async () => {
@@ -131,9 +131,9 @@ describe('AttemptResultPage', () => {
     renderResultPage('/attempts/6/result');
 
     expect(await screen.findByRole('heading', { name: 'Algebra basics' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('hidden the answers');
-    expect(screen.queryByText(/Your score/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Correct')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('приховав відповіді');
+    expect(screen.queryByText(/Ваш бал/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Правильно')).not.toBeInTheDocument();
   });
 
   it('reports a missing result', async () => {
@@ -144,7 +144,7 @@ describe('AttemptResultPage', () => {
     );
     renderResultPage('/attempts/9/result');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('does not exist');
+    expect(await screen.findByRole('alert')).toHaveTextContent('не існує');
   });
 });
 
@@ -156,10 +156,10 @@ describe('AttemptHistoryPage', () => {
     mockResultFlow();
     renderHistoryPage();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Loading attempts');
+    expect(screen.getByRole('status')).toHaveTextContent('Завантаження спроб');
     expect(await screen.findByText(/taker-seven/)).toBeInTheDocument();
     expect(screen.getByText(/other-user/)).toBeInTheDocument();
-    const links = screen.getAllByRole('link', { name: 'View result' });
+    const links = screen.getAllByRole('link', { name: 'Переглянути результат' });
     expect(links[0]).toHaveAttribute('href', '/attempts/6/result');
     expect(links[1]).toHaveAttribute('href', '/attempts/5/result');
 
@@ -172,14 +172,14 @@ describe('AttemptHistoryPage', () => {
     server.use(http.get('/api/v1/tests/1/attempts', () => HttpResponse.json([])));
     renderHistoryPage();
 
-    expect(await screen.findByText('No attempts yet.')).toBeInTheDocument();
+    expect(await screen.findByText('Спроб поки немає.')).toBeInTheDocument();
   });
 
   it('renders hidden scores without crashing', async () => {
     server.use(http.get('/api/v1/tests/1/attempts', () => HttpResponse.json(hiddenHistoryItems)));
     renderHistoryPage();
 
-    expect(await screen.findByText(/Hidden/)).toBeInTheDocument();
+    expect(await screen.findByText(/Приховано/)).toBeInTheDocument();
   });
 
   it('renders a neutral dash for revealed-but-unscored attempts', async () => {
@@ -201,7 +201,7 @@ describe('AttemptHistoryPage', () => {
 
     // The row renders without crashing: neither a hidden marker nor a score.
     expect(await screen.findByText(/taker-seven/)).toBeInTheDocument();
-    expect(screen.queryByText(/Hidden/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Score:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Приховано/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Бал:/)).not.toBeInTheDocument();
   });
 });

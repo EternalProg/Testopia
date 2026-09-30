@@ -8,7 +8,9 @@ import { btnSecondaryClass } from './ui.js';
 export function TestList({ tests, mine = false }: { tests: TestListItem[]; mine?: boolean }) {
   if (!tests.length) {
     return (
-      <EmptyState text={mine ? 'You have not created any tests yet.' : 'No published tests yet.'} />
+      <EmptyState
+        text={mine ? 'Ви ще не створили жодного тесту.' : 'Опублікованих тестів поки немає.'}
+      />
     );
   }
   return (
@@ -30,11 +32,11 @@ export function TestList({ tests, mine = false }: { tests: TestListItem[]; mine?
                     test.isPublished ? 'before:bg-ink' : 'before:bg-[#a3a3a3]'
                   }`}
                 >
-                  {test.isPublished ? 'Published' : 'Draft'}
+                  {test.isPublished ? 'Опубліковано' : 'Чернетка'}
                 </span>
                 {closed && (
                   <span className="inline-flex items-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-[0.09em] text-muted before:inline-block before:h-[7px] before:w-[7px] before:rounded-full before:bg-[#900] before:content-['']">
-                    Closed
+                    Закрито
                   </span>
                 )}
                 {test.category !== null && test.category !== undefined && (
@@ -59,7 +61,7 @@ export function TestList({ tests, mine = false }: { tests: TestListItem[]; mine?
               className={btnSecondaryClass}
               to={mine ? `/tests/${test.id}/edit` : `/tests/${test.id}`}
             >
-              {mine ? 'Edit test' : 'View test'}
+              {mine ? 'Редагувати тест' : 'Переглянути тест'}
             </Link>
           </article>
         );

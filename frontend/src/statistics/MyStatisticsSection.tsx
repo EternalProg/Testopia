@@ -5,6 +5,7 @@ import { Alert } from '../components/Alert.js';
 import { EmptyState } from '../components/EmptyState.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { Eyebrow, h2Class, textLinkClass } from '../components/ui.js';
+import { attemptStatusLabel } from '../i18n/uk.js';
 import { StatisticsApiError, statisticsApi } from './api.js';
 import type { ApiMyStatistics } from './types.js';
 
@@ -37,8 +38,8 @@ export function MyStatisticsSection() {
         if (!active) return;
         setLoadError(
           reason instanceof StatisticsApiError && reason.status === 403
-            ? 'You do not have permission to view these statistics.'
-            : 'Statistics could not be loaded.',
+            ? 'У вас немає дозволу на перегляд цієї статистики.'
+            : 'Не вдалося завантажити статистику.',
         );
         setState('error');
       });
@@ -49,58 +50,56 @@ export function MyStatisticsSection() {
 
   if (state === 'loading') {
     return (
-      <section aria-label="My statistic">
-        <Eyebrow>Taker overview</Eyebrow>
-        <h2 className={h2Class}>My statistic</h2>
-        <LoadingState text="Loading your statistics..." />
+      <section aria-label="Моя статистика" className="mt-12">
+        <Eyebrow>Огляд учня</Eyebrow>
+        <h2 className={h2Class}>Моя статистика</h2>
+        <LoadingState text="Завантаження вашої статистики..." />
       </section>
     );
   }
 
   if (state === 'error') {
     return (
-      <section aria-label="My statistic">
-        <Eyebrow>Taker overview</Eyebrow>
-        <h2 className={h2Class}>My statistic</h2>
-        <Alert variant="error">{loadError ?? 'Statistics could not be loaded.'}</Alert>
+      <section aria-label="Моя статистика" className="mt-12">
+        <Eyebrow>Огляд учня</Eyebrow>
+        <h2 className={h2Class}>Моя статистика</h2>
+        <Alert variant="error">{loadError ?? 'Не вдалося завантажити статистику.'}</Alert>
       </section>
     );
   }
 
   if (!stats || stats.tests.length === 0) {
     return (
-      <section aria-label="My statistic">
-        <Eyebrow>Taker overview</Eyebrow>
-        <h2 className={h2Class}>My statistic</h2>
-        <EmptyState text="You haven’t taken any tests yet." />
+      <section aria-label="Моя статистика" className="mt-12">
+        <Eyebrow>Огляд учня</Eyebrow>
+        <h2 className={h2Class}>Моя статистика</h2>
+        <EmptyState text="Ви ще не проходили жодного тесту." />
       </section>
     );
   }
 
   return (
-    <section aria-label="My statistic">
-      <Eyebrow>Taker overview</Eyebrow>
-      <h2 className={h2Class}>My statistic</h2>
+    <section aria-label="Моя статистика" className="mt-12">
+      <Eyebrow>Огляд учня</Eyebrow>
+      <h2 className={h2Class}>Моя статистика</h2>
       <dl className="m-0 my-6 grid grid-cols-4 gap-3 p-0 max-sm:grid-cols-2">
         <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-            Tests taken
+            Пройдено тестів
           </dt>
           <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
             {stats.testsTaken}
           </dd>
         </div>
         <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-            Attempts
-          </dt>
+          <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">Спроби</dt>
           <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
             {stats.totalAttempts}
           </dd>
         </div>
         <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-            Pass rate
+            Відсоток успіху
           </dt>
           <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
             {formatRate(stats.passRate)}
@@ -108,7 +107,7 @@ export function MyStatisticsSection() {
         </div>
         <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-            Average score
+            Середній бал
           </dt>
           <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
             {formatScore(stats.averageScore)}
@@ -116,7 +115,7 @@ export function MyStatisticsSection() {
         </div>
         <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-            Avg attempts/test
+            Сер. спроб/тест
           </dt>
           <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
             {stats.averageAttemptsPerTest === null ? '—' : stats.averageAttemptsPerTest}
@@ -124,7 +123,7 @@ export function MyStatisticsSection() {
         </div>
         <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-            Best score
+            Найкращий бал
           </dt>
           <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
             {formatScore(stats.bestScore)}
@@ -134,7 +133,7 @@ export function MyStatisticsSection() {
       <div className="my-4 overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="w-full min-w-[560px] border-collapse">
           <caption className="px-4 pb-2 pt-4 text-left text-[0.9rem] font-bold text-muted">
-            Per-test results
+            Результати по тестах
           </caption>
           <thead>
             <tr>
@@ -142,37 +141,37 @@ export function MyStatisticsSection() {
                 scope="col"
                 className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
               >
-                Test
+                Тест
               </th>
               <th
                 scope="col"
                 className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
               >
-                Attempts
+                Спроби
               </th>
               <th
                 scope="col"
                 className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
               >
-                Best
+                Найкращий
               </th>
               <th
                 scope="col"
                 className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
               >
-                Last score
+                Останній бал
               </th>
               <th
                 scope="col"
                 className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
               >
-                Last taken
+                Востаннє пройдено
               </th>
               <th
                 scope="col"
                 className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
               >
-                Status
+                Статус
               </th>
             </tr>
           </thead>
@@ -194,10 +193,14 @@ export function MyStatisticsSection() {
                   {formatScore(item.lastScore)}
                 </td>
                 <td className="border-b border-wash px-4 py-[11px] text-left text-[0.9rem] text-ink">
-                  {item.lastTakenAt === null ? '—' : new Date(item.lastTakenAt).toLocaleString()}
+                  {item.lastTakenAt === null
+                    ? '—'
+                    : new Date(item.lastTakenAt).toLocaleString('uk-UA')}
                 </td>
                 <td className="border-b border-wash px-4 py-[11px] text-left text-[0.9rem] text-ink">
-                  {item.lastStatus ?? '—'}
+                  {item.lastStatus === null || item.lastStatus === undefined
+                    ? '—'
+                    : attemptStatusLabel(item.lastStatus)}
                 </td>
               </tr>
             ))}

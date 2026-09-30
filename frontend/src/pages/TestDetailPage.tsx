@@ -31,8 +31,8 @@ export function TestDetailPage() {
       .catch((reason: { status?: number }) => {
         setError(
           reason.status === 404
-            ? 'This test does not exist or is not published.'
-            : 'Test could not be loaded.',
+            ? 'Цього тесту не існує або його не опубліковано.'
+            : 'Не вдалося завантажити тест.',
         );
       });
   }, [id]);
@@ -55,35 +55,41 @@ export function TestDetailPage() {
         ? 'closed'
         : 'open';
   const formatBound = (iso: string) =>
-    new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    new Date(iso).toLocaleString('uk-UA', { dateStyle: 'medium', timeStyle: 'short' });
+  const pluralQuestions = (count: number) =>
+    count % 10 === 1 && count % 100 !== 11
+      ? 'питання'
+      : [2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)
+        ? 'питання'
+        : 'питань';
   const startReason =
     availability === 'upcoming' && detail?.test.availableFrom
-      ? `Opens ${formatBound(detail.test.availableFrom)}`
+      ? `Відкривається ${formatBound(detail.test.availableFrom)}`
       : availability === 'closed' && detail?.test.availableUntil
-        ? `Closed on ${formatBound(detail.test.availableUntil)}`
+        ? `Закрито ${formatBound(detail.test.availableUntil)}`
         : null;
 
   return (
     <TestLayout>
       {error && <Alert variant="error">{error}</Alert>}
-      {!detail && !error && <LoadingState text="Loading test..." />}
+      {!detail && !error && <LoadingState text="Завантаження тесту..." />}
       {detail && (
         <article className={`${cardClass} max-w-[800px] p-[26px]`}>
           <Eyebrow>
             {availability === 'closed'
-              ? 'Closed test'
+              ? 'Закритий тест'
               : availability === 'upcoming'
-                ? 'Upcoming test'
-                : 'Published test'}
+                ? 'Майбутній тест'
+                : 'Опублікований тест'}
           </Eyebrow>
           <h1 className={h1Class}>{detail.test.title}</h1>
           {detail.test.description && <p className={ledeClass}>{detail.test.description}</p>}
           <p className="mb-0 mt-3 text-[0.85rem] text-faint">
             {detail.test.timeLimitMinutes
-              ? `${detail.test.timeLimitMinutes}-minute limit`
-              : 'No time limit'}
+              ? `Ліміт часу — ${detail.test.timeLimitMinutes} хв`
+              : 'Без ліміту часу'}
             {' • '}
-            {detail.test.shuffleQuestions ? 'Shuffled order' : 'Fixed order'}
+            {detail.test.shuffleQuestions ? 'Перемішаний порядок' : 'Фіксований порядок'}
             {detail.test.category !== null && detail.test.category !== undefined && (
               <>
                 {' • '}
@@ -99,29 +105,29 @@ export function TestDetailPage() {
             {detail.test.maxAttempts !== null && detail.test.maxAttempts !== undefined && (
               <>
                 {' '}
-                {' • '}Max {detail.test.maxAttempts} attempts
+                {' • '}Макс. {detail.test.maxAttempts} спроб
               </>
             )}
-            {detail.test.shuffleOptions && <> {' • '}Shuffled options</>}
+            {detail.test.shuffleOptions && <> {' • '}Перемішані варіанти</>}
             {detail.test.questionCount !== null && detail.test.questionCount !== undefined && (
               <>
                 {' '}
                 {' • '}
-                {detail.test.questionCount} questions per attempt
+                {detail.test.questionCount} питань на спробу
               </>
             )}
             {' • '}
             {previewHidden
-              ? 'Questions revealed at start'
-              : `${detail.questions.length} question${detail.questions.length === 1 ? '' : 's'}`}
+              ? 'Питання відкриються на старті'
+              : `${detail.questions.length} ${pluralQuestions(detail.questions.length)}`}
             {detail.test.availableFrom || detail.test.availableUntil ? (
               <>
                 {' • '}
                 {detail.test.availableFrom
-                  ? `Opens ${formatBound(detail.test.availableFrom)}`
-                  : 'Open'}
+                  ? `Відкривається ${formatBound(detail.test.availableFrom)}`
+                  : 'Відкрито'}
                 {detail.test.availableUntil
-                  ? ` — closes ${formatBound(detail.test.availableUntil)}`
+                  ? ` — закривається ${formatBound(detail.test.availableUntil)}`
                   : ''}
               </>
             ) : null}
@@ -131,11 +137,11 @@ export function TestDetailPage() {
               role="note"
               className="my-7 rounded-xl border border-line bg-wash px-5 py-4 text-[0.92rem] text-muted"
             >
-              This test is closed
+              Цей тест закрито
               {detail.test.availableUntil
-                ? ` (closed on ${formatBound(detail.test.availableUntil)})`
+                ? ` (закрито ${formatBound(detail.test.availableUntil)})`
                 : ''}
-              . Existing results stay available below, but new attempts can no longer be started.
+              . Наявні результати доступні нижче, але нові спроби розпочати не можна.
             </p>
           )}
           {previewHidden ? (
@@ -143,7 +149,7 @@ export function TestDetailPage() {
               role="note"
               className="my-7 rounded-xl border border-line bg-wash px-5 py-4 text-[0.92rem] text-muted"
             >
-              The author has hidden the questions. Start the test to see them.
+              Автор приховав питання. Розпочніть тест, щоб їх побачити.
             </p>
           ) : (
             <ol className="my-7 grid list-inside list-decimal gap-5 pl-6 marker:font-bold">
@@ -167,7 +173,7 @@ export function TestDetailPage() {
           <div className="my-7 grid justify-items-start gap-4">
             {availability === 'open' ? (
               <Link to={`/tests/${detail.test.id}/take`} className={btnPrimaryClass}>
-                Start test
+                Розпочати тест
               </Link>
             ) : (
               <>
@@ -175,7 +181,7 @@ export function TestDetailPage() {
                   aria-disabled="true"
                   className={`${btnPrimaryClass} cursor-not-allowed opacity-50`}
                 >
-                  Start test
+                  Розпочати тест
                 </span>
                 {startReason && (
                   <p role="note" className="mb-0 text-[0.88rem] text-muted">
@@ -186,15 +192,15 @@ export function TestDetailPage() {
             )}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
               <Link to={`/tests/${detail.test.id}/attempts`} className={`${textLinkClass} mt-0`}>
-                View attempt history
+                Історія спроб
               </Link>
               {canManage && (
                 <Link to={`/tests/${detail.test.id}/statistics`} className={btnPrimaryClass}>
-                  Show Statistic
+                  Показати статистику
                 </Link>
               )}
               <Link to="/tests" className={`${textLinkClass} mt-0`}>
-                Back to browse
+                Назад до огляду
               </Link>
             </div>
           </div>

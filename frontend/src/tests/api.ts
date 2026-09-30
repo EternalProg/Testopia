@@ -9,6 +9,7 @@ export type UpdateQuestionInput = {
 };
 
 import type { ApiQuestion, TestDetail, TestListEnvelope, TestListItem } from './types.js';
+import { requestFailedMessage } from '../i18n/uk.js';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
 let accessToken: string | null = null;
@@ -18,7 +19,9 @@ export class TestApiError extends Error {
     readonly status: number,
     readonly payload: { error?: string; message?: string },
   ) {
-    super(payload.message ?? payload.error ?? 'Request failed');
+    // Non-JSON error bodies (e.g. a proxy 502 page when the backend is down)
+    // keep the HTTP status so the failure stays diagnosable from the UI.
+    super(payload.message ?? payload.error ?? requestFailedMessage(status));
     this.name = 'TestApiError';
   }
 }

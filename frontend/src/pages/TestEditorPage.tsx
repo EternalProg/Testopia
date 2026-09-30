@@ -14,6 +14,7 @@ import { Alert } from '../components/Alert.js';
 import { EmptyState } from '../components/EmptyState.js';
 import { LoadingState } from '../components/LoadingState.js';
 import { TestLayout } from '../components/TestLayout.js';
+import { formIssueMessage, serverErrorMessage } from '../i18n/uk.js';
 import { testsApi, TestApiError } from '../tests/api.js';
 import { categoryLabels, difficulties, difficultyLabels, testCategories } from '../tests/meta.js';
 import type { ApiQuestion, TestDetail } from '../tests/types.js';
@@ -38,8 +39,8 @@ function newClientKey(prefix: string): string {
 const blankOptions = (type: QuestionType): OptionDraft[] => {
   if (type === 'true_false')
     return [
-      { text: 'True', isCorrect: true },
-      { text: 'False', isCorrect: false },
+      { text: 'Правда', isCorrect: true },
+      { text: 'Неправда', isCorrect: false },
     ];
   return type === 'open_ended'
     ? []
@@ -50,10 +51,28 @@ const blankOptions = (type: QuestionType): OptionDraft[] => {
 };
 
 const questionTypeLabels: Record<QuestionType, string> = {
-  single_choice: 'Single choice',
-  multiple_choice: 'Multiple choice',
-  open_ended: 'Open ended',
-  true_false: 'True/False',
+  single_choice: 'Одна відповідь',
+  multiple_choice: 'Декілька відповідей',
+  open_ended: 'Відкрите питання',
+  true_false: 'Правда/Неправда',
+};
+
+const questionFieldLabels: Record<string, string> = {
+  text: 'Текст питання',
+  type: 'Тип питання',
+  options: 'Варіанти відповідей',
+};
+
+const testFieldLabels: Record<string, string> = {
+  title: 'Назва',
+  description: 'Опис',
+  category: 'Категорія',
+  difficulty: 'Складність',
+  maxAttempts: 'Ліміт спроб',
+  questionCount: 'Кількість питань',
+  timeLimitMinutes: 'Ліміт часу',
+  availableFrom: 'Час початку',
+  availableUntil: 'Час завершення',
 };
 
 function toDraft(question: ApiQuestion): QuestionDraft {
@@ -157,7 +176,7 @@ function QuestionForm({
     if (choice) {
       for (const option of draft.options) {
         if (typeof option.isCorrect !== 'boolean') {
-          setError('Question correctness is unavailable until this test is unpublished.');
+          setError('Правильність питання недоступна, доки тест опубліковано.');
           return;
         }
         options.push({ text: option.text, isCorrect: option.isCorrect });
@@ -173,7 +192,12 @@ function QuestionForm({
     };
     const result = createQuestionSchema.safeParse(payload);
     if (!result.success) {
-      setError(result.error.issues[0]?.message ?? 'Please check the question.');
+      const first = result.error.issues[0];
+      setError(
+        first
+          ? formIssueMessage(questionFieldLabels[String(first.path[0] ?? '')] ?? 'Питання', first)
+          : 'Перевірте питання.',
+      );
       return;
     }
     setSaving(true);
@@ -181,7 +205,14 @@ function QuestionForm({
       await onSave({ ...draft, orderIndex: question.orderIndex });
       setError(null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Question could not be saved.');
+      setError(
+        reason instanceof TestApiError
+          ? serverErrorMessage(
+              reason.payload.error,
+              reason.payload.message ?? 'Питання не збережено.',
+            )
+          : 'Питання не збережено.',
+      );
     } finally {
       setSaving(false);
     }
@@ -194,7 +225,7 @@ function QuestionForm({
     >
       <div className="flex items-start justify-between gap-5">
         <h2 className="mb-0 text-balance break-words text-[1.15rem] font-bold leading-snug tracking-[-0.015em] text-ink">
-          {question.id ? `Question ${position}` : 'New question'}
+          {question.id ? `Питання ${position}` : 'Нове питання'}
         </h2>
         <div className="flex shrink-0 items-center gap-3">
           {!readOnly && onMoveUp && (
@@ -203,10 +234,10 @@ function QuestionForm({
               type="button"
               disabled={moveUpDisabled}
               title={moveDisabledReason}
-              aria-label={`Move question ${position} up`}
+              aria-label={`Перемістити питання ${position} вгору`}
               onClick={onMoveUp}
             >
-              ↑ Up
+              ↑ Вгору
             </button>
           )}
           {!readOnly && onMoveDown && (
@@ -215,10 +246,10 @@ function QuestionForm({
               type="button"
               disabled={moveDownDisabled}
               title={moveDisabledReason}
-              aria-label={`Move question ${position} down`}
+              aria-label={`Перемістити питання ${position} вниз`}
               onClick={onMoveDown}
             >
-              ↓ Down
+              ↓ Вниз
             </button>
           )}
           {!readOnly && (
@@ -227,13 +258,13 @@ function QuestionForm({
               type="button"
               onClick={() => void onDelete()}
             >
-              {question.id ? 'Delete' : 'Discard'}
+              {question.id ? 'Видалити' : 'Скасувати'}
             </button>
           )}
         </div>
       </div>
       <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-        Question text
+        Текст питання
         <textarea
           value={draft.text}
           disabled={readOnly}
@@ -243,7 +274,7 @@ function QuestionForm({
         />
       </label>
       <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-        Type
+        Тип
         <select
           value={draft.type}
           disabled={readOnly}
@@ -259,14 +290,14 @@ function QuestionForm({
       </label>
       {choice && (
         <fieldset className="m-0 grid gap-3 rounded-xl border border-line bg-[#fafaf9] p-4">
-          <legend className="px-2 text-[0.88rem] font-bold text-ink">Answer options</legend>
+          <legend className="px-2 text-[0.88rem] font-bold text-ink">Варіанти відповідей</legend>
           {draft.options.map((option, index) => (
             <div
               key={index}
               className="grid grid-cols-[1fr_auto_auto] items-center gap-2.5 max-sm:grid-cols-1"
             >
               <input
-                aria-label={`Option ${index + 1}`}
+                aria-label={`Варіант ${index + 1}`}
                 value={option.text}
                 disabled={readOnly}
                 onChange={(event) =>
@@ -288,7 +319,7 @@ function QuestionForm({
                   onChange={(event) => setCorrect(index, event.target.checked)}
                   className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />{' '}
-                Correct
+                Правильно
               </label>
               {draft.type !== 'true_false' && draft.options.length > 2 && (
                 <button
@@ -302,7 +333,7 @@ function QuestionForm({
                     })
                   }
                 >
-                  Remove
+                  Прибрати
                 </button>
               )}
             </div>
@@ -316,25 +347,25 @@ function QuestionForm({
                 setDraft({ ...draft, options: [...draft.options, { text: '', isCorrect: false }] })
               }
             >
-              Add option
+              Додати варіант
             </button>
           )}
         </fieldset>
       )}
       {error && <Alert variant="error">{error}</Alert>}
-      {readOnly && <EmptyState text="Unpublish this test to edit questions." />}
+      {readOnly && <EmptyState text="Зніміть тест з публікації, щоб редагувати питання." />}
       {!readOnly && (
         <div className="grid justify-items-start gap-2">
           <button
             className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-ink bg-ink px-[18px] py-2.5 text-[0.92rem] font-semibold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 hover:-translate-y-px hover:border-ink-soft hover:bg-ink-soft disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0"
             type="submit"
             disabled={saving || saved}
-            title={saved ? 'All changes saved' : undefined}
+            title={saved ? 'Усі зміни збережено' : undefined}
           >
-            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save question'}
+            {saving ? 'Збереження…' : saved ? 'Збережено ✓' : 'Зберегти питання'}
           </button>
           {saved && (
-            <span className="text-[0.83rem] font-normal text-muted">All changes saved.</span>
+            <span className="text-[0.83rem] font-normal text-muted">Усі зміни збережено.</span>
           )}
         </div>
       )}
@@ -405,8 +436,8 @@ export function TestEditorPage() {
       .catch((reason: { status?: number }) =>
         setError(
           reason.status === 403
-            ? 'You are not allowed to edit this test.'
-            : 'Test could not be loaded.',
+            ? 'Вам не дозволено редагувати цей тест.'
+            : 'Не вдалося завантажити тест.',
         ),
       )
       .finally(() => setLoading(false));
@@ -434,7 +465,12 @@ export function TestEditorPage() {
       availableUntil: fromDatetimeLocalValue(availableUntil),
     });
     if (!result.success) {
-      setError(result.error.issues[0]?.message ?? 'Please check the test details.');
+      const first = result.error.issues[0];
+      setError(
+        first
+          ? formIssueMessage(testFieldLabels[String(first.path[0] ?? '')] ?? 'Тест', first)
+          : 'Перевірте дані тесту.',
+      );
       return;
     }
     setSaving(true);
@@ -452,10 +488,13 @@ export function TestEditorPage() {
     } catch (reason) {
       setError(
         reason instanceof TestApiError && reason.status === 403
-          ? 'You are not allowed to edit this test.'
-          : reason instanceof Error
-            ? reason.message
-            : 'Test could not be saved.',
+          ? 'Вам не дозволено редагувати цей тест.'
+          : reason instanceof TestApiError
+            ? serverErrorMessage(
+                reason.payload.error,
+                reason.payload.message ?? 'Тест не збережено.',
+              )
+            : 'Тест не збережено.',
       );
     } finally {
       setSaving(false);
@@ -465,14 +504,14 @@ export function TestEditorPage() {
   async function saveQuestion(question: QuestionDraft) {
     if (!detail) return;
     if (detail.test.isPublished) {
-      setError('Unpublish this test before editing questions.');
+      setError('Зніміть тест з публікації перед редагуванням питань.');
       return;
     }
     const options: Array<{ text: string; isCorrect: boolean }> = [];
     if (question.type !== 'open_ended') {
       for (const option of question.options) {
         if (typeof option.isCorrect !== 'boolean') {
-          setError('Question correctness is unavailable until this test is unpublished.');
+          setError('Правильність питання недоступна, доки тест опубліковано.');
           return;
         }
         options.push({ text: option.text, isCorrect: option.isCorrect });
@@ -501,7 +540,7 @@ export function TestEditorPage() {
   async function removeQuestion(question: QuestionDraft) {
     if (!detail) return;
     if (detail.test.isPublished) {
-      setError('Unpublish this test before editing questions.');
+      setError('Зніміть тест з публікації перед редагуванням питань.');
       return;
     }
     // Unsaved drafts exist only in local state: discarding them needs no API call.
@@ -526,7 +565,14 @@ export function TestEditorPage() {
       }
       setError(null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Question could not be deleted.');
+      setError(
+        reason instanceof TestApiError
+          ? serverErrorMessage(
+              reason.payload.error,
+              reason.payload.message ?? 'Питання не видалено.',
+            )
+          : 'Питання не видалено.',
+      );
     }
   }
 
@@ -537,7 +583,14 @@ export function TestEditorPage() {
       setDetail(loaded);
       setQuestions(loaded.questions.map(toDraft));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Questions could not be reloaded.');
+      setError(
+        reason instanceof TestApiError
+          ? serverErrorMessage(
+              reason.payload.error,
+              reason.payload.message ?? 'Питання не перезавантажено.',
+            )
+          : 'Питання не перезавантажено.',
+      );
     }
   }
 
@@ -579,7 +632,14 @@ export function TestEditorPage() {
       swapLocal(question.clientKey, neighbor.clientKey);
       setError(null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Question could not be moved.');
+      setError(
+        reason instanceof TestApiError
+          ? serverErrorMessage(
+              reason.payload.error,
+              reason.payload.message ?? 'Питання не переміщено.',
+            )
+          : 'Питання не переміщено.',
+      );
       await reloadQuestions();
     } finally {
       setMovingId(null);
@@ -616,32 +676,43 @@ export function TestEditorPage() {
         : await testsApi.publish(detail.test.id);
       setDetail(updated);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Publication failed.');
+      setError(
+        reason instanceof TestApiError
+          ? serverErrorMessage(
+              reason.payload.error,
+              reason.payload.message ?? 'Не вдалося змінити публікацію.',
+            )
+          : 'Не вдалося змінити публікацію.',
+      );
     }
   }
 
   async function removeTest() {
-    if (!detail || !window.confirm('Delete this test?')) return;
+    if (!detail || !window.confirm('Видалити цей тест?')) return;
     try {
       await testsApi.delete(detail.test.id);
       navigate('/dashboard', { replace: true });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Test could not be deleted.');
+      setError(
+        reason instanceof TestApiError
+          ? serverErrorMessage(reason.payload.error, reason.payload.message ?? 'Тест не видалено.')
+          : 'Тест не видалено.',
+      );
     }
   }
 
   return (
     <TestLayout>
-      {loading && <LoadingState text="Loading test..." />}
+      {loading && <LoadingState text="Завантаження тесту..." />}
       {!loading && (
         <>
           <div className="mb-7 flex items-start justify-between gap-5">
             <div>
               <p className="mb-2 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.13em] text-faint before:inline-block before:h-0.5 before:w-4 before:rounded-full before:bg-ink before:content-['']">
-                Authoring
+                Авторство
               </p>
               <h1 className="mb-2.5 text-balance break-words text-[clamp(1.6rem,1.25rem+1.4vw,2.1rem)] font-bold leading-[1.15] tracking-[-0.025em] text-ink">
-                {editing ? 'Edit test' : 'Create test'}
+                {editing ? 'Редагувати тест' : 'Створити тест'}
               </h1>
             </div>
             {detail && (
@@ -650,7 +721,7 @@ export function TestEditorPage() {
                 type="button"
                 onClick={() => void removeTest()}
               >
-                Delete test
+                Видалити тест
               </button>
             )}
           </div>
@@ -660,7 +731,7 @@ export function TestEditorPage() {
             className="mx-0 mb-10 mt-2 grid max-w-[700px] gap-[18px] rounded-2xl border border-line bg-card p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
           >
             <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-              Title
+              Назва
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
@@ -668,7 +739,7 @@ export function TestEditorPage() {
               />
             </label>
             <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-              Description
+              Опис
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -678,13 +749,13 @@ export function TestEditorPage() {
             </label>
             <div className="grid gap-[18px] sm:grid-cols-2">
               <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-                Category
+                Категорія
                 <select
                   value={category}
                   onChange={(event) => setCategory(event.target.value as TestCategory | '')}
                   className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
                 >
-                  <option value="">Uncategorized</option>
+                  <option value="">Без категорії</option>
                   {testCategories.map((value) => (
                     <option key={value} value={value}>
                       {categoryLabels[value]}
@@ -693,13 +764,13 @@ export function TestEditorPage() {
                 </select>
               </label>
               <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-                Difficulty
+                Складність
                 <select
                   value={difficulty}
                   onChange={(event) => setDifficulty(event.target.value as Difficulty | '')}
                   className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
                 >
-                  <option value="">Not set</option>
+                  <option value="">Не вказано</option>
                   {difficulties.map((value) => (
                     <option key={value} value={value}>
                       {difficultyLabels[value]}
@@ -710,59 +781,57 @@ export function TestEditorPage() {
             </div>
             <div className="grid gap-[18px] sm:grid-cols-2">
               <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-                Time limit (minutes)
+                Ліміт часу (хвилини)
                 <input
                   type="number"
                   min={1}
                   max={1440}
                   inputMode="numeric"
-                  placeholder="No limit"
+                  placeholder="Без ліміту"
                   value={timeLimit}
                   onChange={(event) => setTimeLimit(event.target.value)}
                   className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 placeholder:text-[#a7abb2] hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
                 />
                 <span className="text-[0.83rem] font-normal text-muted">
-                  Leave empty for no time limit (1–1440 minutes).
+                  Залиште порожнім, щоб прибрати ліміт (1–1440 хвилин).
                 </span>
               </label>
               <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-                Max attempts
+                Макс. спроб
                 <input
                   type="number"
                   min={1}
                   max={100}
                   inputMode="numeric"
-                  placeholder="Unlimited"
+                  placeholder="Безліміт"
                   value={maxAttempts}
                   onChange={(event) => setMaxAttempts(event.target.value)}
                   className="w-full rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 placeholder:text-[#a7abb2] hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
                 />
                 <span className="text-[0.83rem] font-normal text-muted">
-                  Leave empty for unlimited attempts (1–100 per taker).
+                  Залиште порожнім для необмежених спроб (1–100 на учня).
                 </span>
               </label>
             </div>
             <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-              Questions per attempt
+              Питань на спробу
               <input
                 type="number"
                 min={1}
                 inputMode="numeric"
-                placeholder="All questions"
+                placeholder="Усі питання"
                 value={questionCount}
                 onChange={(event) => setQuestionCount(event.target.value)}
                 className="w-full max-w-[220px] rounded-[10px] border border-line-dark bg-white px-[13px] py-[11px] text-[0.94rem] text-ink transition-all duration-150 placeholder:text-[#a7abb2] hover:border-[#b9b9b3] focus:border-ink focus:outline-none focus:ring-[3px] focus:ring-ink/10"
               />
               <span className="text-[0.83rem] font-normal text-muted">
-                Empty asks all questions. Otherwise each attempt gets a random subset.
+                Порожнє — питати все. Інакше кожна спроба отримає випадкову підмножину.
               </span>
             </label>
             <fieldset className="m-0 grid gap-[18px] rounded-xl border border-line bg-[#fafaf9] p-4">
-              <legend className="px-2 text-[0.88rem] font-bold text-ink">
-                Availability window
-              </legend>
+              <legend className="px-2 text-[0.88rem] font-bold text-ink">Вікно доступності</legend>
               <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-                Opens at
+                Відкривається
                 <input
                   type="datetime-local"
                   value={availableFrom}
@@ -771,7 +840,7 @@ export function TestEditorPage() {
                 />
               </label>
               <label className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-                Closes at
+                Закривається
                 <input
                   type="datetime-local"
                   value={availableUntil}
@@ -780,12 +849,12 @@ export function TestEditorPage() {
                 />
               </label>
               <span className="text-[0.83rem] font-normal text-muted">
-                Leave empty for no bound. Closing time must be after opening time. To reopen a
-                closed test, edit the closing time again.
+                Залиште порожнім, щоб прибрати межу. Час завершення має бути пізнішим за час
+                початку. Щоб перевідкрити закритий тест, знову змініть час завершення.
               </span>
             </fieldset>
             <fieldset className="m-0 grid gap-2.5 rounded-xl border border-line bg-[#fafaf9] p-4">
-              <legend className="px-2 text-[0.88rem] font-bold text-ink">Question order</legend>
+              <legend className="px-2 text-[0.88rem] font-bold text-ink">Порядок питань</legend>
               <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
                 <input
                   type="radio"
@@ -794,7 +863,7 @@ export function TestEditorPage() {
                   onChange={() => setShuffle(false)}
                   className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />
-                Manual — questions appear in the order I arrange below
+                Вручну — питання йдуть у порядку, який я налаштую нижче
               </label>
               <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
                 <input
@@ -804,11 +873,11 @@ export function TestEditorPage() {
                   onChange={() => setShuffle(true)}
                   className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />
-                Random — shuffle the order for each attempt
+                Випадково — перемішувати порядок для кожної спроби
               </label>
             </fieldset>
             <fieldset className="m-0 grid gap-2.5 rounded-xl border border-line bg-[#fafaf9] p-4">
-              <legend className="px-2 text-[0.88rem] font-bold text-ink">Test behavior</legend>
+              <legend className="px-2 text-[0.88rem] font-bold text-ink">Поведінка тесту</legend>
               <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
                 <input
                   type="checkbox"
@@ -816,7 +885,7 @@ export function TestEditorPage() {
                   onChange={(event) => setShowPreview(event.target.checked)}
                   className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />
-                Show questions on the test page before starting
+                Показувати питання на сторінці тесту до початку
               </label>
               <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
                 <input
@@ -825,7 +894,7 @@ export function TestEditorPage() {
                   onChange={(event) => setShowAnswers(event.target.checked)}
                   className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />
-                Reveal correct answers after completion
+                Показувати правильні відповіді після завершення
               </label>
               <label className="flex cursor-pointer items-center gap-2.5 text-[0.9rem] font-medium text-ink">
                 <input
@@ -834,7 +903,7 @@ export function TestEditorPage() {
                   onChange={(event) => setShuffleOptions(event.target.checked)}
                   className="h-[18px] w-[18px] shrink-0 accent-ink"
                 />
-                Shuffle answer options for each attempt
+                Перемішувати варіанти відповідей для кожної спроби
               </label>
             </fieldset>
             <button
@@ -842,17 +911,17 @@ export function TestEditorPage() {
               type="submit"
               disabled={saving}
             >
-              {saving ? 'Saving...' : 'Save test details'}
+              {saving ? 'Збереження...' : 'Зберегти дані тесту'}
             </button>
           </form>
           {detail && (
             <section className="mt-2 border-t border-line pt-7">
               <div className="mb-[18px] flex items-center justify-between gap-5">
-                <h2 className="mb-0 text-[1.15rem] font-bold text-ink">Questions</h2>
+                <h2 className="mb-0 text-[1.15rem] font-bold text-ink">Питання</h2>
               </div>
               <div className="mb-5 grid gap-3 rounded-2xl border border-dashed border-line-dark bg-white p-5">
                 <div className="grid gap-[7px] text-[0.87rem] font-semibold text-ink">
-                  <label htmlFor="new-question-type">Add a new question</label>
+                  <label htmlFor="new-question-type">Додати нове питання</label>
                   <div className="flex flex-wrap items-center gap-3">
                     <select
                       id="new-question-type"
@@ -873,18 +942,18 @@ export function TestEditorPage() {
                       disabled={detail.test.isPublished}
                       onClick={addQuestion}
                     >
-                      Add question
+                      Додати питання
                     </button>
                   </div>
                   <span className="text-[0.83rem] font-normal text-muted">
-                    New questions appear at the end of the list below.
+                    Нові питання зʼявляються наприкінці списку нижче.
                   </span>
                 </div>
               </div>
               {shuffle && sortedQuestions.length > 0 && !detail.test.isPublished && (
                 <p role="note" className="mb-4 text-[0.88rem] text-muted">
-                  Order is shuffled for each attempt. Switch to manual order above to arrange
-                  questions.
+                  Порядок перемішується для кожної спроби. Щоб розставити питання, увімкніть ручний
+                  порядок вище.
                 </p>
               )}
               {sortedQuestions.map((question, index) => (
@@ -907,16 +976,16 @@ export function TestEditorPage() {
                   }
                   moveDisabledReason={
                     detail.test.isPublished
-                      ? 'Unpublish the test to reorder questions'
+                      ? 'Зніміть тест з публікації, щоб змінити порядок питань'
                       : shuffle
-                        ? 'Switch to manual order to rearrange questions'
+                        ? 'Увімкніть ручний порядок, щоб переставити питання'
                         : undefined
                   }
                   readOnly={detail.test.isPublished}
                 />
               ))}
               {!questions.length && (
-                <EmptyState text="Add at least one question before publishing." />
+                <EmptyState text="Додайте хоча б одне питання перед публікацією." />
               )}
               {detail.test.isPublished ? (
                 <button
@@ -924,7 +993,7 @@ export function TestEditorPage() {
                   type="button"
                   onClick={() => void togglePublished()}
                 >
-                  Unpublish test
+                  Зняти з публікації
                 </button>
               ) : (
                 <button
@@ -932,7 +1001,7 @@ export function TestEditorPage() {
                   type="button"
                   onClick={() => void togglePublished()}
                 >
-                  Publish test
+                  Опублікувати тест
                 </button>
               )}
             </section>
@@ -941,7 +1010,7 @@ export function TestEditorPage() {
             to="/dashboard"
             className="mt-6 inline-block text-[0.92rem] font-semibold text-ink underline-offset-[3px] hover:underline hover:decoration-2"
           >
-            Back to my tests
+            Назад до моїх тестів
           </Link>
         </>
       )}

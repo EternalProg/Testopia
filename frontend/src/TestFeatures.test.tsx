@@ -41,7 +41,7 @@ describe('test frontend', () => {
     render(<TestListPage />, {
       wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Loading tests');
+    expect(screen.getByRole('status')).toHaveTextContent('Завантаження тестів');
     expect(await screen.findByRole('heading', { name: 'Algebra basics' })).toBeInTheDocument();
   });
 
@@ -57,14 +57,14 @@ describe('test frontend', () => {
     render(<TestEditorPage />, {
       wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
     });
-    await user.type(screen.getByLabelText('Title'), 'C++ basics');
-    await user.selectOptions(screen.getByLabelText('Category'), 'cpp');
-    await user.selectOptions(screen.getByLabelText('Difficulty'), 'medium');
-    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await user.type(screen.getByLabelText('Назва'), 'C++ basics');
+    await user.selectOptions(screen.getByLabelText('Категорія'), 'cpp');
+    await user.selectOptions(screen.getByLabelText('Складність'), 'medium');
+    await user.click(screen.getByRole('button', { name: 'Зберегти дані тесту' }));
     await waitFor(() =>
       expect(payload).toMatchObject({ title: 'C++ basics', category: 'cpp', difficulty: 'medium' }),
     );
-    expect(await screen.findByRole('heading', { name: 'Questions' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Питання' })).toBeInTheDocument();
   });
 
   it('creates a test from the authoring form', async () => {
@@ -79,10 +79,10 @@ describe('test frontend', () => {
     render(<TestEditorPage />, {
       wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
     });
-    await user.type(screen.getByLabelText('Title'), 'Algebra basics');
-    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await user.type(screen.getByLabelText('Назва'), 'Algebra basics');
+    await user.click(screen.getByRole('button', { name: 'Зберегти дані тесту' }));
     await waitFor(() => expect(payload).toMatchObject({ title: 'Algebra basics' }));
-    expect(await screen.findByRole('heading', { name: 'Questions' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Питання' })).toBeInTheDocument();
   });
 
   it('renders and edits an existing question', async () => {
@@ -105,7 +105,7 @@ describe('test frontend', () => {
     const input = await screen.findByDisplayValue('What is 2 + 2?');
     await user.clear(input);
     await user.type(input, 'Updated question');
-    await user.click(screen.getByRole('button', { name: 'Save question' }));
+    await user.click(screen.getByRole('button', { name: 'Зберегти питання' }));
     await waitFor(() => expect(payload).toMatchObject({ text: 'Updated question' }));
   });
 
@@ -134,20 +134,20 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Questions' });
-    await user.click(screen.getByRole('button', { name: 'Add question' }));
-    const forms = screen.getAllByLabelText('Type');
+    await screen.findByRole('heading', { name: 'Питання' });
+    await user.click(screen.getByRole('button', { name: 'Додати питання' }));
+    const forms = screen.getAllByLabelText('Тип');
     await user.selectOptions(forms[forms.length - 1]!, 'true_false');
-    const questionInputs = screen.getAllByLabelText('Question text');
+    const questionInputs = screen.getAllByLabelText('Текст питання');
     await user.type(questionInputs[questionInputs.length - 1]!, 'The statement is true.');
-    const saveButtons = screen.getAllByRole('button', { name: 'Save question' });
+    const saveButtons = screen.getAllByRole('button', { name: 'Зберегти питання' });
     await user.click(saveButtons[saveButtons.length - 1]!);
     await waitFor(() =>
       expect(payload).toMatchObject({
         type: 'true_false',
         options: [
-          { text: 'True', isCorrect: true },
-          { text: 'False', isCorrect: false },
+          { text: 'Правда', isCorrect: true },
+          { text: 'Неправда', isCorrect: false },
         ],
       }),
     );
@@ -161,11 +161,11 @@ describe('test frontend', () => {
     render(<TestEditorPage />, {
       wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
     });
-    await user.type(screen.getByLabelText('Title'), 'Radio groups');
-    await user.click(screen.getByRole('button', { name: 'Save test details' }));
-    await screen.findByRole('heading', { name: 'Questions' });
-    await user.click(screen.getByRole('button', { name: 'Add question' }));
-    await user.click(screen.getByRole('button', { name: 'Add question' }));
+    await user.type(screen.getByLabelText('Назва'), 'Radio groups');
+    await user.click(screen.getByRole('button', { name: 'Зберегти дані тесту' }));
+    await screen.findByRole('heading', { name: 'Питання' });
+    await user.click(screen.getByRole('button', { name: 'Додати питання' }));
+    await user.click(screen.getByRole('button', { name: 'Додати питання' }));
 
     const radios = screen.getAllByRole('radio');
     expect(radios[0]).toBeChecked();
@@ -203,17 +203,17 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Question 3' });
-    await user.click(screen.getAllByRole('button', { name: 'Delete' })[1]!);
+    await screen.findByRole('heading', { name: 'Питання 3' });
+    await user.click(screen.getAllByRole('button', { name: 'Видалити' })[1]!);
     await waitFor(() => expect(renumberPayload).toMatchObject({ orderIndex: 1 }));
 
-    await user.click(screen.getByRole('button', { name: 'Add question' }));
-    const questionInputs = screen.getAllByLabelText('Question text');
+    await user.click(screen.getByRole('button', { name: 'Додати питання' }));
+    const questionInputs = screen.getAllByLabelText('Текст питання');
     await user.type(questionInputs[questionInputs.length - 1]!, 'New question');
-    const optionInputs = screen.getAllByRole('textbox', { name: /Option/ });
+    const optionInputs = screen.getAllByRole('textbox', { name: /Варіант/ });
     await user.type(optionInputs[optionInputs.length - 2]!, 'A');
     await user.type(optionInputs[optionInputs.length - 1]!, 'B');
-    const saveButtons = screen.getAllByRole('button', { name: 'Save question' });
+    const saveButtons = screen.getAllByRole('button', { name: 'Зберегти питання' });
     await user.click(saveButtons[saveButtons.length - 1]!);
     await waitFor(() => expect(newQuestionPayload).toMatchObject({ orderIndex: 2 }));
   });
@@ -240,19 +240,19 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Questions' });
-    await user.click(screen.getByRole('button', { name: 'Add question' }));
-    const questionInputs = screen.getAllByLabelText('Question text');
+    await screen.findByRole('heading', { name: 'Питання' });
+    await user.click(screen.getByRole('button', { name: 'Додати питання' }));
+    const questionInputs = screen.getAllByLabelText('Текст питання');
     await user.type(questionInputs[questionInputs.length - 1]!, 'In-flight?');
-    const optionInputs = screen.getAllByRole('textbox', { name: /Option/ });
+    const optionInputs = screen.getAllByRole('textbox', { name: /Варіант/ });
     await user.type(optionInputs[optionInputs.length - 2]!, 'A');
     await user.type(optionInputs[optionInputs.length - 1]!, 'B');
-    const saveButtons = screen.getAllByRole('button', { name: 'Save question' });
+    const saveButtons = screen.getAllByRole('button', { name: 'Зберегти питання' });
     await user.click(saveButtons[saveButtons.length - 1]!);
-    expect(await screen.findByRole('button', { name: 'Saving…' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Збереження…' })).toBeDisabled();
     resolvePost(undefined);
     await waitFor(() => expect(postCount).toBe(1));
-    expect(await screen.findByRole('heading', { name: 'Question 1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Питання 1' })).toBeInTheDocument();
   });
 
   it('preserves existing test metadata when saving details', async () => {
@@ -282,7 +282,7 @@ describe('test frontend', () => {
     const titleInput = await screen.findByDisplayValue('Algebra basics');
     await user.clear(titleInput);
     await user.type(titleInput, 'Updated algebra basics');
-    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await user.click(screen.getByRole('button', { name: 'Зберегти дані тесту' }));
     await waitFor(() =>
       expect(payload).toMatchObject({
         isPublished: true,
@@ -317,16 +317,16 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Question 1' });
+    await screen.findByRole('heading', { name: 'Питання 1' });
     expect(screen.getByDisplayValue('4')).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Save question' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add question' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Unpublish test' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Зберегти питання' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Додати питання' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Зняти з публікації' })).toBeInTheDocument();
 
     const titleInput = screen.getByDisplayValue('Algebra basics');
     await user.clear(titleInput);
     await user.type(titleInput, 'Published algebra');
-    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await user.click(screen.getByRole('button', { name: 'Зберегти дані тесту' }));
     await waitFor(() => expect(metadataPayload).toMatchObject({ title: 'Published algebra' }));
   });
 
@@ -338,14 +338,14 @@ describe('test frontend', () => {
     render(<TestEditorPage />, {
       wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
     });
-    await user.type(screen.getByLabelText('Title'), 'Typed questions');
-    await user.click(screen.getByRole('button', { name: 'Save test details' }));
-    await screen.findByRole('heading', { name: 'Questions' });
-    await user.selectOptions(screen.getByLabelText('Add a new question'), 'true_false');
-    await user.click(screen.getByRole('button', { name: 'Add question' }));
-    expect(await screen.findByDisplayValue('True')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('False')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'New question' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Назва'), 'Typed questions');
+    await user.click(screen.getByRole('button', { name: 'Зберегти дані тесту' }));
+    await screen.findByRole('heading', { name: 'Питання' });
+    await user.selectOptions(screen.getByLabelText('Додати нове питання'), 'true_false');
+    await user.click(screen.getByRole('button', { name: 'Додати питання' }));
+    expect(await screen.findByDisplayValue('Правда')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Неправда')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Нове питання' })).toBeInTheDocument();
   });
 
   it('moves a saved question up with a collision-free reorder sequence', async () => {
@@ -367,13 +367,13 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Question 2' });
-    await user.click(screen.getByRole('button', { name: 'Move question 2 up' }));
+    await screen.findByRole('heading', { name: 'Питання 2' });
+    await user.click(screen.getByRole('button', { name: 'Перемістити питання 2 вгору' }));
     await waitFor(() =>
       expect(patches).toEqual([{ orderIndex: 2 }, { orderIndex: 1 }, { orderIndex: 0 }]),
     );
     // The moved question now leads the list.
-    const inputs = screen.getAllByLabelText('Question text');
+    const inputs = screen.getAllByLabelText('Текст питання');
     expect(inputs[0]).toHaveDisplayValue('Second question');
     expect(inputs[1]).toHaveDisplayValue('First question');
   });
@@ -397,10 +397,10 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Question 2' });
-    expect(screen.getByRole('button', { name: 'Move question 1 down' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Move question 2 up' })).toBeDisabled();
-    expect(screen.getByRole('note')).toHaveTextContent('shuffled for each attempt');
+    await screen.findByRole('heading', { name: 'Питання 2' });
+    expect(screen.getByRole('button', { name: 'Перемістити питання 1 вниз' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Перемістити питання 2 вгору' })).toBeDisabled();
+    expect(screen.getByRole('note')).toHaveTextContent('перемішується для кожної спроби');
   });
 
   it('shows load and deletion failures without leaving the editor', async () => {
@@ -417,7 +417,7 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(await screen.findByRole('alert')).toHaveTextContent('Test could not be loaded.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Не вдалося завантажити тест.');
     firstRender.unmount();
 
     server.resetHandlers();
@@ -437,13 +437,13 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Question 1' });
-    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0]!);
+    await screen.findByRole('heading', { name: 'Питання 1' });
+    await user.click(screen.getAllByRole('button', { name: 'Видалити' })[0]!);
     expect(await screen.findByRole('alert')).toHaveTextContent('Question delete failed');
     window.confirm = () => true;
-    await user.click(screen.getByRole('button', { name: 'Delete test' }));
+    await user.click(screen.getByRole('button', { name: 'Видалити тест' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Test delete failed');
-    expect(screen.getByRole('heading', { name: 'Edit test' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Редагувати тест' })).toBeInTheDocument();
   });
 
   it('discards an unsaved draft without calling the API', async () => {
@@ -463,12 +463,12 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Questions' });
-    await user.click(screen.getByRole('button', { name: 'Add question' }));
-    expect(await screen.findByRole('heading', { name: 'New question' })).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Питання' });
+    await user.click(screen.getByRole('button', { name: 'Додати питання' }));
+    expect(await screen.findByRole('heading', { name: 'Нове питання' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Discard' }));
-    expect(screen.queryByRole('heading', { name: 'New question' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Скасувати' }));
+    expect(screen.queryByRole('heading', { name: 'Нове питання' })).not.toBeInTheDocument();
     expect(postCount).toBe(0);
   });
 
@@ -488,16 +488,16 @@ describe('test frontend', () => {
         </Routes>
       </MemoryRouter>,
     );
-    await screen.findByRole('heading', { name: 'Question 1' });
-    const savedButton = await screen.findByRole('button', { name: 'Saved ✓' });
+    await screen.findByRole('heading', { name: 'Питання 1' });
+    const savedButton = await screen.findByRole('button', { name: 'Збережено ✓' });
     expect(savedButton).toBeDisabled();
 
     const input = screen.getByDisplayValue('What is 2 + 2?');
     await user.clear(input);
     await user.type(input, 'What is 2 + 2 (edited)?');
-    const saveButton = await screen.findByRole('button', { name: 'Save question' });
+    const saveButton = await screen.findByRole('button', { name: 'Зберегти питання' });
     expect(saveButton).toBeEnabled();
     await user.click(saveButton);
-    expect(await screen.findByRole('button', { name: 'Saved ✓' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Збережено ✓' })).toBeDisabled();
   });
 });

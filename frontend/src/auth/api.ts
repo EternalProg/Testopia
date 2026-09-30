@@ -1,6 +1,7 @@
 import type { LoginInput, RegisterInput, User } from '@testopia/shared';
 
 import type { ApiErrorPayload, Session } from './types.js';
+import { requestFailedMessage } from '../i18n/uk.js';
 import { adminApi } from '../admin/api.js';
 import { attemptsApi } from '../attempts/api.js';
 import { statisticsApi } from '../statistics/api.js';
@@ -14,7 +15,9 @@ export class ApiError extends Error {
     readonly status: number,
     readonly payload: ApiErrorPayload,
   ) {
-    super(payload.message ?? payload.error ?? 'Request failed');
+    // Non-JSON error bodies (e.g. a proxy 502 page when the backend is down)
+    // keep the HTTP status so the failure stays diagnosable from the UI.
+    super(payload.message ?? payload.error ?? requestFailedMessage(status));
     this.name = 'ApiError';
   }
 }

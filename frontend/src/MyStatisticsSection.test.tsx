@@ -50,19 +50,19 @@ describe('MyStatisticsSection', () => {
   it('shows a loading state while fetching taker statistics', () => {
     server.use(http.get('/api/v1/users/me/statistics', () => HttpResponse.json(myStats)));
     renderSection();
-    expect(screen.getByRole('status')).toHaveTextContent('Loading your statistics...');
+    expect(screen.getByRole('status')).toHaveTextContent('Завантаження вашої статистики...');
   });
 
   it('renders summary cards with pass rate and scores', async () => {
     server.use(http.get('/api/v1/users/me/statistics', () => HttpResponse.json(myStats)));
     renderSection();
-    const section = await screen.findByRole('region', { name: 'My statistic' });
-    expect(section).toHaveTextContent('Tests taken');
-    expect(section).toHaveTextContent('Attempts');
-    expect(section).toHaveTextContent('Pass rate');
-    expect(section).toHaveTextContent('Average score');
-    expect(section).toHaveTextContent('Avg attempts/test');
-    expect(section).toHaveTextContent('Best score');
+    const section = await screen.findByRole('region', { name: 'Моя статистика' });
+    expect(section).toHaveTextContent('Пройдено тестів');
+    expect(section).toHaveTextContent('Спроби');
+    expect(section).toHaveTextContent('Відсоток успіху');
+    expect(section).toHaveTextContent('Середній бал');
+    expect(section).toHaveTextContent('Сер. спроб/тест');
+    expect(section).toHaveTextContent('Найкращий бал');
     expect(section).toHaveTextContent('66.7%');
     expect(section).toHaveTextContent('75%');
     expect(section).toHaveTextContent('100%');
@@ -71,17 +71,17 @@ describe('MyStatisticsSection', () => {
   it('renders the per-test table with best and last scores', async () => {
     server.use(http.get('/api/v1/users/me/statistics', () => HttpResponse.json(myStats)));
     renderSection();
-    expect(await screen.findByRole('columnheader', { name: 'Test' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Attempts' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Best' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Last score' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Last taken' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: 'Тест' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Спроби' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Найкращий' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Останній бал' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Востаннє пройдено' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Статус' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Algebra basics' })).toHaveAttribute(
       'href',
       '/tests/1',
     );
-    expect(screen.getByRole('cell', { name: 'expired' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Прострочено' })).toBeInTheDocument();
   });
 
   it('shows an empty state when the taker has no attempts', async () => {
@@ -100,7 +100,7 @@ describe('MyStatisticsSection', () => {
       ),
     );
     renderSection();
-    expect(await screen.findByText('You haven’t taken any tests yet.')).toBeInTheDocument();
+    expect(await screen.findByText('Ви ще не проходили жодного тесту.')).toBeInTheDocument();
   });
 
   it('shows a generic error when taker statistics cannot be loaded', async () => {
@@ -110,6 +110,8 @@ describe('MyStatisticsSection', () => {
       ),
     );
     renderSection();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Statistics could not be loaded.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Не вдалося завантажити статистику.',
+    );
   });
 });

@@ -2,6 +2,7 @@ import type { LoginInput, RegisterInput, User } from '@testopia/shared';
 import { create } from 'zustand';
 
 import { ApiError, authApi } from './api.js';
+import { genericErrorMessage, serverErrorMessage } from '../i18n/uk.js';
 import type { AuthStatus } from './types.js';
 
 interface AuthState {
@@ -16,9 +17,9 @@ interface AuthState {
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    return error.payload.message ?? error.payload.error ?? error.message;
+    return serverErrorMessage(error.payload.error, error.payload.message ?? error.message);
   }
-  return 'Something went wrong. Please try again.';
+  return genericErrorMessage;
 }
 
 let initializePromise: Promise<void> | null = null;

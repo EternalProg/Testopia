@@ -26,12 +26,12 @@ describe('authentication flows', () => {
     const user = userEvent.setup();
     renderAt('/register');
 
-    await user.type(await screen.findByLabelText('Username'), 'test-user');
-    await user.type(screen.getByLabelText('Email'), 'user@example.com');
-    await user.type(screen.getByLabelText('Password'), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await user.type(await screen.findByLabelText('Імʼя користувача'), 'test-user');
+    await user.type(screen.getByLabelText('Електронна пошта'), 'user@example.com');
+    await user.type(screen.getByLabelText('Пароль'), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Створити акаунт' }));
 
-    expect(await screen.findByText('Welcome, test-user.')).toBeInTheDocument();
+    expect(await screen.findByText('Вітаємо, test-user.')).toBeInTheDocument();
     expect(screen.queryByText(session.accessToken)).not.toBeInTheDocument();
   });
 
@@ -39,9 +39,9 @@ describe('authentication flows', () => {
     const user = userEvent.setup();
     renderAt('/login');
 
-    await user.type(await screen.findByLabelText('Email'), 'user@example.com');
-    await user.type(screen.getByLabelText('Password'), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await user.type(await screen.findByLabelText('Електронна пошта'), 'user@example.com');
+    await user.type(screen.getByLabelText('Пароль'), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Увійти' }));
 
     expect(await screen.findByRole('heading', { name: 'Testopia' })).toBeInTheDocument();
   });
@@ -49,17 +49,17 @@ describe('authentication flows', () => {
   it('shows validation errors without making a request', async () => {
     renderAt('/login');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Log in' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Увійти' }));
 
-    expect(await screen.findByText('Invalid email address')).toBeInTheDocument();
     expect(
-      screen.getByText('Too small: expected string to have >=1 characters'),
+      await screen.findByText('Введіть коректну адресу електронної пошти'),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Email/)).toHaveAttribute('aria-describedby', 'email-error');
-    expect(screen.getByLabelText(/^Password/)).toHaveAttribute(
+    expect(screen.getByText('Поле «Пароль» не може бути порожнім')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Електронна пошта/)).toHaveAttribute(
       'aria-describedby',
-      'password-error',
+      'email-error',
     );
+    expect(screen.getByLabelText(/^Пароль/)).toHaveAttribute('aria-describedby', 'password-error');
   });
 
   it('shows server errors', async () => {
@@ -74,13 +74,16 @@ describe('authentication flows', () => {
     const user = userEvent.setup();
     renderAt('/login');
 
-    await user.type(await screen.findByLabelText('Email'), 'user@example.com');
-    await user.type(screen.getByLabelText('Password'), 'wrong-password');
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await user.type(await screen.findByLabelText('Електронна пошта'), 'user@example.com');
+    await user.type(screen.getByLabelText('Пароль'), 'wrong-password');
+    await user.click(screen.getByRole('button', { name: 'Увійти' }));
 
-    expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Email/)).toHaveAttribute('aria-describedby', 'form-error');
-    expect(screen.getByLabelText(/^Password/)).toHaveAttribute('aria-describedby', 'form-error');
+    expect(await screen.findByText('Невірна електронна пошта або пароль')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Електронна пошта/)).toHaveAttribute(
+      'aria-describedby',
+      'form-error',
+    );
+    expect(screen.getByLabelText(/^Пароль/)).toHaveAttribute('aria-describedby', 'form-error');
   });
 
   it('announces session bootstrap loading', async () => {
@@ -92,14 +95,14 @@ describe('authentication flows', () => {
     );
     renderAt('/dashboard');
 
-    expect(screen.getByRole('status', { name: 'Loading your session...' })).toBeInTheDocument();
-    expect(await screen.findByText('Welcome, test-user.')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Завантаження вашої сесії...' })).toBeInTheDocument();
+    expect(await screen.findByText('Вітаємо, test-user.')).toBeInTheDocument();
   });
 
   it('redirects unauthenticated users away from protected navigation', async () => {
     renderAt('/dashboard');
 
-    expect(await screen.findByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вхід до Testopia' })).toBeInTheDocument();
   });
 
   it('refreshes an existing session and loads the current user', async () => {
@@ -112,7 +115,7 @@ describe('authentication flows', () => {
     );
     renderAt('/dashboard');
 
-    expect(await screen.findByText('Welcome, test-user.')).toBeInTheDocument();
+    expect(await screen.findByText('Вітаємо, test-user.')).toBeInTheDocument();
     // Cookie-authenticated calls carry the CSRF header the server requires.
     await waitFor(() => expect(refreshCsrfHeader).toBe('XMLHttpRequest'));
   });
@@ -133,7 +136,7 @@ describe('authentication flows', () => {
       </StrictMode>,
     );
 
-    expect(await screen.findByText('Welcome, test-user.')).toBeInTheDocument();
+    expect(await screen.findByText('Вітаємо, test-user.')).toBeInTheDocument();
     expect(refreshRequests).toBe(1);
   });
 
@@ -149,12 +152,12 @@ describe('authentication flows', () => {
     );
     const user = userEvent.setup();
     renderAt('/login');
-    await user.type(await screen.findByLabelText('Email'), 'user@example.com');
-    await user.type(screen.getByLabelText('Password'), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
-    await user.click(await screen.findByRole('button', { name: 'Log out' }));
+    await user.type(await screen.findByLabelText('Електронна пошта'), 'user@example.com');
+    await user.type(screen.getByLabelText('Пароль'), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Увійти' }));
+    await user.click(await screen.findByRole('button', { name: 'Вийти' }));
 
-    expect(await screen.findByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вхід до Testopia' })).toBeInTheDocument();
     expect(logoutRequests).toBe(1);
     expect(logoutCsrfHeader).toBe('XMLHttpRequest');
   });
@@ -170,12 +173,12 @@ describe('authentication flows', () => {
     );
     const user = userEvent.setup();
     renderAt('/login');
-    await user.type(await screen.findByLabelText('Email'), 'user@example.com');
-    await user.type(screen.getByLabelText('Password'), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
-    await user.click(await screen.findByRole('button', { name: 'Log out' }));
+    await user.type(await screen.findByLabelText('Електронна пошта'), 'user@example.com');
+    await user.type(screen.getByLabelText('Пароль'), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Увійти' }));
+    await user.click(await screen.findByRole('button', { name: 'Вийти' }));
 
-    expect(await screen.findByRole('heading', { name: 'Log in to Testopia' })).toBeInTheDocument();
-    expect(screen.queryByText('Welcome, test-user.')).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Вхід до Testopia' })).toBeInTheDocument();
+    expect(screen.queryByText('Вітаємо, test-user.')).not.toBeInTheDocument();
   });
 });

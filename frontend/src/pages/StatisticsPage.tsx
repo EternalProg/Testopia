@@ -29,8 +29,8 @@ export function StatisticsPage() {
         if (!active) return;
         setError(
           reason instanceof StatisticsApiError && reason.status === 403
-            ? 'Only the test author can view statistics.'
-            : 'Statistics could not be loaded.',
+            ? 'Статистику може переглядати лише автор тесту.'
+            : 'Не вдалося завантажити статистику.',
         );
       });
     return () => {
@@ -43,7 +43,7 @@ export function StatisticsPage() {
       <TestLayout>
         <Alert variant="error">{error}</Alert>
         <Link to={`/tests/${id}`} className={textLinkClass}>
-          Back to test
+          Назад до тесту
         </Link>
       </TestLayout>
     );
@@ -52,7 +52,7 @@ export function StatisticsPage() {
   if (!stats) {
     return (
       <TestLayout>
-        <LoadingState text="Loading statistics..." />
+        <LoadingState text="Завантаження статистики..." />
       </TestLayout>
     );
   }
@@ -60,9 +60,9 @@ export function StatisticsPage() {
   if (stats.attemptsCount === 0) {
     return (
       <TestLayout>
-        <EmptyState title="No attempts yet" text="No attempts yet for this test." />
+        <EmptyState title="Спроб поки немає" text="У цього тесту поки немає спроб." />
         <Link to={`/tests/${id}`} className={textLinkClass}>
-          Back to test
+          Назад до тесту
         </Link>
       </TestLayout>
     );
@@ -72,13 +72,13 @@ export function StatisticsPage() {
 
   return (
     <TestLayout>
-      <Eyebrow>Test statistics</Eyebrow>
-      <h1 className={h1Class}>Test statistics</h1>
-      <section aria-label="Summary">
+      <Eyebrow>Статистика тесту</Eyebrow>
+      <h1 className={h1Class}>Статистика тесту</h1>
+      <section aria-label="Підсумок">
         <dl className="m-0 my-6 grid grid-cols-4 gap-3 p-0 max-sm:grid-cols-2">
           <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-              Attempts
+              Спроби
             </dt>
             <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
               {stats.attemptsCount}
@@ -86,7 +86,7 @@ export function StatisticsPage() {
           </div>
           <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-              Completed
+              Завершено
             </dt>
             <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
               {stats.completedAttemptsCount}
@@ -94,7 +94,7 @@ export function StatisticsPage() {
           </div>
           <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-              Unique takers
+              Унікальних учнів
             </dt>
             <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
               {stats.uniqueTakers}
@@ -102,7 +102,7 @@ export function StatisticsPage() {
           </div>
           <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-              Completion rate
+              Відсоток завершення
             </dt>
             <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
               {stats.completionRate === null ? '—' : `${(stats.completionRate * 100).toFixed(1)}%`}
@@ -110,7 +110,7 @@ export function StatisticsPage() {
           </div>
           <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-              Average score
+              Середній бал
             </dt>
             <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
               {stats.averageScore === null ? '—' : `${(stats.averageScore * 100).toFixed(2)}%`}
@@ -118,7 +118,7 @@ export function StatisticsPage() {
           </div>
           <div className="grid gap-1.5 rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <dt className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-faint">
-              Average time
+              Середній час
             </dt>
             <dd className="m-0 text-[1.45rem] font-extrabold tracking-[-0.02em] text-ink">
               {formatDuration(stats.averageTimeSeconds)}
@@ -126,8 +126,8 @@ export function StatisticsPage() {
           </div>
         </dl>
       </section>
-      <section aria-label="Score distribution">
-        <h2 className={h2Class}>Score distribution</h2>
+      <section aria-label="Розподіл балів">
+        <h2 className={h2Class}>Розподіл балів</h2>
         <ul className="m-0 my-4 grid list-none gap-2.5 rounded-2xl border border-line bg-card p-5">
           {stats.scoreDistribution.map((bucket) => {
             const width = maxBucketCount === 0 ? 0 : (bucket.count / maxBucketCount) * 100;
@@ -143,7 +143,7 @@ export function StatisticsPage() {
                   <div
                     className="h-full rounded-full bg-ink"
                     role="img"
-                    aria-label={`Scores ${bucket.min} to ${bucket.max}: ${bucket.count} attempts`}
+                    aria-label={`Бали ${bucket.min}–${bucket.max}: спроб ${bucket.count}`}
                     style={{ width: `${width}%` }}
                   />
                 </div>
@@ -153,12 +153,12 @@ export function StatisticsPage() {
           })}
         </ul>
       </section>
-      <section aria-label="Per-question results">
-        <h2 className={h2Class}>Questions</h2>
+      <section aria-label="Результати по питаннях">
+        <h2 className={h2Class}>Питання</h2>
         <div className="my-4 overflow-x-auto rounded-2xl border border-line bg-white">
           <table className="w-full min-w-[560px] border-collapse">
             <caption className="px-4 pb-2 pt-4 text-left text-[0.9rem] font-bold text-muted">
-              Per-question results
+              Результати по питаннях
             </caption>
             <thead>
               <tr>
@@ -166,25 +166,25 @@ export function StatisticsPage() {
                   scope="col"
                   className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
                 >
-                  Question
+                  Питання
                 </th>
                 <th
                   scope="col"
                   className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
                 >
-                  Attempts
+                  Спроби
                 </th>
                 <th
                   scope="col"
                   className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
                 >
-                  Correct
+                  Правильно
                 </th>
                 <th
                   scope="col"
                   className="border-b border-line bg-[#fafaf9] px-4 py-[11px] text-left text-[0.7rem] font-bold uppercase tracking-[0.11em] text-faint"
                 >
-                  Rate
+                  Відсоток
                 </th>
               </tr>
             </thead>
@@ -212,7 +212,7 @@ export function StatisticsPage() {
         </div>
       </section>
       <Link to={`/tests/${id}`} className={textLinkClass}>
-        Back to test
+        Назад до тесту
       </Link>
     </TestLayout>
   );

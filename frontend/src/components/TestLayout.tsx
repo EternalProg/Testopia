@@ -45,7 +45,7 @@ export function TestLayout({
           href="#main-content"
           onClick={skipToContent}
         >
-          Skip to content
+          Перейти до вмісту
         </a>
         <header className="sticky top-0 z-20 border-b border-line bg-paper/85 backdrop-blur-md">
           <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-5 px-7 py-3.5 max-sm:flex-col max-sm:items-start max-sm:gap-2.5">
@@ -61,19 +61,21 @@ export function TestLayout({
               </span>
               Testopia
             </Link>
-            <nav aria-label="Main navigation" className="flex items-center gap-1 max-sm:flex-wrap">
-              {user ? (
+            <nav
+              aria-label="Головна навігація"
+              className="flex items-center gap-1 max-sm:flex-wrap"
+            >
+              {user && (
                 <NavLink to="/dashboard" className={navLinkClass}>
-                  Dashboard
-                </NavLink>
-              ) : (
-                <NavLink to="/tests" className={navLinkClass}>
-                  Browse
+                  Панель
                 </NavLink>
               )}
+              <NavLink to="/tests" className={navLinkClass}>
+                Огляд
+              </NavLink>
               {user?.role === 'admin' && (
                 <NavLink to="/admin" className={navLinkClass}>
-                  Admin
+                  Адмін
                 </NavLink>
               )}
               {user ? (
@@ -94,12 +96,12 @@ export function TestLayout({
                     type="button"
                     onClick={() => void signOut()}
                   >
-                    Log out
+                    Вийти
                   </button>
                 </>
               ) : (
                 <Link to="/login" className={navLinkClass({ isActive: false })}>
-                  Log in
+                  Увійти
                 </Link>
               )}
             </nav>
@@ -114,8 +116,8 @@ export function TestLayout({
         </main>
         <footer className="mt-auto border-t border-line">
           <div className="mx-auto flex w-full max-w-[1080px] flex-wrap justify-between gap-3 px-7 py-5 text-[0.82rem] text-faint">
-            <span>Testopia — minimal testing platform</span>
-            <span>Black &amp; white by design</span>
+            <span>Testopia — мінімальна платформа тестування</span>
+            <span>Чорно-біле за задумом</span>
           </div>
         </footer>
       </div>

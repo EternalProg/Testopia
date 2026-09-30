@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { authApi, shouldIncludeCredentials } from './api.js';
+import { ApiError, authApi, shouldIncludeCredentials } from './api.js';
 import { session } from '../test/mocks.js';
 
 afterEach(() => {
@@ -37,5 +37,44 @@ describe('auth request credentials', () => {
       expect.stringContaining('/api/v1/auth/logout'),
       expect.objectContaining({ credentials: 'include' }),
     );
+  });
+});
+
+describe('auth request errors', () => {
+  it('keeps the HTTP status when the error body is not JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        json: async () => {
+          throw new SyntaxError('Unexpected token <');
+        },
+      }),
+    );
+
+    const error = await authApi
+      .login({ email: 'a@example.com', password: 'x'.repeat(12) })
+      .catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(502);
+    expect((error as ApiError).message).toBe('Не вдалося виконати запит (502)');
+  });
+
+  it('prefers the server message when the error body is JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' }),
+      }),
+    );
+
+    const error = await authApi
+      .login({ email: 'a@example.com', password: 'x'.repeat(12) })
+      .catch((error: unknown) => error);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).message).toBe('Invalid email or password');
   });
 });

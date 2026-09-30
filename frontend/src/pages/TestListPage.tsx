@@ -25,9 +25,9 @@ const searchDebounceMs = 300;
 const browsePageSize = 20;
 
 const sortLabels: Record<TestListSort, string> = {
-  newest: 'Newest',
-  popular: 'Most popular',
-  hardest: 'Hardest',
+  newest: 'Найновіші',
+  popular: 'Найпопулярніші',
+  hardest: 'Найскладніші',
 };
 
 function categoryParam(value: string | null): TestCategory | '' {
@@ -177,12 +177,12 @@ export function TestListPage({
     <>
       <div className={pageHeadingClass}>
         <div>
-          <Eyebrow>{mine ? 'Authoring' : 'Discover'}</Eyebrow>
-          <h1 className={h1Class}>{mine ? 'My tests' : 'Browse tests'}</h1>
+          <Eyebrow>{mine ? 'Авторство' : 'Пошук'}</Eyebrow>
+          <h1 className={h1Class}>{mine ? 'Мої тести' : 'Огляд тестів'}</h1>
         </div>
         {mine && (
           <Link className={`${btnPrimaryClass} shrink-0`} to="/tests/new">
-            Create test
+            Створити тест
           </Link>
         )}
       </div>
@@ -194,23 +194,23 @@ export function TestListPage({
           onSubmit={(event) => event.preventDefault()}
         >
           <label className={fieldClass}>
-            Search tests
+            Пошук тестів
             <input
               type="search"
-              placeholder="Search by title or description…"
+              placeholder="Шукати за назвою або описом…"
               value={query}
               onChange={(event) => updateQuery(event.target.value)}
               className={inputClass}
             />
           </label>
           <label className={fieldClass}>
-            Category
+            Категорія
             <select
               value={category}
               onChange={(event) => updateCategory(event.target.value as TestCategory | '')}
               className={inputClass}
             >
-              <option value="">All categories</option>
+              <option value="">Усі категорії</option>
               {testCategories.map((value) => (
                 <option key={value} value={value}>
                   {categoryLabels[value]}
@@ -219,13 +219,13 @@ export function TestListPage({
             </select>
           </label>
           <label className={fieldClass}>
-            Difficulty
+            Складність
             <select
               value={difficulty}
               onChange={(event) => updateDifficulty(event.target.value as Difficulty | '')}
               className={inputClass}
             >
-              <option value="">Any difficulty</option>
+              <option value="">Будь-яка складність</option>
               {difficulties.map((value) => (
                 <option key={value} value={value}>
                   {difficultyLabels[value]}
@@ -234,7 +234,7 @@ export function TestListPage({
             </select>
           </label>
           <label className={fieldClass}>
-            Sort by
+            Сортувати за
             <select
               value={sort}
               onChange={(event) => updateSort(event.target.value as TestListSort | '')}
@@ -242,45 +242,47 @@ export function TestListPage({
             >
               {(['', ...testListSorts] as const).map((value) => (
                 <option key={value} value={value}>
-                  {value === '' ? 'Newest' : sortLabels[value]}
+                  {value === '' ? 'Найновіші' : sortLabels[value]}
                 </option>
               ))}
             </select>
           </label>
         </form>
       )}
-      {state === 'loading' && <LoadingState text="Loading tests..." />}
-      {state === 'error' && <Alert variant="error">Tests could not be loaded. Try again.</Alert>}
+      {state === 'loading' && <LoadingState text="Завантаження тестів..." />}
+      {state === 'error' && (
+        <Alert variant="error">Не вдалося завантажити тести. Спробуйте ще раз.</Alert>
+      )}
       {state === 'ready' &&
         (tests.length === 0 && isFiltering ? (
           <>
-            <Alert variant="info">No tests match your search.</Alert>
+            <Alert variant="info">За вашим пошуком нічого не знайдено.</Alert>
             <button type="button" className={btnQuietClass} onClick={clearFilters}>
-              Clear filters
+              Очистити фільтри
             </button>
           </>
         ) : tests.length === 0 && page > 1 ? (
           <>
-            <Alert variant="info">No tests on this page.</Alert>
+            <Alert variant="info">На цій сторінці тестів немає.</Alert>
             <button type="button" className={btnQuietClass} onClick={() => setPage(1)}>
-              Go to first page
+              На першу сторінку
             </button>
           </>
         ) : (
           <TestList tests={tests} mine={mine} />
         ))}
       {filterable && state === 'ready' && (
-        <nav aria-label="Test pages" className="mt-6 flex flex-wrap items-center gap-3">
+        <nav aria-label="Сторінки тестів" className="mt-6 flex flex-wrap items-center gap-3">
           <button
             type="button"
             className={btnSecondaryClass}
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
           >
-            Previous
+            Назад
           </button>
           <p role="status" className="mb-0 text-[0.9rem] text-muted">
-            Page {page} of {totalPages}
+            Сторінка {page} з {totalPages}
           </p>
           <button
             type="button"
@@ -288,7 +290,7 @@ export function TestListPage({
             disabled={page >= totalPages}
             onClick={() => setPage(page + 1)}
           >
-            Next
+            Далі
           </button>
         </nav>
       )}

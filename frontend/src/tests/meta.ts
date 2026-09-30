@@ -13,13 +13,13 @@ export const categoryLabels: Record<TestCategory, string> = {
   go: 'Go',
   rust: 'Rust',
   sql: 'SQL',
-  math: 'Math',
-  physics: 'Physics',
-  other: 'Other',
+  math: 'Математика',
+  physics: 'Фізика',
+  other: 'Інше',
 };
 
 export const difficultyLabels: Record<Difficulty, string> = {
-  easy: 'Easy',
-  medium: 'Medium',
-  hard: 'Hard',
+  easy: 'Легко',
+  medium: 'Середньо',
+  hard: 'Складно',
 };

@@ -46,11 +46,11 @@ describe('attempt limits and option shuffling in the editor', () => {
       wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
     });
 
-    await user.type(screen.getByLabelText('Title'), 'Limited test');
-    await user.type(screen.getByLabelText(/^Max attempts/), '3');
-    await user.type(screen.getByLabelText(/^Questions per attempt/), '10');
-    await user.click(screen.getByLabelText('Shuffle answer options for each attempt'));
-    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await user.type(screen.getByLabelText('Назва'), 'Limited test');
+    await user.type(screen.getByLabelText(/^Макс. спроб/), '3');
+    await user.type(screen.getByLabelText(/^Питань на спробу/), '10');
+    await user.click(screen.getByLabelText('Перемішувати варіанти відповідей для кожної спроби'));
+    await user.click(screen.getByRole('button', { name: 'Зберегти дані тесту' }));
 
     await waitFor(() =>
       expect(payload).toMatchObject({
@@ -75,8 +75,8 @@ describe('attempt limits and option shuffling in the editor', () => {
       wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter>,
     });
 
-    await user.type(screen.getByLabelText('Title'), 'Unlimited test');
-    await user.click(screen.getByRole('button', { name: 'Save test details' }));
+    await user.type(screen.getByLabelText('Назва'), 'Unlimited test');
+    await user.click(screen.getByRole('button', { name: 'Зберегти дані тесту' }));
 
     await waitFor(() =>
       expect(payload).toMatchObject({
@@ -100,9 +100,11 @@ describe('attempt limits and option shuffling in the editor', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByLabelText(/^Max attempts/)).toHaveValue(5);
-    expect(screen.getByLabelText(/^Questions per attempt/)).toHaveValue(2);
-    expect(screen.getByLabelText('Shuffle answer options for each attempt')).toBeChecked();
+    expect(await screen.findByLabelText(/^Макс. спроб/)).toHaveValue(5);
+    expect(screen.getByLabelText(/^Питань на спробу/)).toHaveValue(2);
+    expect(
+      screen.getByLabelText('Перемішувати варіанти відповідей для кожної спроби'),
+    ).toBeChecked();
   });
 });
 
@@ -127,18 +129,18 @@ describe('test detail meta for attempt settings', () => {
   it('mentions the attempt limit, shuffled options, and question count when set', async () => {
     renderDetail({ maxAttempts: 3, shuffleOptions: true, questionCount: 10 });
 
-    const meta = await screen.findByText(/Max 3 attempts/);
-    expect(meta).toHaveTextContent('Shuffled options');
-    expect(meta).toHaveTextContent('10 questions per attempt');
+    const meta = await screen.findByText(/Макс. 3 спроб/);
+    expect(meta).toHaveTextContent('Перемішані варіанти');
+    expect(meta).toHaveTextContent('10 питань на спробу');
   });
 
   it('omits the settings that are unset', async () => {
     renderDetail({});
 
-    const meta = await screen.findByText(/No time limit/);
-    expect(meta).not.toHaveTextContent('attempts');
-    expect(meta).not.toHaveTextContent('Shuffled options');
-    expect(meta).not.toHaveTextContent('per attempt');
+    const meta = await screen.findByText(/Без ліміту часу/);
+    expect(meta).not.toHaveTextContent('спроб');
+    expect(meta).not.toHaveTextContent('Перемішані варіанти');
+    expect(meta).not.toHaveTextContent('на спробу');
   });
 });
 
@@ -182,6 +184,6 @@ describe('attempt limit on the taking page', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Attempt limit reached.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Вичерпано ліміт спроб.');
   });
 });

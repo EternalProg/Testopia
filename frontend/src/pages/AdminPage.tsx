@@ -20,6 +20,7 @@ import {
   h2Class,
   inputClass,
 } from '../components/ui.js';
+import { serverErrorMessage } from '../i18n/uk.js';
 import { TestApiError, testsApi } from '../tests/api.js';
 import type { TestListItem } from '../tests/types.js';
 
@@ -27,17 +28,23 @@ type SectionState = 'loading' | 'ready' | 'error';
 
 function roleChangeMessage(reason: unknown): string {
   if (reason instanceof AdminApiError) {
-    return reason.payload.message ?? 'This role could not be changed.';
+    return serverErrorMessage(
+      reason.payload.error,
+      reason.payload.message ?? 'Не вдалося змінити роль.',
+    );
   }
-  return 'This role could not be changed.';
+  return 'Не вдалося змінити роль.';
 }
 
 function deleteMessage(reason: unknown): string {
   if (reason instanceof TestApiError) {
-    if (reason.status === 409) return 'Cannot delete a test with attempts.';
-    return reason.payload.message ?? 'This test could not be deleted.';
+    if (reason.status === 409) return 'Не можна видалити тест, у якого є спроби.';
+    return serverErrorMessage(
+      reason.payload.error,
+      reason.payload.message ?? 'Не вдалося видалити тест.',
+    );
   }
-  return 'This test could not be deleted.';
+  return 'Не вдалося видалити тест.';
 }
 
 export function AdminPage() {
@@ -69,8 +76,8 @@ export function AdminPage() {
         if (!active) return;
         setUsersError(
           reason instanceof AdminApiError && reason.status === 403
-            ? 'Only admins can manage users.'
-            : 'Users could not be loaded.',
+            ? 'Користувачами можуть керувати лише адміни.'
+            : 'Не вдалося завантажити користувачів.',
         );
         setUserState('error');
       });
@@ -96,8 +103,8 @@ export function AdminPage() {
         if (!active) return;
         setTestsError(
           reason instanceof TestApiError && reason.status === 403
-            ? 'Only admins can manage tests.'
-            : 'Tests could not be loaded.',
+            ? 'Тестами можуть керувати лише адміни.'
+            : 'Не вдалося завантажити тести.',
         );
         setTestState('error');
       });
@@ -141,10 +148,10 @@ export function AdminPage() {
       modal={
         deleting ? (
           <ConfirmDialog
-            title="Delete test"
-            description={`Delete "${deleting.title}"? This cannot be undone.`}
-            confirmLabel={deletePending ? 'Deleting...' : 'Delete test'}
-            cancelLabel="Keep test"
+            title="Видалення тесту"
+            description={`Видалити «${deleting.title}»? Це не можна буде скасувати.`}
+            confirmLabel={deletePending ? 'Видалення...' : 'Видалити тест'}
+            cancelLabel="Залишити тест"
             busy={deletePending}
             onConfirm={() => void removeTest()}
             onCancel={() => {
@@ -155,12 +162,12 @@ export function AdminPage() {
         ) : undefined
       }
     >
-      <Eyebrow>Administration</Eyebrow>
-      <h1 className={h1Class}>Admin</h1>
+      <Eyebrow>Адміністрування</Eyebrow>
+      <h1 className={h1Class}>Адмін</h1>
 
       <section className={`${cardClass} p-[26px]`}>
-        <h2 className={h2Class}>Users</h2>
-        {userState === 'loading' && <LoadingState text="Loading users..." />}
+        <h2 className={h2Class}>Користувачі</h2>
+        {userState === 'loading' && <LoadingState text="Завантаження користувачів..." />}
         {userState === 'error' && <Alert variant="error">{usersError}</Alert>}
         {userState === 'ready' && (
           <>
@@ -172,16 +179,16 @@ export function AdminPage() {
                     Id
                   </th>
                   <th scope="col" className="py-2 pr-3 font-bold">
-                    Email
+                    Пошта
                   </th>
                   <th scope="col" className="py-2 pr-3 font-bold">
-                    Username
+                    Імʼя користувача
                   </th>
                   <th scope="col" className="py-2 pr-3 font-bold">
-                    Role
+                    Роль
                   </th>
                   <th scope="col" className="py-2 font-bold">
-                    Created
+                    Створено
                   </th>
                 </tr>
               </thead>
@@ -195,9 +202,9 @@ export function AdminPage() {
                       <td className="py-2 pr-3 text-[0.9rem] text-ink">{row.username}</td>
                       <td className="py-2 pr-3">
                         <label className={fieldClass}>
-                          <span className="sr-only">{`Role for ${row.username}`}</span>
+                          <span className="sr-only">{`Роль користувача ${row.username}`}</span>
                           <select
-                            aria-label={`Role for ${row.username}`}
+                            aria-label={`Роль користувача ${row.username}`}
                             className={`${inputClass} max-w-[160px] py-1.5`}
                             value={row.role}
                             disabled={own || roleId === row.id}
@@ -207,14 +214,14 @@ export function AdminPage() {
                           >
                             {userRoles.map((role) => (
                               <option key={role} value={role}>
-                                {role}
+                                {role === 'admin' ? 'Адмін' : 'Користувач'}
                               </option>
                             ))}
                           </select>
                         </label>
                       </td>
                       <td className="py-2 text-[0.9rem] text-muted">
-                        {new Date(row.createdAt).toLocaleDateString()}
+                        {new Date(row.createdAt).toLocaleDateString('uk-UA')}
                       </td>
                     </tr>
                   );
@@ -222,19 +229,19 @@ export function AdminPage() {
               </tbody>
             </table>
             <p className="mb-0 mt-3 text-[0.83rem] text-muted">
-              Your own row is locked: an admin cannot change their own role.
+              Ваш власний рядок заблоковано: адмін не може змінити власну роль.
             </p>
           </>
         )}
       </section>
 
       <section className={`${cardClass} mt-7 p-[26px]`}>
-        <h2 className={h2Class}>Tests</h2>
-        {testState === 'loading' && <LoadingState text="Loading tests..." />}
+        <h2 className={h2Class}>Тести</h2>
+        {testState === 'loading' && <LoadingState text="Завантаження тестів..." />}
         {testState === 'error' && <Alert variant="error">{testsError}</Alert>}
         {testState === 'ready' &&
           (tests.length === 0 ? (
-            <EmptyState text="No tests yet." role="status" />
+            <EmptyState text="Тестів поки немає." role="status" />
           ) : (
             <ul className="m-0 grid list-none gap-3 p-0">
               {tests.map((test) => (
@@ -247,7 +254,7 @@ export function AdminPage() {
                       {test.title}
                     </Link>
                     <p className="mb-0 text-[0.85rem] text-faint">
-                      #{test.id} · {test.isPublished ? 'Published' : 'Draft'}
+                      #{test.id} · {test.isPublished ? 'Опубліковано' : 'Чернетка'}
                     </p>
                   </div>
                   <button
@@ -258,7 +265,7 @@ export function AdminPage() {
                       setDeleting(test);
                     }}
                   >
-                    Delete
+                    Видалити
                   </button>
                 </li>
               ))}
@@ -267,14 +274,14 @@ export function AdminPage() {
         {deleteError && <Alert variant="error">{deleteError}</Alert>}
         {testState === 'ready' && tests.length > 0 && (
           <p className="mb-0 mt-3 text-[0.83rem] text-muted">
-            Deleting a test is refused once it has attempts.
+            Видалити тест не можна, якщо в нього є спроби.
           </p>
         )}
       </section>
 
       <p className="mt-6">
         <Link to="/dashboard" className={btnSecondaryClass}>
-          Back to dashboard
+          Назад до панелі
         </Link>
       </p>
     </TestLayout>

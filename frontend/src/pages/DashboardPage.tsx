@@ -9,9 +9,9 @@ export function DashboardPage() {
   return (
     <TestLayout>
       <section className="mb-2">
-        <Eyebrow>Dashboard</Eyebrow>
+        <Eyebrow>Панель</Eyebrow>
         <h1 className={h1Class}>Testopia</h1>
-        <p className={ledeClass}>Welcome, {user?.username}.</p>
+        <p className={ledeClass}>Вітаємо, {user?.username}.</p>
       </section>
       <TestListPage mine={Boolean(user)} withLayout={false} filterable={false} />
       <MyStatisticsSection />

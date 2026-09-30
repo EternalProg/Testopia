@@ -118,13 +118,13 @@ describe('TakeTestPage', () => {
     mockAttemptFlow();
     renderTakePage();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Starting your attempt');
+    expect(screen.getByRole('status')).toHaveTextContent('Розпочинаємо вашу спробу');
     expect(await screen.findByRole('heading', { name: 'What is 2 + 2?' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Далі' }));
     expect(await screen.findByRole('heading', { name: 'Pick even numbers' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Question 1' }));
+    await user.click(screen.getByRole('button', { name: 'Питання 1' }));
     expect(await screen.findByRole('heading', { name: 'What is 2 + 2?' })).toBeInTheDocument();
   });
 
@@ -143,20 +143,20 @@ describe('TakeTestPage', () => {
     await screen.findByRole('heading', { name: 'What is 2 + 2?' });
 
     await user.click(screen.getByLabelText('4'));
-    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Далі' }));
     await user.click(screen.getByLabelText('2'));
     await user.click(screen.getByLabelText('4'));
-    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Далі' }));
     await user.click(screen.getByLabelText('True'));
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    await user.type(screen.getByLabelText('Your answer'), 'Because it is.');
+    await user.click(screen.getByRole('button', { name: 'Далі' }));
+    await user.type(screen.getByLabelText('Ваша відповідь'), 'Because it is.');
 
-    await user.click(screen.getByRole('button', { name: /Submit test/ }));
-    const dialog = await screen.findByRole('alertdialog', { name: 'Confirm submission' });
-    await user.click(within(dialog).getByRole('button', { name: 'Confirm submit' }));
+    await user.click(screen.getByRole('button', { name: /Завершити тест/ }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Підтвердження надсилання' });
+    await user.click(within(dialog).getByRole('button', { name: 'Підтвердити' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Your answers were submitted' }),
+      await screen.findByRole('heading', { name: 'Ваші відповіді надіслано' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('75%');
     await waitFor(() =>
@@ -176,8 +176,8 @@ describe('TakeTestPage', () => {
     renderTakePage();
     await screen.findByRole('heading', { name: 'What is 2 + 2?' });
 
-    expect(await screen.findByRole('timer', { name: 'Time remaining' })).toHaveTextContent(
-      /Time left/,
+    expect(await screen.findByRole('timer', { name: 'Залишок часу' })).toHaveTextContent(
+      /Залишилось/,
     );
   });
 
@@ -193,8 +193,8 @@ describe('TakeTestPage', () => {
     renderTakePage();
 
     expect(await screen.findByRole('heading', { name: 'Algebra basics' })).toBeInTheDocument();
-    expect(await screen.findByRole('timer', { name: 'Time remaining' })).toHaveTextContent(
-      /Time left/,
+    expect(await screen.findByRole('timer', { name: 'Залишок часу' })).toHaveTextContent(
+      /Залишилось/,
     );
   });
 
@@ -216,11 +216,11 @@ describe('TakeTestPage', () => {
     await screen.findByRole('heading', { name: 'What is 2 + 2?' });
 
     await user.click(screen.getByLabelText('4'));
-    await user.click(screen.getByRole('button', { name: /Submit test/ }));
-    const dialog = await screen.findByRole('alertdialog', { name: 'Confirm submission' });
-    await user.click(within(dialog).getByRole('button', { name: 'Confirm submit' }));
+    await user.click(screen.getByRole('button', { name: /Завершити тест/ }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Підтвердження надсилання' });
+    await user.click(within(dialog).getByRole('button', { name: 'Підтвердити' }));
 
-    expect(await screen.findByRole('heading', { name: 'Your time ran out' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ваш час вийшов' })).toBeInTheDocument();
   });
 
   it('shows the hidden-answers state when the author hides results', async () => {
@@ -236,15 +236,15 @@ describe('TakeTestPage', () => {
     await screen.findByRole('heading', { name: 'What is 2 + 2?' });
 
     await user.click(screen.getByLabelText('4'));
-    await user.click(screen.getByRole('button', { name: /Submit test/ }));
-    const dialog = await screen.findByRole('alertdialog', { name: 'Confirm submission' });
-    await user.click(within(dialog).getByRole('button', { name: 'Confirm submit' }));
+    await user.click(screen.getByRole('button', { name: /Завершити тест/ }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Підтвердження надсилання' });
+    await user.click(within(dialog).getByRole('button', { name: 'Підтвердити' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Your answers were submitted' }),
+      await screen.findByRole('heading', { name: 'Ваші відповіді надіслано' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('hidden the answers');
-    expect(screen.getByRole('link', { name: 'View detailed result' })).toHaveAttribute(
+    expect(screen.getByRole('status')).toHaveTextContent('приховав відповіді');
+    expect(screen.getByRole('link', { name: 'Детальний результат' })).toHaveAttribute(
       'href',
       '/attempts/5/result',
     );
