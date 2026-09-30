@@ -1,6 +1,26 @@
-node_modules
-dist
-coverage
+# dependencies (recursive - covers backend/, frontend/, shared/ too)
+**/node_modules
+# build outputs - rebuilt inside Docker via `npm run build`
+**/dist
+**/coverage
+**/.vite
+# git / CI / hooks
 .git
+.github
+.husky
+.vscode
+.idea
+# secrets / logs
 .env
+.env.*
+!.env.example
 *.log
+# heavy dirs, not COPY'd by backend/frontend Dockerfiles
+# (docker/mysql init is mounted as volume, not COPY'd)
+documents/
+report/
+# root docs / meta, not needed for build
+/*.md
+eslint.config.mjs
+.prettierrc.json
+.lintstagedrc.json
