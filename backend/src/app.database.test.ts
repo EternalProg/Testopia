@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const poolEnd = vi.fn();
 const redisQuit = vi.fn().mockResolvedValue('OK');
@@ -62,8 +67,19 @@ describe('database plugin integration', () => {
     expect(existsSync(join(options.migrationsFolder, '0001_mighty_zarek.sql'))).toBe(true);
   });
 
-  it('includes migration assets in the compiled backend runtime', () => {
-    const runtimeMigrationsFolder = join(process.cwd(), 'dist/db/migrations');
+  it('includes migration assets in the compiled backend runtime', async () => {
+    // backend/dist is gitignored and only appears after `npm run build`
+    // (tsc + scripts/copy-migrations.mjs). Bare `vitest` runs skip the
+    // `pretest` build, so establish the same precondition with the real
+    // packaging script instead of depending on execution order.
+    const backendRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const runtimeMigrationsFolder = join(backendRoot, 'dist/db/migrations');
+
+    if (!existsSync(join(runtimeMigrationsFolder, '0001_mighty_zarek.sql'))) {
+      await execFileAsync(process.execPath, [join(backendRoot, 'scripts/copy-migrations.mjs')], {
+        cwd: backendRoot,
+      });
+    }
 
     expect(existsSync(join(runtimeMigrationsFolder, '0001_mighty_zarek.sql'))).toBe(true);
     expect(existsSync(join(runtimeMigrationsFolder, 'meta/_journal.json'))).toBe(true);
