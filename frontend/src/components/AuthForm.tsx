@@ -72,7 +72,7 @@ export function AuthForm({ mode, onSuccess }: AuthFormProps) {
           <input
             name="username"
             autoComplete="username"
-            placeholder="напр. ada_lovelace"
+            placeholder="напр. User2026"
             value={values.username}
             onChange={(event) => update('username', event.target.value)}
             aria-invalid={Boolean(errors.username)}
