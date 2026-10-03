@@ -38,9 +38,11 @@ export function TestDetailPage() {
   }, [id]);
 
   const canManage = !!user && (user.id === detail?.test.authorId || user.role === 'admin');
-  // The author can hide the preview: outsiders see the questions only after
-  // starting an attempt, while the author and admins always see them here.
-  const previewHidden = !!detail && !detail.test.showQuestionsBeforeStart && !canManage;
+  // Hiding the preview hides it for everyone on this page (including the
+  // author and admins): outsiders see the questions only after starting an
+  // attempt. Managers can still review/edit via the editor, which loads the
+  // full question bank.
+  const previewHidden = !!detail && !detail.test.showQuestionsBeforeStart;
   const now = Date.now();
   const fromTime = detail?.test.availableFrom
     ? new Date(detail.test.availableFrom).getTime()
